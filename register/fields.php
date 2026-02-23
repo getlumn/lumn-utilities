@@ -127,6 +127,9 @@ function lumn_ut_register_utilites_fields() {
     register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_appointments');
     add_settings_field('lumn_social_url_appointments', 'Appointments', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_appointments', 'item' => 'appointments', 'placeholder_url' => '/request-an-appointment'));
 
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_payments');
+    add_settings_field('lumn_social_url_payments', 'Payments', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_payments', 'item' => 'payments', 'placeholder_url' => 'https://www.example.com/'));
+
     register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_facebook');
     add_settings_field('lumn_social_url_facebook', 'Facebook', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_facebook', 'item' => 'facebook', 'placeholder_url' => 'https://www.facebook.com/example/'));
 

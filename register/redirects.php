@@ -7,6 +7,7 @@ function lumn_ut_social_url_redirects() {
 
 	// Define the redirects
 	$redirects = array(
+		'lumn-social-url-payments' => get_option('lumn_social_url_payments'),
 		'lumn-social-url-appointments' => get_option('lumn_social_url_appointments'),
 		'lumn-social-url-facebook' => get_option('lumn_social_url_facebook'),
 		'lumn-social-url-google' => get_option('lumn_social_url_google'),
