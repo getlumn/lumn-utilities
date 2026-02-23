@@ -40,17 +40,17 @@ function lumn_ut_check_html_tag_value($value) {
 
 // Add a menu item to the admin dashboard
 function lumn_ut_shortcode_settings_add_admin_menu() {
-    add_menu_page('LUMN Utilites 2', 'LUMN Utilites 2', 'edit_pages', 'lumn-ut-2-shortcode-settings', '', lumn_ut_svg_to_base64('svgs/lumn-fish.svg'), 26);
-    add_submenu_page('lumn-ut-2-shortcode-settings', 'LUMN Shortcodes', 'LUMN Shortcodes', 'edit_pages', 'lumn-ut-2-shortcode-settings', 'Lumn\Utilities\lumn_ut_shortcode_settings_options_page_callback');
+    add_menu_page('LUMN Utilites', 'LUMN Utilites', 'edit_pages', 'lumn-ut-shortcode-settings', '', lumn_ut_svg_to_base64('svgs/lumn-fish.svg'), 26);
+    add_submenu_page('lumn-ut-shortcode-settings', 'LUMN Shortcodes', 'LUMN Shortcodes', 'edit_pages', 'lumn-ut-shortcode-settings', 'Lumn\Utilities\lumn_ut_shortcode_settings_options_page_callback');
 }
 add_action('admin_menu', 'Lumn\Utilities\lumn_ut_shortcode_settings_add_admin_menu');
 
 // Define the shortcode settings options page
 function lumn_ut_shortcode_settings_options_page_callback() {
     ?>
-    <div class="lumn-ut-2-admin-settings-wrap wrap">
+    <div class="lumn-ut-admin-settings-wrap wrap">
         <h2><?php echo get_admin_page_title(); ?></h2>
-        <form class="lumn-ut-2-admin-settings-form" method="post" action="options.php">
+        <form class="lumn-ut-admin-settings-form" method="post" action="options.php">
             <?php
                 settings_errors();
                 settings_fields('lumn_ut_shortcode_settings');
