@@ -1,0 +1,6 @@
+.lumn-google-map-container {
+    position: relative;
+}
+.lumn-google-map-container iframe {
+    width: 100%;
+}
