@@ -1,12 +1,12 @@
 <?php
-namespace Lumn\Utilities2;
+namespace Lumn\Utilities;
 
-function lumn_ut_2_register_utilites_sections() {
+function lumn_ut_register_utilites_sections() {
     // Register practice information section
-    add_settings_section('lumn_ut_2_practice_info_section', 'General Business Information', 'Lumn\Utilities2\lumn_ut_2_practice_info_section_callback', 'lumn_ut_2_shortcode_settings', array('before_section' => '<section class="%s">', 'after_section' => '</section>', 'section_class' => 'lumn-ut-2-admin-settings-section practice-info-shortcodes has-submit-button'));
+    add_settings_section('lumn_ut_practice_info_section', 'General Business Information', 'Lumn\Utilities\lumn_ut_practice_info_section_callback', 'lumn_ut_shortcode_settings', array('before_section' => '<section class="%s">', 'after_section' => '</section>', 'section_class' => 'lumn-ut-2-admin-settings-section practice-info-shortcodes has-submit-button'));
 
     // Callback function for the practice information section
-    function lumn_ut_2_practice_info_section_callback() {
+    function lumn_ut_practice_info_section_callback() {
         submit_button();
         echo '<div class="settings-container">';
         echo '<p>Enter the business information below:</p>';
@@ -26,10 +26,10 @@ function lumn_ut_2_register_utilites_sections() {
     }
 
     // Register practice address section
-    add_settings_section('lumn_ut_2_practice_address_section', 'Business Address', 'Lumn\Utilities2\lumn_ut_2_practice_address_section_callback', 'lumn_ut_2_shortcode_settings', array('before_section' => '<section class="%s">', 'after_section' => '</section>', 'section_class' => 'lumn-ut-2-admin-settings-section practice-address-shortcodes has-submit-button'));
+    add_settings_section('lumn_ut_practice_address_section', 'Business Address', 'Lumn\Utilities\lumn_ut_practice_address_section_callback', 'lumn_ut_shortcode_settings', array('before_section' => '<section class="%s">', 'after_section' => '</section>', 'section_class' => 'lumn-ut-2-admin-settings-section practice-address-shortcodes has-submit-button'));
 
     // Callback function for the practice address section
-    function lumn_ut_2_practice_address_section_callback() {
+    function lumn_ut_practice_address_section_callback() {
         submit_button();
         echo '<div class="settings-container">';
         echo '<p>Enter the business address info below:</p>';
@@ -59,10 +59,10 @@ function lumn_ut_2_register_utilites_sections() {
     }
 
     // Register practice hours section
-    add_settings_section('lumn_ut_2_practice_hours_section', 'Business Hours', 'Lumn\Utilities2\lumn_ut_2_practice_hours_section_callback', 'lumn_ut_2_shortcode_settings', array('before_section' => '<section class="%s">', 'after_section' => '</section>', 'section_class' => 'lumn-ut-2-admin-settings-section practice-hours-shortcodes has-submit-button'));
+    add_settings_section('lumn_ut_practice_hours_section', 'Business Hours', 'Lumn\Utilities\lumn_ut_practice_hours_section_callback', 'lumn_ut_shortcode_settings', array('before_section' => '<section class="%s">', 'after_section' => '</section>', 'section_class' => 'lumn-ut-2-admin-settings-section practice-hours-shortcodes has-submit-button'));
 
     // Callback function for the practice hours section
-    function lumn_ut_2_practice_hours_section_callback() {
+    function lumn_ut_practice_hours_section_callback() {
         submit_button();
         echo '<div class="settings-container">';
         echo '<p>Enter the business hours below:</p>';
@@ -95,10 +95,10 @@ function lumn_ut_2_register_utilites_sections() {
     }
 
     // Register social section
-    add_settings_section('lumn_ut_2_social_section', 'Social Links', 'Lumn\Utilities2\lumn_ut_2_social_section_callback', 'lumn_ut_2_shortcode_settings', array('before_section' => '<section class="%s">', 'after_section' => '</section>', 'section_class' => 'lumn-ut-2-admin-settings-section social-shortcodes has-submit-button'));
+    add_settings_section('lumn_ut_social_section', 'Social Links', 'Lumn\Utilities\lumn_ut_social_section_callback', 'lumn_ut_shortcode_settings', array('before_section' => '<section class="%s">', 'after_section' => '</section>', 'section_class' => 'lumn-ut-2-admin-settings-section social-shortcodes has-submit-button'));
 
     // Callback function for the social section
-    function lumn_ut_2_social_section_callback() {
+    function lumn_ut_social_section_callback() {
         submit_button();
         echo '<div class="settings-container">';
         echo '<p>Enter the social link URLs below:</p>';
@@ -117,10 +117,10 @@ function lumn_ut_2_register_utilites_sections() {
     }
 
     // Register other shortcodes Section
-    add_settings_section('lumn_ut_2_other_shortcodes_section', 'Other Shortcodes', 'Lumn\Utilities2\lumn_ut_2_other_shortcodes_section_callback', 'lumn_ut_2_shortcode_settings', array('before_section' => '<section class="%s">', 'after_section' => '</section>', 'section_class' => 'lumn-ut-2-admin-settings-section other-shortcodes'));
+    add_settings_section('lumn_ut_other_shortcodes_section', 'Other Shortcodes', 'Lumn\Utilities\lumn_ut_other_shortcodes_section_callback', 'lumn_ut_shortcode_settings', array('before_section' => '<section class="%s">', 'after_section' => '</section>', 'section_class' => 'lumn-ut-2-admin-settings-section other-shortcodes'));
 
     // Callback function for the other shortcodes
-    function lumn_ut_2_other_shortcodes_section_callback() {
+    function lumn_ut_other_shortcodes_section_callback() {
         echo '<h3>[lumn_copyright]</h3>';
         echo '<p>Used to output the copyright information for the site footer.</p>';
         echo '<div class="lumn-utilites-admin-accordion">';
@@ -170,7 +170,7 @@ function lumn_ut_2_register_utilites_sections() {
         echo '<div class="predefined-icons">';
 
         // Output all of the icons in the svgs folder
-        $directory = LUMN_UTILITIES_2_PLUGIN_PATH . 'svgs';
+        $directory = LUMN_UTILITIES_PLUGIN_PATH . 'svgs';
 
         // Get a list of all files in the directory
         $files = scandir($directory);
@@ -190,4 +190,4 @@ function lumn_ut_2_register_utilites_sections() {
     }
 
     }
-add_action('admin_init', 'Lumn\Utilities2\lumn_ut_2_register_utilites_sections');
+add_action('admin_init', 'Lumn\Utilities\lumn_ut_register_utilites_sections');

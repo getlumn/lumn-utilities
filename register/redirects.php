@@ -1,7 +1,7 @@
 <?php
-namespace Lumn\Utilities2;
+namespace Lumn\Utilities;
 
-function lumn_ut_2_social_url_redirects() {
+function lumn_ut_social_url_redirects() {
 	// Get the current URL path
 	$current_url = $_SERVER['REQUEST_URI'];
 
@@ -31,4 +31,4 @@ function lumn_ut_2_social_url_redirects() {
 }
 
 // Hook into template_redirect
-add_action('template_redirect', 'Lumn\Utilities2\lumn_ut_2_social_url_redirects');
+add_action('template_redirect', 'Lumn\Utilities\lumn_ut_social_url_redirects');

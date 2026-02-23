@@ -1,29 +1,29 @@
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form h2 {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form h2 {
 	font-size: 1.8em;
 	margin-top: 0;
 }
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form h3 {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form h3 {
 	font-size: 1.4em;
 }
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form h4 {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form h4 {
 	font-size: 1.2em;
 }
 
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form p {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form p {
 	margin-top: 0;
 	margin-bottom: 15px;
 }
 
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-social-icon-url {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-social-icon-url {
     display: none;
 }
 
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .social-icon-tr {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .social-icon-tr {
     display: none;
 }
 
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form input:not([type="checkbox"]):not([type="button"]):not([type="submit"]),
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form textarea
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form input:not([type="checkbox"]):not([type="button"]):not([type="submit"]),
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form textarea
 {
 	width: 300px;
 	max-width: calc(100% - 60px);
@@ -32,85 +32,85 @@
 	border: none;
 	margin-bottom: 5px;
 }
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form textarea {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form textarea {
 	height: 100px;
 }
 
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form input::placeholder {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form input::placeholder {
 	color: #bebebe;
 }
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form input::-ms-input-placeholder {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form input::-ms-input-placeholder {
 	color: #bebebe;
 }
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form textarea::placeholder {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form textarea::placeholder {
 	color: #bebebe;
 }
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form textarea::-ms-input-placeholder {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form textarea::-ms-input-placeholder {
 	color: #bebebe;
 }
 
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .predefined-icons {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .predefined-icons {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
 	gap: 15px;
 	justify-items: center;
 	text-align: center;
 }
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .predefined-icons .icon-wrap svg {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .predefined-icons .icon-wrap svg {
 	display: block;
 	margin: 5px auto 0 auto;
 	max-width: 50px;
 	height: auto;
 }
 
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-ut-2-admin-settings-section {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-ut-admin-settings-section {
 	background-color: #ddd;
 	padding: 30px;
 	margin-top: 30px;
 }
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-ut-2-admin-settings-section:first-of-type {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-ut-admin-settings-section:first-of-type {
 	margin-top: 26px;
 }
 
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-ut-2-admin-settings-section.has-submit-button {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-ut-admin-settings-section.has-submit-button {
 	display: flex;
 	flex-direction: column;
 }
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-ut-2-admin-settings-section.has-submit-button .submit {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-ut-admin-settings-section.has-submit-button .submit {
 	order: 1;
 	margin-bottom: 0;
 }
 
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-ut-2-admin-settings-section.other-shortcodes .form-table {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-ut-admin-settings-section.other-shortcodes .form-table {
 	display: none;
 }
 
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-utilites-table {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table {
 	border-collapse: collapse;
 	margin-bottom: 15px;
 }
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-utilites-table, 
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-utilites-table td, 
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-utilites-table th 
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table, 
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table td, 
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table th 
 {  
 	border: 1px solid #000;
 	text-align: left;
 }
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-utilites-table td,
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-utilites-table th
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table td,
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table th
 {
 	padding: 15px;
 }
 
 /* lumn-utilites-admin-accordion styles */
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-utilites-admin-accordion {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-admin-accordion {
     border: 1px solid #ddd;
     margin-bottom: 10px;
 	/* max-width: 600px; */
 	overflow: auto;
 }
 
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-utilites-admin-accordion-header {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-admin-accordion-header {
     background-color: #f5f5f5;
     color: #333;
 	font-weight: bold;
@@ -121,36 +121,36 @@
 	align-items: center;
 }
 
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-utilites-admin-accordion-header .minus {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-admin-accordion-header .minus {
 	display: none;
 }
 
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-utilites-admin-accordion-content {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-admin-accordion-content {
     display: none;
     padding: 15px;
 	background-color: #fff;
 }
 
 /* Toggle the lumn-utilites-admin-accordion content visibility on click */
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-utilites-admin-accordion.active .lumn-utilites-admin-accordion-content {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-admin-accordion.active .lumn-utilites-admin-accordion-content {
     display: block;
 	overflow: auto;
 }
 
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-utilites-admin-accordion.active .lumn-utilites-admin-accordion-header .minus {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-admin-accordion.active .lumn-utilites-admin-accordion-header .minus {
 	display: block;
 }
 
-.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-utilites-admin-accordion.active .lumn-utilites-admin-accordion-header .plus {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-admin-accordion.active .lumn-utilites-admin-accordion-header .plus {
 	display: none;
 }
 
 @media screen and (max-width: 782px) {
-	.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form .lumn-ut-2-admin-settings-section {
+	.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-ut-admin-settings-section {
 		padding: 15px;
 	}
-	.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form input:not([type="checkbox"]):not([type="button"]):not([type="submit"]),
-	.toplevel_page_lumn-ut-2-shortcode-settings .lumn-ut-2-admin-settings-form textarea
+	.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form input:not([type="checkbox"]):not([type="button"]):not([type="submit"]),
+	.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form textarea
 	{
 		width: 100%;
 		max-width: 100%;
