@@ -28,6 +28,9 @@ require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/shortcodes.php');
 // Register Redirects
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/redirects.php');
 
+// Register Settings
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/settings.php');
+
 // Enqueue admin scripts and styles
 function lumn_ut_admin_scripts() {
     wp_enqueue_style( 'lumn-ut-admin-styles', plugins_url( '/admin/admin-styles.css' , __FILE__ ));
