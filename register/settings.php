@@ -1,7 +1,7 @@
 <?php
 
-if (current_user_can('company_super_admin')) {
-  add_action('admin_menu', function () {
+add_action('admin_menu', function () {
+
     add_menu_page(
         'Manage Patterns',
         'Patterns',
@@ -11,5 +11,5 @@ if (current_user_can('company_super_admin')) {
         'dashicons-layout',
         61
     );
-  });
-}
+
+});
