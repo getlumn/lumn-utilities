@@ -183,8 +183,8 @@ function lumn_maintenance_page_callback() {
 
     $tasks = lumn_maintenance_get_tasks();
 
-    $webhook_url = esc_attr(get_option('lumn_maintenance_webhook_url', ''));
-    $api_key     = esc_attr(get_option('lumn_maintenance_api_key', ''));
+    $webhook_url = esc_attr(get_option('lumn_maintenance_webhook_url') ?: LUMN_MAINTENANCE_WEBHOOK_URL);
+    $api_key     = esc_attr(get_option('lumn_maintenance_api_key')     ?: LUMN_MAINTENANCE_API_KEY);
 
     $status_bg = array(
         'complete' => '#d4edda',
@@ -261,7 +261,7 @@ function lumn_maintenance_page_callback() {
         <hr style="margin: 40px 0;" />
 
         <h2>Google Sheets Integration Settings</h2>
-        <p>Configure a Google Apps Script webhook to sync maintenance status to a central Google Sheet.</p>
+        <p>Default values are pre-configured in the plugin and work automatically on every install. You can enter site-specific overrides below — leave blank to use the built-in defaults.</p>
 
         <form method="post" action="">
             <?php wp_nonce_field('lumn_maintenance_settings', 'lumn_maintenance_settings_nonce'); ?>

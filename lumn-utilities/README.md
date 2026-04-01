@@ -331,6 +331,8 @@ Only users with the `company_super_admin` role can see and use this feature. The
 
 The plugin can send maintenance status data from every WordPress site to a central Google Sheet via a webhook. This gives your team a single dashboard showing the maintenance health of all client sites.
 
+> **Default values are pre-configured.** The webhook URL and API key are baked into the plugin source as the constants `LUMN_MAINTENANCE_WEBHOOK_URL` and `LUMN_MAINTENANCE_API_KEY`. Every install syncs to the central LUMN sheet automatically — no per-site configuration is required. Per-site overrides can optionally be saved via **Maintenance > Google Sheets Integration Settings**; leave the fields blank to use the built-in defaults.
+
 ### Data Sent Per Sync
 
 | Field | Description |
@@ -380,13 +382,15 @@ Data is synced:
 4. Click **Deploy**.
 5. Copy the **Web App URL** shown after deployment.
 
-#### Step 4: Configure the WordPress Plugin
+#### Step 4: Configure the WordPress Plugin (optional)
+
+The plugin ships with default values already set for the central LUMN sheet, so this step is only needed if you want a site to sync to a **different** Google Sheet.
 
 1. In WordPress, go to **Maintenance** in the sidebar.
 2. Scroll down to **Google Sheets Integration Settings**.
 3. Paste the Web App URL into **Google Script Webhook URL**.
-4. Enter the same API key you set in the script into **API Key**.
-5. Click **Save Settings**.
+4. Enter the matching API key into **API Key**.
+5. Click **Save Settings**. Leave both fields blank to use the built-in defaults.
 
 #### Step 5: Verify
 

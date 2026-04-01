@@ -13,6 +13,11 @@ namespace Lumn\Utilities;
 // Define the plugin path
 define( 'LUMN_UTILITIES_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 
+// Maintenance module defaults — used automatically on every install.
+// Per-site overrides can be saved via Maintenance > Google Sheets Integration Settings.
+define( 'LUMN_MAINTENANCE_WEBHOOK_URL', 'https://script.google.com/a/macros/getlumn.com/s/AKfycbz-NuesdjceuFUPlEp-2d6d9M5yk3xwno056OmVn_Edf886m7qYMm-66zUTCYCUUGtw/exec' );
+define( 'LUMN_MAINTENANCE_API_KEY',     '0e21555311a8da05a81d894ebee8258e75aa522fcfbcbc28920d86bd5bf25bbe' );
+
 // Register Functions
 require_once(LUMN_UTILITIES_PLUGIN_PATH . 'register/functions.php');
 

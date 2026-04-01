@@ -19,8 +19,8 @@ namespace Lumn\Utilities;
  * Does nothing if the webhook URL is not configured.
  */
 function lumn_send_maintenance_to_sheet() {
-    $webhook_url = get_option('lumn_maintenance_webhook_url', '');
-    $api_key     = get_option('lumn_maintenance_api_key', '');
+    $webhook_url = get_option('lumn_maintenance_webhook_url') ?: LUMN_MAINTENANCE_WEBHOOK_URL;
+    $api_key     = get_option('lumn_maintenance_api_key')     ?: LUMN_MAINTENANCE_API_KEY;
 
     if (empty($webhook_url)) {
         return;
