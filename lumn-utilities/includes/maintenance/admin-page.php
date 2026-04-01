@@ -20,8 +20,8 @@ add_filter('user_has_cap', function ($allcaps, $caps, $args, $user) {
  */
 function lumn_maintenance_register_menu() {
     add_menu_page(
-        'Maintenance',
-        'Maintenance',
+        'LUMN Maintenance',
+        'LUMN Maintenance',
         'lumn_manage_maintenance',
         'lumn-maintenance',
         'Lumn\Utilities\lumn_maintenance_page_callback',
