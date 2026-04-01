@@ -1,0 +1,257 @@
+You are working inside an EXISTING WordPress plugin repository:
+
+GitHub Repo:
+https://github.com/getlumn/lumn-security
+
+⚠️ DO NOT create a new plugin
+⚠️ DO NOT restructure the entire codebase
+⚠️ ONLY extend the plugin with a new modular feature
+
+---
+
+# 🎯 OBJECTIVE
+
+Add a **Maintenance Checklist System** and integrate it with a **centralized Google Sheets dashboard via webhook**.
+
+All work must integrate cleanly into the existing plugin.
+
+---
+
+# 🧩 PART 1: MAINTENANCE CHECKLIST (WP ADMIN)
+
+## Permissions
+
+* Only users with role: `company_super_admin` can access
+* Hide menu and functionality from all other users
+
+---
+
+## Admin UI
+
+* Add a top-level menu item: **Maintenance**
+* Build a checklist table UI using native WordPress styles
+
+---
+
+## Tasks System
+
+Define default tasks in code:
+
+* Update plugins (monthly)
+* Remove unused plugins (monthly)
+* Verify reCAPTCHA is active (monthly)
+* Verify forms have valid email addresses (monthly)
+* Verify forms have reply-to configured (monthly)
+* Verify Formidable spam filters (monthly)
+* Verify LUMN Security Plugin installed & updated (monthly)
+* Run WordFence scan (monthly)
+* Update admin email to [dev@getlumn.com](mailto:dev@getlumn.com) (one-time)
+* Update copyright (yearly)
+* Check console log for errors (monthly)
+
+---
+
+## Data Model
+
+Each task must include:
+
+* id (slug)
+* label
+* interval (seconds; 0 = one-time)
+* last_checked (timestamp)
+* completed (boolean)
+
+Store using:
+`update_option('lumn_maintenance_tasks', $tasks)`
+
+---
+
+## Behavior
+
+* Display:
+
+  * Checkbox
+  * Last checked date
+  * Next due date
+* When checked:
+
+  * Save via AJAX (no reload)
+  * Update last_checked timestamp
+
+---
+
+## Reset Logic
+
+* If `time() > last_checked + interval`, mark incomplete
+* One-time tasks never reset
+
+---
+
+## UI Enhancements
+
+* Color-coded rows:
+
+  * Red = overdue
+  * Yellow = due within 7 days
+  * Green = completed
+
+---
+
+# 🌐 PART 2: GOOGLE SHEETS INTEGRATION
+
+## Goal
+
+Send maintenance summary data from each WordPress site to a Google Sheet using a webhook (Google Apps Script).
+
+---
+
+## Data to Send
+
+On sync, send:
+
+* site_url
+* total_tasks
+* incomplete_tasks
+* oldest_unchecked_task_timestamp
+* last_checked_timestamp (current time)
+* api_key (for authentication)
+
+---
+
+## Implementation
+
+Create a function:
+
+* `lumn_send_maintenance_to_sheet()`
+
+This function should:
+
+1. Load all tasks
+2. Calculate:
+
+   * total tasks
+   * number of incomplete tasks
+   * oldest unchecked task timestamp
+3. Send a POST request using `wp_remote_post()` to a configurable webhook URL
+
+---
+
+## Config Settings
+
+Add plugin settings for:
+
+* Google Script Webhook URL
+* API Key (shared secret)
+
+Store in WordPress options.
+
+---
+
+## Security
+
+* Include API key in payload
+* Do not send data if webhook URL is empty
+
+---
+
+## Triggering Sync
+
+Trigger sync:
+
+* On checklist update (after save)
+* AND via daily WP-Cron job
+
+Register cron event:
+
+* `lumn_daily_sync`
+
+---
+
+# 🧪 PART 3: GOOGLE APPS SCRIPT (GENERATE FILE)
+
+Create a file in the repo:
+
+`/docs/google-apps-script.js`
+
+This file must contain a ready-to-use Apps Script:
+
+Requirements:
+
+* Accept POST requests
+* Parse JSON payload
+* Validate API key
+* Insert or update a row by site_url
+* Columns:
+
+  * Site URL
+  * Total Tasks
+  * Incomplete Tasks
+  * Oldest Unchecked Task (as date)
+  * Last Updated
+
+Include clear setup instructions in comments:
+
+* How to deploy as Web App
+* How to connect to Google Sheet
+* How to set API key
+
+---
+
+# 🧱 IMPLEMENTATION RULES
+
+* Follow existing plugin architecture
+* Create a modular structure:
+  `/includes/maintenance/`
+* Prefix all functions with `lumn_`
+* Sanitize and escape all inputs/outputs
+* Use nonces for AJAX
+* Do not introduce heavy dependencies
+
+---
+
+# 🔁 GIT WORKFLOW
+
+You are working in a GitHub-connected Replit environment.
+
+* Create branch: `feature/maintenance-checklist`
+* Commit in logical chunks
+* Push branch to GitHub
+* Do NOT commit directly to main
+
+---
+
+# 📦 README UPDATES
+
+Update README with:
+
+## Maintenance Checklist
+
+* How to use it in WP admin
+
+## Google Sheets Integration
+
+* How to:
+
+  1. Create Google Sheet
+  2. Add Apps Script
+  3. Deploy webhook
+  4. Configure plugin settings
+
+---
+
+# 🚫 DO NOT
+
+* Do not rebuild the plugin
+* Do not modify unrelated features
+* Do not break backward compatibility
+* Do not add unnecessary frameworks
+
+---
+
+# 🎯 GOAL
+
+Seamlessly extend the existing plugin with:
+
+* A powerful internal maintenance checklist
+* A centralized Google Sheets dashboard via webhook
+* Minimal complexity and maximum reliability
