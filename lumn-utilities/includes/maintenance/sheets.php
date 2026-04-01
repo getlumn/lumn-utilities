@@ -4,6 +4,10 @@ namespace Lumn\Utilities;
 /**
  * Send maintenance summary data to the configured Google Sheets webhook.
  *
+ * Uses the reset-aware lumn_maintenance_get_tasks() loader so that counts
+ * accurately reflect any tasks whose intervals have elapsed since the last
+ * page view — important for correctness when called via WP-Cron.
+ *
  * Sends a POST request containing:
  *   - site_url
  *   - total_tasks
@@ -22,7 +26,8 @@ function lumn_send_maintenance_to_sheet() {
         return;
     }
 
-    $tasks = get_option('lumn_maintenance_tasks', array());
+    // Use reset-aware loader so stale completed flags are resolved before counting.
+    $tasks = lumn_maintenance_get_tasks();
 
     $total_tasks      = count($tasks);
     $incomplete_tasks = 0;
@@ -31,9 +36,10 @@ function lumn_send_maintenance_to_sheet() {
     foreach ($tasks as $task) {
         if (empty($task['completed'])) {
             $incomplete_tasks++;
-            if (!empty($task['last_checked']) && $task['last_checked'] > 0) {
-                if ($oldest_unchecked === 0 || $task['last_checked'] < $oldest_unchecked) {
-                    $oldest_unchecked = $task['last_checked'];
+            $last_ts = !empty($task['last_checked']) ? (int) $task['last_checked'] : 0;
+            if ($last_ts > 0) {
+                if ($oldest_unchecked === 0 || $last_ts < $oldest_unchecked) {
+                    $oldest_unchecked = $last_ts;
                 }
             }
         }

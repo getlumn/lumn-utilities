@@ -1,12 +1,5 @@
 jQuery(document).ready(function ($) {
 
-    var statusColors = {
-        complete: '#d4edda',
-        overdue:  '#f8d7da',
-        due_soon: '#fff3cd',
-        pending:  '#ffffff'
-    };
-
     $('.lumn-maintenance-checkbox').on('change', function () {
         var $checkbox = $(this);
         var taskId    = $checkbox.data('task-id');
@@ -22,14 +15,13 @@ jQuery(document).ready(function ($) {
             completed: completed ? '1' : '0'
         })
         .done(function (response) {
-            if (response.success) {
-                var newStatus = completed ? 'complete' : 'overdue';
-                $row.css('background-color', statusColors[newStatus]);
-                $row.find('.lumn-maintenance-status').text(completed ? 'Complete' : 'Overdue');
+            if (response.success && response.data) {
+                var d = response.data;
 
-                if (completed && response.data && response.data.last_checked) {
-                    $row.find('.lumn-maintenance-last-checked').text(response.data.last_checked);
-                }
+                $row.css('background-color', d.bg_color);
+                $row.find('.lumn-maintenance-status').text(d.status_label);
+                $row.find('.lumn-maintenance-last-checked').text(d.last_checked);
+                $row.find('.lumn-maintenance-next-due').text(d.next_due);
             } else {
                 $checkbox.prop('checked', !completed);
                 alert('Error saving task. Please try again.');
