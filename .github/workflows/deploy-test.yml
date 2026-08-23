@@ -1,0 +1,52 @@
+name: Deploy to Kinsta Test Environment
+
+# Development-only deployment pipeline.
+# Fires strictly on pushes to `test` — never touches `main` or production.
+on:
+  push:
+    branches:
+      - test
+
+# Prevent overlapping deploys if multiple commits land in quick succession.
+concurrency:
+  group: deploy-test
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy test branch to Kinsta
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout test branch
+        uses: actions/checkout@v7
+
+      - name: Resolve deployed commit
+        id: commit
+        run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.KINSTA_TEST_HOST }}
+          username: ${{ secrets.KINSTA_TEST_USERNAME }}
+          port: ${{ secrets.KINSTA_TEST_PORT }}
+          key: ${{ secrets.KINSTA_TEST_SSH_KEY }}
+          script_stop: true
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            cd ~/public/wp-content/plugins/lumn-utilities
+
+            echo "Fetching origin/test..."
+            git fetch origin test
+
+            echo "Resetting working tree to origin/test..."
+            git reset --hard origin/test
+            git clean -fd
+
+            echo "Deployed commit:"
+            git log -1 --oneline
+
+      - name: Report deployment
+        if: success()
+        run: echo "Deployed commit ${{ steps.commit.outputs.sha }} to the Kinsta test environment."
