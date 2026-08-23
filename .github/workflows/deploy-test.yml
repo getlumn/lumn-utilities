@@ -31,7 +31,6 @@ jobs:
           username: ${{ secrets.KINSTA_TEST_USERNAME }}
           port: ${{ secrets.KINSTA_TEST_PORT }}
           key: ${{ secrets.KINSTA_TEST_SSH_KEY }}
-          script_stop: true
           command_timeout: 5m
           script: |
             set -euo pipefail
