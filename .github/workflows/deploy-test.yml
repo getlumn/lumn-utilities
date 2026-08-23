@@ -35,15 +35,33 @@ jobs:
           command_timeout: 5m
           script: |
             set -euo pipefail
-            cd ~/public/wp-content/plugins/lumn-utilities
-
-            echo "Fetching origin/test..."
+            PLUGIN_DIR=~/public/wp-content/plugins/lumn-utilities
+            mkdir -p ~/.ssh
+            chmod 700 ~/.ssh
+            cat > ~/.ssh/lumn_utilities_deploy_key <<'DEPLOY_KEY'
+            ${{ secrets.KINSTA_TEST_GIT_DEPLOY_KEY }}
+            DEPLOY_KEY
+            chmod 600 ~/.ssh/lumn_utilities_deploy_key
+            if ! grep -q "^Host github-lumn-utilities$" ~/.ssh/config 2>/dev/null; then
+            printf '%s\n' "Host github-lumn-utilities" "  HostName github.com" "  User git" "  IdentityFile ~/.ssh/lumn_utilities_deploy_key" "  IdentitiesOnly yes" "  StrictHostKeyChecking accept-new" >> ~/.ssh/config
+            fi
+            chmod 600 ~/.ssh/config
+            if [ -d "$PLUGIN_DIR/.git" ]; then
+            echo "Existing git checkout found, updating..."
+            cd "$PLUGIN_DIR"
             git fetch origin test
-
-            echo "Resetting working tree to origin/test..."
             git reset --hard origin/test
             git clean -fd
-
+            else
+            echo "No git checkout found, performing first-time clone..."
+            mkdir -p ~/public/wp-content/plugins
+            if [ -d "$PLUGIN_DIR" ]; then
+            mv "$PLUGIN_DIR" "$PLUGIN_DIR.bak.$(date +%Y%m%d%H%M%S)"
+            fi
+            git clone git@github-lumn-utilities:getlumn/lumn-utilities.git "$PLUGIN_DIR"
+            cd "$PLUGIN_DIR"
+            git checkout test
+            fi
             echo "Deployed commit:"
             git log -1 --oneline
 
