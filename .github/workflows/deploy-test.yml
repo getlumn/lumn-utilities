@@ -61,6 +61,7 @@ jobs:
             cd "$PLUGIN_DIR"
             git checkout test
             fi
+            rm -rf ~/public/wp-content/plugins/lumn-utilities.bak.*
             echo "Deployed commit:"
             git log -1 --oneline
 
