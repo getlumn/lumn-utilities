@@ -31,6 +31,10 @@ require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/redirects.php');
 // Register Settings
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/settings.php');
 
+// Register Practice Locations
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'admin/locations-page.php');
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/locations.php');
+
 // Enqueue admin scripts and styles
 function lumn_ut_admin_scripts() {
     wp_enqueue_style( 'lumn-ut-admin-styles', plugins_url( '/admin/admin-styles.css' , __FILE__ ));
