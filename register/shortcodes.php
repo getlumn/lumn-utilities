@@ -19,67 +19,51 @@ function lumn_ut_site_name_shortcode( $atts = '' ) {
 }
 add_shortcode('lumn_site_name', 'Lumn\Utilities\lumn_ut_site_name_shortcode');
 
-// Define the [lumn_call] shortcode
-function lumn_ut_call_shortcode( $atts = '' ) {
+/**
+ * Shared implementation for the many single-field shortcodes below.
+ * Resolves $field_key through lumn_ut_get_location_field() (which already
+ * handles the no-locations legacy fallback), escapes it, and applies the
+ * optional html_tag wrapper - the exact same behavior each of these
+ * shortcodes had individually, minus the repetition. A blank/omitted
+ * `location` attribute resolves through the same fallback as before, so
+ * output is unchanged for every existing shortcode call.
+ */
+function lumn_ut_location_field_shortcode($field_key, $atts) {
     $value = shortcode_atts( array(
-        'html_tag' => '' // Wrap in an HTML tag
+        'html_tag' => '', // Wrap in an HTML tag
+        'location' => '' // '', 'primary', a slug, or a numeric location ID
     ), $atts );
 
-    $lumn_call = esc_html(get_option('lumn_call'));
+    $field_value = esc_html(lumn_ut_get_location_field($field_key, $value['location']));
 
     if ($value['html_tag'] && lumn_ut_check_html_tag_value($value['html_tag'])) {
-        return '<' . $value['html_tag'] . '>' . $lumn_call . '</' . $value['html_tag'] . '>';
+        return '<' . $value['html_tag'] . '>' . $field_value . '</' . $value['html_tag'] . '>';
     } else {
-        return $lumn_call;
+        return $field_value;
     }
+}
+
+// Define the [lumn_call] shortcode
+function lumn_ut_call_shortcode( $atts = '' ) {
+    return lumn_ut_location_field_shortcode('phone', $atts);
 }
 add_shortcode('lumn_call', 'Lumn\Utilities\lumn_ut_call_shortcode');
 
 // Define the [lumn_txt] shortcode
 function lumn_ut_txt_shortcode( $atts = '' ) {
-    $value = shortcode_atts( array(
-        'html_tag' => '' // Wrap in an HTML tag
-    ), $atts );
-
-    $lumn_txt = esc_html(get_option('lumn_txt'));
-
-    if ($value['html_tag'] && lumn_ut_check_html_tag_value($value['html_tag'])) {
-        return '<' . $value['html_tag'] . '>' . $lumn_txt . '</' . $value['html_tag'] . '>';
-    } else {
-        return $lumn_txt;
-    }
+    return lumn_ut_location_field_shortcode('text_phone', $atts);
 }
 add_shortcode('lumn_txt', 'Lumn\Utilities\lumn_ut_txt_shortcode');
 
 // Define the [lumn_fax] shortcode
 function lumn_ut_fax_shortcode( $atts = '' ) {
-    $value = shortcode_atts( array(
-        'html_tag' => '' // Wrap in an HTML tag
-    ), $atts );
-
-    $lumn_fax = esc_html(get_option('lumn_fax'));
-
-    if ($value['html_tag'] && lumn_ut_check_html_tag_value($value['html_tag'])) {
-        return '<' . $value['html_tag'] . '>' . $lumn_fax . '</' . $value['html_tag'] . '>';
-    } else {
-        return $lumn_fax;
-    }
+    return lumn_ut_location_field_shortcode('fax', $atts);
 }
 add_shortcode('lumn_fax', 'Lumn\Utilities\lumn_ut_fax_shortcode');
 
 // Define the [lumn_email] shortcode
 function lumn_ut_email_shortcode( $atts = '' ) {
-    $value = shortcode_atts( array(
-        'html_tag' => '' // Wrap in an HTML tag
-    ), $atts );
-
-    $lumn_email = esc_html(get_option('lumn_email'));
-
-    if ($value['html_tag'] && lumn_ut_check_html_tag_value($value['html_tag'])) {
-        return '<' . $value['html_tag'] . '>' . $lumn_email . '</' . $value['html_tag'] . '>';
-    } else {
-        return $lumn_email;
-    }
+    return lumn_ut_location_field_shortcode('email', $atts);
 }
 add_shortcode('lumn_email', 'Lumn\Utilities\lumn_ut_email_shortcode');
 
@@ -87,14 +71,15 @@ add_shortcode('lumn_email', 'Lumn\Utilities\lumn_ut_email_shortcode');
 function lumn_ut_address_shortcode( $atts = '' ) {
     $value = shortcode_atts( array(
         'singleline' => false, // Display the address on a single line
-        'html_tag' => '' // Wrap in an HTML tag
+        'html_tag' => '', // Wrap in an HTML tag
+        'location' => ''
     ), $atts );
 
-    $lumn_address_street = esc_html(get_option('lumn_address_street'));
-    $lumn_address_street2 = esc_html(get_option('lumn_address_street2'));
-    $lumn_address_city = esc_html(get_option('lumn_address_city'));
-    $lumn_address_state = esc_html(get_option('lumn_address_state'));
-    $lumn_address_zip = esc_html(get_option('lumn_address_zip'));
+    $lumn_address_street = esc_html(lumn_ut_get_location_field('address_street', $value['location']));
+    $lumn_address_street2 = esc_html(lumn_ut_get_location_field('address_street2', $value['location']));
+    $lumn_address_city = esc_html(lumn_ut_get_location_field('address_city', $value['location']));
+    $lumn_address_state = esc_html(lumn_ut_get_location_field('address_state', $value['location']));
+    $lumn_address_zip = esc_html(lumn_ut_get_location_field('address_zip', $value['location']));
 
     $address_parts = array_filter(array(
         $lumn_address_street,
@@ -122,91 +107,42 @@ add_shortcode('lumn_address', 'Lumn\Utilities\lumn_ut_address_shortcode');
 
 // Define the [lumn_address_street] shortcode
 function lumn_ut_address_street_shortcode( $atts = '' ) {
-    $value = shortcode_atts( array(
-        'html_tag' => '' // Wrap in an HTML tag
-    ), $atts );
-
-    $lumn_address_street = esc_html(get_option('lumn_address_street'));
-
-    if ($value['html_tag'] && lumn_ut_check_html_tag_value($value['html_tag'])) {
-        return '<' . $value['html_tag'] . '>' . $lumn_address_street . '</' . $value['html_tag'] . '>';
-    } else {
-        return $lumn_address_street;
-    }
+    return lumn_ut_location_field_shortcode('address_street', $atts);
 }
 add_shortcode('lumn_address_street', 'Lumn\Utilities\lumn_ut_address_street_shortcode');
 
 // Define the [lumn_address_street2] shortcode
 function lumn_ut_address_street2_shortcode( $atts = '' ) {
-    $value = shortcode_atts( array(
-        'html_tag' => '' // Wrap in an HTML tag
-    ), $atts );
-
-    $lumn_address_street2 = esc_html(get_option('lumn_address_street2'));
-
-    if ($value['html_tag'] && lumn_ut_check_html_tag_value($value['html_tag'])) {
-        return '<' . $value['html_tag'] . '>' . $lumn_address_street2 . '</' . $value['html_tag'] . '>';
-    } else {
-        return $lumn_address_street2;
-    }
+    return lumn_ut_location_field_shortcode('address_street2', $atts);
 }
 add_shortcode('lumn_address_street2', 'Lumn\Utilities\lumn_ut_address_street2_shortcode');
 
 // Define the [lumn_address_city] shortcode
 function lumn_ut_address_city_shortcode( $atts = '' ) {
-    $value = shortcode_atts( array(
-        'html_tag' => '' // Wrap in an HTML tag
-    ), $atts );
-
-    $lumn_address_city = esc_html(get_option('lumn_address_city'));
-
-    if ($value['html_tag'] && lumn_ut_check_html_tag_value($value['html_tag'])) {
-        return '<' . $value['html_tag'] . '>' . $lumn_address_city . '</' . $value['html_tag'] . '>';
-    } else {
-        return $lumn_address_city;
-    }
+    return lumn_ut_location_field_shortcode('address_city', $atts);
 }
 add_shortcode('lumn_address_city', 'Lumn\Utilities\lumn_ut_address_city_shortcode');
 
 // Define the [lumn_address_state] shortcode
 function lumn_ut_address_state_shortcode( $atts = '' ) {
-    $value = shortcode_atts( array(
-        'html_tag' => '' // Wrap in an HTML tag
-    ), $atts );
-
-    $lumn_address_state = esc_html(get_option('lumn_address_state'));
-
-    if ($value['html_tag'] && lumn_ut_check_html_tag_value($value['html_tag'])) {
-        return '<' . $value['html_tag'] . '>' . $lumn_address_state . '</' . $value['html_tag'] . '>';
-    } else {
-        return $lumn_address_state;
-    }
+    return lumn_ut_location_field_shortcode('address_state', $atts);
 }
 add_shortcode('lumn_address_state', 'Lumn\Utilities\lumn_ut_address_state_shortcode');
 
 // Define the [lumn_address_zip] shortcode
 function lumn_ut_address_zip_shortcode( $atts = '' ) {
-    $value = shortcode_atts( array(
-        'html_tag' => '' // Wrap in an HTML tag
-    ), $atts );
-
-    $lumn_address_zip = esc_html(get_option('lumn_address_zip'));
-
-    if ($value['html_tag'] && lumn_ut_check_html_tag_value($value['html_tag'])) {
-        return '<' . $value['html_tag'] . '>' . $lumn_address_zip . '</' . $value['html_tag'] . '>';
-    } else {
-        return $lumn_address_zip;
-    }
+    return lumn_ut_location_field_shortcode('address_zip', $atts);
 }
 add_shortcode('lumn_address_zip', 'Lumn\Utilities\lumn_ut_address_zip_shortcode');
 
 // Define the [lumn_map] shortcode
 function lumn_ut_map_shortcode( $atts = '' ) {
     $value = shortcode_atts( array(
-        'html_tag' => '' // Wrap in an HTML tag
+        'html_tag' => '', // Wrap in an HTML tag
+        'location' => ''
     ), $atts );
 
-    $lumn_map = get_option('lumn_map');
+    $lumn_map = lumn_ut_get_location_field('map', $value['location']);
 
     if ($value['html_tag'] && lumn_ut_check_html_tag_value($value['html_tag'])) {
         return '<' . $value['html_tag'] . '><div class="lumn-google-map-container">' . $lumn_map . '</div></' . $value['html_tag'] . '>';
@@ -223,7 +159,8 @@ function lumn_ut_hours_shortcode( $atts = '' ) {
         'html_tag' => '', // Wrap in an HTML tag
         'abbreviate' => false, // Abbreviate days of the week
         'grouped' => false, // Group consecutive days with the same hours
-        'hide_closed' => false // Hide days that are not set or set to 'Closed'
+        'hide_closed' => false, // Hide days that are not set or set to 'Closed'
+        'location' => ''
     ), $atts );
 
     // Ensure boolean values are correctly interpreted
@@ -235,7 +172,7 @@ function lumn_ut_hours_shortcode( $atts = '' ) {
     $lumn_ut_days_of_week = lumn_ut_get_days_of_week();
 
     foreach ($lumn_ut_days_of_week as $day) {
-        $hours[$day] = esc_html(get_option('lumn_hours_' . $day)) ?: 'Closed';
+        $hours[$day] = esc_html(lumn_ut_get_location_hours($day, $value['location'])) ?: 'Closed';
     }
 
     if ($value['grouped']) {
@@ -350,10 +287,11 @@ add_shortcode('lumn_hours', 'Lumn\Utilities\lumn_ut_hours_shortcode');
 foreach ($lumn_ut_days_of_week as $day) {
     add_shortcode('lumn_hours_' . $day, function($atts = '') use ($day) {
         $value = shortcode_atts(array(
-            'html_tag' => '' // Wrap in an HTML tag
+            'html_tag' => '', // Wrap in an HTML tag
+            'location' => ''
         ), $atts);
 
-        $lumn_hours = esc_html(get_option('lumn_hours_' . $day));
+        $lumn_hours = esc_html(lumn_ut_get_location_hours($day, $value['location']));
 
         if ($value['html_tag'] && lumn_ut_check_html_tag_value($value['html_tag'])) {
             return '<' . $value['html_tag'] . '>' . $lumn_hours . '</' . $value['html_tag'] . '>';
@@ -366,8 +304,20 @@ foreach ($lumn_ut_days_of_week as $day) {
 // Define the [lumn_social_url] shortcode
 function lumn_ut_social_url_shortcode( $atts = '' ) {
 	$value = shortcode_atts( array(
-        'name' => ''
+        'name' => '',
+        'location' => '' // Only appointments/payments support a per-location override
     ), $atts );
+
+    // appointments/payments may differ per location; every other social URL
+    // (facebook, yelp, etc.) stays site-level regardless of a location attribute.
+    $overridable_names = array('appointments', 'payments');
+    if (in_array($value['name'], $overridable_names, true)) {
+        $location = lumn_ut_resolve_location($value['location']);
+        $override_key = $value['name'] . '_url';
+        if ($location !== null && !empty($location[$override_key])) {
+            return $location[$override_key];
+        }
+    }
 
     $url = get_option('lumn_social_url_' . $value['name']);
     if($url) {
@@ -389,15 +339,28 @@ function lumn_ut_icons_shortcode( $atts = '' ) {
     if ( $value['src'] ) {
         $link = str_replace("http://" . $_SERVER['HTTP_HOST'] , "", $value['src']);
         $link = str_replace("https://" . $_SERVER['HTTP_HOST'] , "", $value['src']);
-    
-        if (strpos($link, 'svg') !== false) {
-            $filename = ABSPATH . esc_attr($link);
-    
-            if (file_exists($filename)) {
-                $svg_code = file_get_contents($filename);
+
+        // Only ever read a real .svg file from inside the uploads directory.
+        // realpath() containment (checked against the resolved uploads path,
+        // not the string) is what actually stops '../' traversal - the
+        // extension check alone does not, since a path can still contain
+        // "svg" as a substring while pointing somewhere else entirely.
+        $upload_dir = wp_get_upload_dir();
+        $uploads_url_path = !empty($upload_dir['baseurl']) ? wp_parse_url($upload_dir['baseurl'], PHP_URL_PATH) : '';
+        $real_uploads_base = !empty($upload_dir['basedir']) ? realpath($upload_dir['basedir']) : false;
+
+        if ($uploads_url_path && $real_uploads_base !== false
+            && strpos($link, $uploads_url_path) === 0
+            && strtolower(pathinfo($link, PATHINFO_EXTENSION)) === 'svg'
+        ) {
+            $relative_path = substr($link, strlen($uploads_url_path));
+            $candidate = realpath($real_uploads_base . $relative_path);
+
+            if ($candidate !== false && strpos($candidate, $real_uploads_base . DIRECTORY_SEPARATOR) === 0) {
+                $svg_code = file_get_contents($candidate);
             }
         }
-    } 
+    }
     else if ( $value['name'] ) {
         $svg_path = '/svgs/';
         $svg_file = LUMN_UTILITIES_PLUGIN_PATH . $svg_path . $value['name'] . '.svg';
@@ -444,3 +407,45 @@ function lumn_ut_current_year( $atts = '' ) {
     }
 }
 add_shortcode('lumn_year', 'Lumn\Utilities\lumn_ut_current_year');
+
+// Define the [lumn_locations] shortcode - a simple list/table of every
+// practice location, for use in patterns/templates that need to enumerate
+// locations rather than resolve a single one. Empty output when no
+// locations have been created (nothing to list yet).
+function lumn_ut_locations_shortcode( $atts = '' ) {
+    $value = shortcode_atts( array(
+        'format' => 'list', // 'list' or 'table'
+        'html_tag' => '' // Wrap in an HTML tag
+    ), $atts );
+
+    $locations = lumn_ut_get_locations();
+
+    if (empty($locations)) {
+        return '';
+    }
+
+    if ($value['format'] === 'table') {
+        $output = '<table class="lumn-locations"><thead><tr><th>' . esc_html__('Name', 'lumn-utilities') . '</th><th>' . esc_html__('Address', 'lumn-utilities') . '</th><th>' . esc_html__('Phone', 'lumn-utilities') . '</th></tr></thead><tbody>';
+        foreach ($locations as $location) {
+            $city_state_zip = trim($location['address_city'] . ' ' . $location['address_state'] . ' ' . $location['address_zip']);
+            $address = implode(', ', array_filter(array($location['address_street'], $city_state_zip)));
+            $display_name = $location['practice_name'] !== '' ? $location['practice_name'] : $location['name'];
+            $output .= '<tr><td>' . esc_html($display_name) . '</td><td>' . esc_html($address) . '</td><td>' . esc_html($location['phone']) . '</td></tr>';
+        }
+        $output .= '</tbody></table>';
+    } else {
+        $output = '<ul class="lumn-locations">';
+        foreach ($locations as $location) {
+            $display_name = $location['practice_name'] !== '' ? $location['practice_name'] : $location['name'];
+            $output .= '<li>' . esc_html($display_name) . '</li>';
+        }
+        $output .= '</ul>';
+    }
+
+    if ($value['html_tag'] && lumn_ut_check_html_tag_value($value['html_tag'])) {
+        return '<' . $value['html_tag'] . '>' . $output . '</' . $value['html_tag'] . '>';
+    } else {
+        return $output;
+    }
+}
+add_shortcode('lumn_locations', 'Lumn\Utilities\lumn_ut_locations_shortcode');

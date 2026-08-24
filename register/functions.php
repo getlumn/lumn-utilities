@@ -22,6 +22,55 @@ function lumn_ut_svg_to_base64 ($filepath){
     }
 }
 
+// Validate and rebuild a Google Maps embed iframe from untrusted input.
+// Only a src pointing at a Google Maps embed URL survives; everything else
+// about the tag (dimensions, attributes) is regenerated from fixed safe
+// defaults rather than passed through, so nothing besides the map location
+// itself is attacker-controlled. Returns '' when the input isn't a
+// recognizable Google Maps embed.
+function lumn_ut_sanitize_google_maps_embed($raw) {
+    $raw = is_string($raw) ? trim($raw) : '';
+    if ($raw === '') {
+        return '';
+    }
+
+    if (!preg_match('/<iframe\b[^>]*\bsrc=(["\'])(.*?)\1/is', $raw, $matches)) {
+        return '';
+    }
+
+    $src = html_entity_decode($matches[2], ENT_QUOTES);
+    $parts = wp_parse_url($src);
+
+    if (empty($parts['host']) || empty($parts['scheme'])) {
+        return '';
+    }
+
+    if (!in_array(strtolower($parts['scheme']), array('http', 'https'), true)) {
+        return '';
+    }
+
+    $host = strtolower($parts['host']);
+    $allowed_hosts = array('www.google.com', 'google.com', 'maps.google.com');
+    if (!in_array($host, $allowed_hosts, true)) {
+        return '';
+    }
+
+    $path = isset($parts['path']) ? $parts['path'] : '';
+    if (strpos($path, '/maps/embed') !== 0) {
+        return '';
+    }
+
+    $clean_src = esc_url_raw($src);
+    if ($clean_src === '') {
+        return '';
+    }
+
+    return sprintf(
+        '<iframe src="%s" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>',
+        esc_url($clean_src)
+    );
+}
+
 // Helper function to check if a shortcode's "html_tag" attribute input value is valid
 function lumn_ut_check_html_tag_value($value) {
     if($value) {

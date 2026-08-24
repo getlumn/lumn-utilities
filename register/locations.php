@@ -20,8 +20,14 @@ const LUMN_UT_LOCATIONS_CAPABILITY = 'edit_pages';
 
 function lumn_ut_default_location() {
     $hours = array();
+    $structured_hours = array();
     foreach (lumn_ut_get_days_of_week() as $day) {
         $hours[$day] = '';
+        $structured_hours[$day] = array(
+            'open' => '',
+            'close' => '',
+            'closed' => false,
+        );
     }
 
     return array(
@@ -39,6 +45,15 @@ function lumn_ut_default_location() {
         'fax' => '',
         'email' => '',
         'hours' => $hours,
+        'map' => '',
+        'google_place_id' => '',
+        'latitude' => '',
+        'longitude' => '',
+        'timezone' => '',
+        'structured_hours' => $structured_hours,
+        'page_id' => null,
+        'appointments_url' => '',
+        'payments_url' => '',
         'is_primary' => false,
         'menu_order' => 0,
         'meta' => array(),
@@ -136,6 +151,7 @@ function lumn_ut_legacy_location_option_map() {
         'address_city' => 'lumn_address_city',
         'address_state' => 'lumn_address_state',
         'address_zip' => 'lumn_address_zip',
+        'map' => 'lumn_map',
     );
 }
 
@@ -171,6 +187,22 @@ function lumn_ut_get_location_hours($day, $location_ref = '') {
     return isset($location['hours'][$day]) ? $location['hours'][$day] : '';
 }
 
+/**
+ * Structured (open/close/closed) hours for a single day. No legacy fallback -
+ * pre-locations sites never had structured hours, so a no-locations site
+ * simply reports every day closed rather than guessing from the display string.
+ */
+function lumn_ut_get_location_structured_hours($day, $location_ref = '') {
+    $location = lumn_ut_resolve_location($location_ref);
+    $default = array('open' => '', 'close' => '', 'closed' => false);
+
+    if ($location === null) {
+        return $default;
+    }
+
+    return isset($location['structured_hours'][$day]) ? $location['structured_hours'][$day] : $default;
+}
+
 function lumn_ut_generate_location_id($locations) {
     $max_id = 0;
     foreach ($locations as $location) {
@@ -204,10 +236,58 @@ function lumn_ut_generate_unique_location_slug($name, $locations, $ignore_id = n
     }
 }
 
+// Sanitizes a 24-hour "HH:MM" time string. Returns '' for anything else,
+// including empty input - callers treat '' as "not set", not midnight.
+function lumn_ut_sanitize_time_hhmm($value) {
+    $value = is_string($value) ? trim($value) : '';
+    if ($value === '') {
+        return '';
+    }
+    return preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $value) ? $value : '';
+}
+
+// Sanitizes a latitude/longitude float. Returns '' (not 0) for invalid
+// input, since 0,0 is a real coordinate and shouldn't be indistinguishable
+// from "not set".
+function lumn_ut_sanitize_coordinate($value, $max_abs) {
+    if ($value === '' || $value === null) {
+        return '';
+    }
+    if (!is_numeric($value)) {
+        return '';
+    }
+    $float = (float) $value;
+    if ($float < -$max_abs || $float > $max_abs) {
+        return '';
+    }
+    return $float;
+}
+
 function lumn_ut_sanitize_location_input($input) {
     $hours = array();
+    $structured_hours = array();
     foreach (lumn_ut_get_days_of_week() as $day) {
         $hours[$day] = isset($input['hours'][$day]) ? sanitize_text_field(wp_unslash($input['hours'][$day])) : '';
+
+        $day_input = isset($input['structured_hours'][$day]) && is_array($input['structured_hours'][$day])
+            ? $input['structured_hours'][$day]
+            : array();
+        $closed = !empty($day_input['closed']);
+        $structured_hours[$day] = array(
+            'open' => $closed ? '' : lumn_ut_sanitize_time_hhmm(isset($day_input['open']) ? wp_unslash($day_input['open']) : ''),
+            'close' => $closed ? '' : lumn_ut_sanitize_time_hhmm(isset($day_input['close']) ? wp_unslash($day_input['close']) : ''),
+            'closed' => $closed,
+        );
+    }
+
+    $timezone = isset($input['timezone']) ? sanitize_text_field(wp_unslash($input['timezone'])) : '';
+    if ($timezone !== '' && !in_array($timezone, timezone_identifiers_list(), true)) {
+        $timezone = '';
+    }
+
+    $page_id = isset($input['page_id']) ? absint($input['page_id']) : 0;
+    if ($page_id > 0 && get_post_type($page_id) !== 'page') {
+        $page_id = 0;
     }
 
     return array(
@@ -223,6 +303,15 @@ function lumn_ut_sanitize_location_input($input) {
         'fax' => isset($input['fax']) ? sanitize_text_field(wp_unslash($input['fax'])) : '',
         'email' => isset($input['email']) ? sanitize_email(wp_unslash($input['email'])) : '',
         'hours' => $hours,
+        'map' => isset($input['map']) ? lumn_ut_sanitize_google_maps_embed(wp_unslash($input['map'])) : '',
+        'google_place_id' => isset($input['google_place_id']) ? sanitize_text_field(wp_unslash($input['google_place_id'])) : '',
+        'latitude' => isset($input['latitude']) ? lumn_ut_sanitize_coordinate(wp_unslash($input['latitude']), 90) : '',
+        'longitude' => isset($input['longitude']) ? lumn_ut_sanitize_coordinate(wp_unslash($input['longitude']), 180) : '',
+        'timezone' => $timezone,
+        'structured_hours' => $structured_hours,
+        'page_id' => $page_id > 0 ? $page_id : null,
+        'appointments_url' => isset($input['appointments_url']) ? esc_url_raw(wp_unslash($input['appointments_url'])) : '',
+        'payments_url' => isset($input['payments_url']) ? esc_url_raw(wp_unslash($input['payments_url'])) : '',
     );
 }
 
@@ -359,6 +448,59 @@ function lumn_ut_handle_move_location() {
 
     lumn_ut_save_locations($locations);
     lumn_ut_locations_redirect('reordered');
+}
+
+/**
+ * Explicitly user-triggered only - never runs automatically on upgrade or
+ * activation. Snapshots the existing single-practice options into a new
+ * primary location; existing locations (if any) are kept and demoted from
+ * primary rather than replaced, so running this more than once is harmless.
+ */
+add_action('admin_post_lumn_ut_backfill_location', 'Lumn\Utilities\lumn_ut_handle_backfill_location');
+function lumn_ut_handle_backfill_location() {
+    if (!current_user_can(LUMN_UT_LOCATIONS_CAPABILITY)) {
+        wp_die(esc_html__('You do not have permission to do this.', 'lumn-utilities'));
+    }
+    check_admin_referer('lumn_ut_backfill_location');
+
+    $hours = array();
+    foreach (lumn_ut_get_days_of_week() as $day) {
+        $hours[$day] = sanitize_text_field(get_option('lumn_hours_' . $day));
+    }
+
+    $site_name = sanitize_text_field(get_option('lumn_site_name'));
+    $locations = lumn_ut_get_locations();
+
+    $new_location = wp_parse_args(array(
+        'name' => $site_name !== '' ? $site_name : __('Main Location', 'lumn-utilities'),
+        'practice_name' => $site_name,
+        'address_street' => sanitize_text_field(get_option('lumn_address_street')),
+        'address_street2' => sanitize_text_field(get_option('lumn_address_street2')),
+        'address_city' => sanitize_text_field(get_option('lumn_address_city')),
+        'address_state' => sanitize_text_field(get_option('lumn_address_state')),
+        'address_zip' => sanitize_text_field(get_option('lumn_address_zip')),
+        'phone' => sanitize_text_field(get_option('lumn_call')),
+        'text_phone' => sanitize_text_field(get_option('lumn_txt')),
+        'fax' => sanitize_text_field(get_option('lumn_fax')),
+        'email' => sanitize_email(get_option('lumn_email')),
+        'hours' => $hours,
+        'map' => lumn_ut_sanitize_google_maps_embed(get_option('lumn_map')),
+    ), lumn_ut_default_location());
+
+    $new_location['id'] = lumn_ut_generate_location_id($locations);
+    $new_location['slug'] = lumn_ut_generate_unique_location_slug($new_location['name'], $locations);
+    $new_location['is_primary'] = true;
+    $new_location['menu_order'] = count($locations);
+
+    foreach ($locations as &$existing_location) {
+        $existing_location['is_primary'] = false;
+    }
+    unset($existing_location);
+
+    $locations[] = $new_location;
+
+    lumn_ut_save_locations($locations);
+    lumn_ut_locations_redirect('backfilled');
 }
 
 add_action('admin_menu', function () {

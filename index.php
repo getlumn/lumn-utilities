@@ -3,7 +3,7 @@
 Plugin Name: LUMN Utilites
 Plugin URI: https://getlumn.com
 Description: A set of custom shortcodes and tools for LUMN sites.
-Version: 3.2.2
+Version: 3.3.0-beta.1
 Author: LUMN
 Author URI: https://getlumn.com
 License: GPL2
@@ -18,6 +18,10 @@ require_once(LUMN_UTILITIES_PLUGIN_PATH . 'register/functions.php');
 
 // Register Sections
 require_once(LUMN_UTILITIES_PLUGIN_PATH . 'register/sections.php');
+
+// Register the practice-data field registry (single source of truth shared
+// by the settings form and the REST API - must load before both)
+require_once(LUMN_UTILITIES_PLUGIN_PATH . 'register/field-registry.php');
 
 // Register Fields
 require_once(LUMN_UTILITIES_PLUGIN_PATH . 'register/fields.php');
@@ -34,6 +38,10 @@ require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/settings.php');
 // Register Practice Locations
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'admin/locations-page.php');
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/locations.php');
+
+// Register the lumn/v1 REST API
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/rest.php');
+register_activation_hook(__FILE__, 'Lumn\Utilities\lumn_ut_rest_ensure_capability');
 
 // Enqueue admin scripts and styles
 function lumn_ut_admin_scripts() {

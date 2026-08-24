@@ -36,6 +36,7 @@ function lumn_ut_render_location_notice($type) {
         'deleted' => __('Location deleted.', 'lumn-utilities'),
         'primary_updated' => __('Primary location updated.', 'lumn-utilities'),
         'reordered' => __('Location order updated.', 'lumn-utilities'),
+        'backfilled' => __('Created a location from the existing practice information.', 'lumn-utilities'),
     );
 
     if (isset($messages[$type])) {
@@ -49,7 +50,15 @@ function lumn_ut_render_locations_list() {
     echo '<p>' . esc_html__('Manage one or more practice locations. Each location can store its own name, address, contact info, and hours.', 'lumn-utilities') . '</p>';
 
     $add_url = add_query_arg(array('page' => 'lumn-ut-locations', 'location_id' => 'new'), admin_url('admin.php'));
-    echo '<p><a href="' . esc_url($add_url) . '" class="button button-primary">' . esc_html__('Add New Location', 'lumn-utilities') . '</a></p>';
+    $backfill_url = wp_nonce_url(
+        add_query_arg(array('action' => 'lumn_ut_backfill_location'), admin_url('admin-post.php')),
+        'lumn_ut_backfill_location'
+    );
+
+    echo '<p>';
+    echo '<a href="' . esc_url($add_url) . '" class="button button-primary">' . esc_html__('Add New Location', 'lumn-utilities') . '</a> ';
+    echo '<a href="' . esc_url($backfill_url) . '" class="button">' . esc_html__('Create a location from the existing practice information', 'lumn-utilities') . '</a>';
+    echo '</p>';
 
     if (empty($locations)) {
         echo '<p>' . esc_html__('No practice locations have been created yet. The plugin will keep using the General Business Information, Business Address, and Business Hours settings above until at least one location is added here.', 'lumn-utilities') . '</p>';
@@ -144,12 +153,60 @@ function lumn_ut_render_location_form($location) {
     lumn_ut_location_field_row('email', __('Email', 'lumn-utilities'), $location['email'], 'email', 'mail@example.com');
     echo '</table>';
 
+    echo '<h4>' . esc_html__('Location Details', 'lumn-utilities') . '</h4>';
+    echo '<table class="form-table">';
+
+    echo '<tr><th><label for="location_map">' . esc_html__('Google Maps Iframe', 'lumn-utilities') . '</label></th><td>';
+    echo '<textarea id="location_map" name="map" placeholder="&lt;iframe src=&hellip;">' . esc_textarea($location['map']) . '</textarea>';
+    echo '</td></tr>';
+
+    lumn_ut_location_field_row('google_place_id', __('Google Place ID', 'lumn-utilities'), $location['google_place_id'], 'text', __('Used for reviews widgets and Business Profile lookups', 'lumn-utilities'));
+    lumn_ut_location_field_row('latitude', __('Latitude', 'lumn-utilities'), $location['latitude'], 'text', '40.7608');
+    lumn_ut_location_field_row('longitude', __('Longitude', 'lumn-utilities'), $location['longitude'], 'text', '-111.8910');
+
+    echo '<tr><th><label for="location_timezone">' . esc_html__('Timezone', 'lumn-utilities') . '</label></th><td>';
+    echo '<select id="location_timezone" name="timezone"><option value="">' . esc_html__('— Not set —', 'lumn-utilities') . '</option>';
+    foreach (timezone_identifiers_list() as $tz) {
+        echo '<option value="' . esc_attr($tz) . '"' . selected($location['timezone'], $tz, false) . '>' . esc_html($tz) . '</option>';
+    }
+    echo '</select>';
+    echo '</td></tr>';
+
+    echo '<tr><th><label for="location_page_id">' . esc_html__('Location Page', 'lumn-utilities') . '</label></th><td>';
+    wp_dropdown_pages(array(
+        'name' => 'page_id',
+        'id' => 'location_page_id',
+        'selected' => (int) $location['page_id'],
+        'show_option_none' => __('— None —', 'lumn-utilities'),
+        'option_none_value' => '0',
+    ));
+    echo '</td></tr>';
+
+    lumn_ut_location_field_row('appointments_url', __('Appointments Link (override)', 'lumn-utilities'), $location['appointments_url'], 'text', __('Leave blank to use the site-wide Appointments link', 'lumn-utilities'));
+    lumn_ut_location_field_row('payments_url', __('Payments Link (override)', 'lumn-utilities'), $location['payments_url'], 'text', __('Leave blank to use the site-wide Payments link', 'lumn-utilities'));
+
+    echo '</table>';
+
     echo '<h4>' . esc_html__('Hours', 'lumn-utilities') . '</h4>';
+    echo '<p class="description">' . esc_html__('Display text shown by [lumn_hours] and related shortcodes.', 'lumn-utilities') . '</p>';
     echo '<table class="form-table">';
     foreach (lumn_ut_get_days_of_week() as $day) {
         $value = isset($location['hours'][$day]) ? $location['hours'][$day] : '';
         echo '<tr><th><label for="location_hours_' . esc_attr($day) . '">' . esc_html(ucfirst($day)) . '</label></th><td>';
         echo '<input type="text" id="location_hours_' . esc_attr($day) . '" name="hours[' . esc_attr($day) . ']" value="' . esc_attr($value) . '" placeholder="e.g., 8:00 AM - 5:00 PM" />';
+        echo '</td></tr>';
+    }
+    echo '</table>';
+
+    echo '<h4>' . esc_html__('Structured Hours', 'lumn-utilities') . '</h4>';
+    echo '<p class="description">' . esc_html__('Machine-readable open/close times, used for map and schema markup rather than display.', 'lumn-utilities') . '</p>';
+    echo '<table class="form-table">';
+    foreach (lumn_ut_get_days_of_week() as $day) {
+        $day_hours = isset($location['structured_hours'][$day]) ? $location['structured_hours'][$day] : array('open' => '', 'close' => '', 'closed' => false);
+        echo '<tr><th>' . esc_html(ucfirst($day)) . '</th><td>';
+        echo '<label>' . esc_html__('Open', 'lumn-utilities') . ' <input type="time" name="structured_hours[' . esc_attr($day) . '][open]" value="' . esc_attr($day_hours['open']) . '" /></label> ';
+        echo '<label>' . esc_html__('Close', 'lumn-utilities') . ' <input type="time" name="structured_hours[' . esc_attr($day) . '][close]" value="' . esc_attr($day_hours['close']) . '" /></label> ';
+        echo '<label><input type="checkbox" name="structured_hours[' . esc_attr($day) . '][closed]" value="1"' . checked($day_hours['closed'], true, false) . ' /> ' . esc_html__('Closed', 'lumn-utilities') . '</label>';
         echo '</td></tr>';
     }
     echo '</table>';
