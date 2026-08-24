@@ -14,7 +14,7 @@ function lumn_ut_locations_page_callback() {
     $editing_id = isset($_GET['location_id']) ? sanitize_text_field(wp_unslash($_GET['location_id'])) : '';
 
     echo '<div class="lumn-ut-admin-settings-wrap wrap lumn-ut-locations-page">';
-    echo '<h2>' . esc_html__('Practice Locations', 'lumn-utilities') . '</h2>';
+    lumn_ut_render_admin_header(__('Manage one or more physical practice locations.', 'lumn-utilities'));
 
     if (isset($_GET['lumn_ut_notice'])) {
         lumn_ut_render_location_notice(sanitize_text_field(wp_unslash($_GET['lumn_ut_notice'])));
@@ -48,6 +48,24 @@ function lumn_ut_render_locations_list() {
     $locations = lumn_ut_get_locations();
 
     echo '<p>' . esc_html__('Manage one or more practice locations. Each location can store its own name, address, contact info, and hours.', 'lumn-utilities') . '</p>';
+
+    echo '<div class="lumn-utilites-admin-accordion">';
+    echo '<div class="lumn-utilites-admin-accordion-header"><span class="icon-title">' . esc_html__('How to Use', 'lumn-utilities') . '</span><span class="plus">+</span><span class="minus">-</span></div>';
+    echo '<div class="lumn-utilites-admin-accordion-content">';
+    echo '<p>' . esc_html__('A location holds its own name, address, contact info, hours, and map - separate from the General Business Information settings above.', 'lumn-utilities') . '</p>';
+    echo '<table class="lumn-utilites-table">';
+    echo '<tr><th>' . esc_html__('If you...', 'lumn-utilities') . '</th><th>' . esc_html__('Then...', 'lumn-utilities') . '</th></tr>';
+    echo '<tr><td>' . esc_html__('Have no locations yet', 'lumn-utilities') . '</td><td>' . esc_html__('Every shortcode keeps using the General Business Information, Address, and Hours settings, exactly as before. Nothing changes until you add a location.', 'lumn-utilities') . '</td></tr>';
+    echo '<tr><td>' . esc_html__('Only have one office', 'lumn-utilities') . '</td><td>' . esc_html__('Click "Create a location from the existing practice information" to copy your current settings into a location - or just leave things as they are.', 'lumn-utilities') . '</td></tr>';
+    echo '<tr><td>' . esc_html__('Have more than one office', 'lumn-utilities') . '</td><td>' . esc_html__('Click "Add New Location" for each one. Mark the main office "Primary" - that\'s what shortcodes use by default.', 'lumn-utilities') . '</td></tr>';
+    echo '</table>';
+    echo '<p><strong>' . esc_html__('Pointing a shortcode at a specific location:', 'lumn-utilities') . '</strong></p>';
+    echo '<p>' . esc_html__('Add a location attribute to any practice-data shortcode - the slug shown in the table below, "primary", or the numeric ID:', 'lumn-utilities') . '</p>';
+    echo '<p>[lumn_call location="north-office"] &nbsp; [lumn_address location="primary"] &nbsp; [lumn_hours location="2"]</p>';
+    echo '<p>' . esc_html__('Leaving the attribute off (or blank) always resolves to the Primary location. Use [lumn_locations] to list every location - useful for a "Find a Location" page.', 'lumn-utilities') . '</p>';
+    echo '<p><strong>' . esc_html__('Display hours vs. structured hours:', 'lumn-utilities') . '</strong> ' . esc_html__('the free-text "Hours" fields are what [lumn_hours] displays on the page; the "Structured Hours" fields (exact open/close times) are for map and search-engine data and don\'t need to match word-for-word.', 'lumn-utilities') . '</p>';
+    echo '</div>';
+    echo '</div>';
 
     $add_url = add_query_arg(array('page' => 'lumn-ut-locations', 'location_id' => 'new'), admin_url('admin.php'));
     $backfill_url = wp_nonce_url(

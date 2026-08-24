@@ -71,6 +71,29 @@ function lumn_ut_sanitize_google_maps_embed($raw) {
     );
 }
 
+// Shared branded header for the plugin's admin screens (settings + Practice
+// Locations). Inlines the bundled fish mark (rather than an <img>) so its
+// fill can be recolored via CSS currentColor, and pulls the version from
+// index.php's header comment so it never needs updating by hand here.
+function lumn_ut_render_admin_header($subtitle = '') {
+    $fish_svg_path = LUMN_UTILITIES_PLUGIN_PATH . 'svgs/lumn-fish.svg';
+    $fish_svg = file_exists($fish_svg_path) ? file_get_contents($fish_svg_path) : '';
+    $version = lumn_ut_get_plugin_version();
+
+    echo '<div class="lumn-ut-admin-header">';
+    echo '<div class="lumn-ut-admin-header-brand">';
+    echo '<span class="lumn-ut-admin-header-icon">' . $fish_svg . '</span>';
+    echo '<span class="lumn-ut-admin-header-wordmark">LUMN <span>Utilities</span></span>';
+    if ($version) {
+        echo '<span class="lumn-ut-admin-header-version">v' . esc_html($version) . '</span>';
+    }
+    echo '</div>';
+    if ($subtitle) {
+        echo '<p class="lumn-ut-admin-header-subtitle">' . esc_html($subtitle) . '</p>';
+    }
+    echo '</div>';
+}
+
 // Helper function to check if a shortcode's "html_tag" attribute input value is valid
 function lumn_ut_check_html_tag_value($value) {
     if($value) {
@@ -98,7 +121,7 @@ add_action('admin_menu', 'Lumn\Utilities\lumn_ut_shortcode_settings_add_admin_me
 function lumn_ut_shortcode_settings_options_page_callback() {
     ?>
     <div class="lumn-ut-admin-settings-wrap wrap">
-        <h2><?php echo get_admin_page_title(); ?></h2>
+        <?php lumn_ut_render_admin_header('Shortcode settings for practice info, address, hours, and social links.'); ?>
         <form class="lumn-ut-admin-settings-form" method="post" action="options.php">
             <?php
                 settings_errors();
