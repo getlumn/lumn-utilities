@@ -72,18 +72,22 @@ function lumn_ut_sanitize_google_maps_embed($raw) {
 }
 
 // Shared branded header for the plugin's admin screens (settings + Practice
-// Locations). Inlines the bundled fish mark (rather than an <img>) so its
-// fill can be recolored via CSS currentColor, and pulls the version from
-// index.php's header comment so it never needs updating by hand here.
+// Locations). Uses the official LUMN logo (admin/lumn-logo.png - the fish
+// mark + "LUMN" wordmark, brand blue on transparent) via a data URI so it
+// renders with zero extra HTTP requests. The logo already reads "LUMN", so
+// only "Utilities" is added as a styled suffix rather than duplicating it.
+// Version is pulled from index.php's header comment so it never needs
+// updating by hand here.
 function lumn_ut_render_admin_header($subtitle = '') {
-    $fish_svg_path = LUMN_UTILITIES_PLUGIN_PATH . 'svgs/lumn-fish.svg';
-    $fish_svg = file_exists($fish_svg_path) ? file_get_contents($fish_svg_path) : '';
+    $logo_src = lumn_ut_svg_to_base64('admin/lumn-logo.png');
     $version = lumn_ut_get_plugin_version();
 
     echo '<div class="lumn-ut-admin-header">';
     echo '<div class="lumn-ut-admin-header-brand">';
-    echo '<span class="lumn-ut-admin-header-icon">' . $fish_svg . '</span>';
-    echo '<span class="lumn-ut-admin-header-wordmark">LUMN <span>Utilities</span></span>';
+    if ($logo_src) {
+        echo '<img class="lumn-ut-admin-header-logo" src="' . esc_attr($logo_src) . '" alt="LUMN" />';
+    }
+    echo '<span class="lumn-ut-admin-header-wordmark-suffix">Utilities</span>';
     if ($version) {
         echo '<span class="lumn-ut-admin-header-version">v' . esc_html($version) . '</span>';
     }

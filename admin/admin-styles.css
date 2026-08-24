@@ -23,54 +23,48 @@
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 4px 18px;
-	background: linear-gradient(120deg, var(--lumn-navy) 0%, var(--lumn-blue) 100%);
-	color: #fff;
-	padding: 22px 28px;
+	background: #fff;
+	padding: 20px 28px 22px;
 	margin: 20px 0 24px -20px;
 	width: calc(100% + 20px);
-	border-radius: 0 6px 6px 0;
-	box-shadow: 0 2px 10px rgba(4, 90, 123, 0.25);
+	border-bottom: 4px solid;
+	border-image: linear-gradient(90deg, var(--lumn-blue) 0%, var(--lumn-navy) 100%) 1;
+	box-shadow: 0 1px 4px rgba(4, 90, 123, 0.1);
 }
 .lumn-ut-admin-header-brand {
 	display: flex;
 	align-items: center;
-	gap: 12px;
+	gap: 10px;
 	flex-wrap: wrap;
 }
-.lumn-ut-admin-header-icon {
-	display: inline-flex;
-	color: #fff;
+.lumn-ut-admin-header-logo {
+	display: block;
+	height: 36px;
+	width: auto;
 }
-.lumn-ut-admin-header-icon svg {
-	width: 34px;
-	height: auto;
-}
-.lumn-ut-admin-header-wordmark {
+.lumn-ut-admin-header-wordmark-suffix {
 	font-size: 22px;
-	font-weight: 700;
-	letter-spacing: 0.03em;
-	color: #fff;
-}
-.lumn-ut-admin-header-wordmark span {
 	font-weight: 400;
-	opacity: 0.85;
+	letter-spacing: 0.02em;
+	color: var(--lumn-navy);
+	margin-left: -4px;
 }
 .lumn-ut-admin-header-version {
 	font-size: 11px;
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
-	background: rgba(255, 255, 255, 0.18);
-	border: 1px solid rgba(255, 255, 255, 0.35);
+	background: var(--lumn-blue);
+	color: #fff;
 	border-radius: 999px;
 	padding: 3px 10px;
-	margin-left: 4px;
+	margin-left: 6px;
 }
 .lumn-ut-admin-header-subtitle {
 	width: 100%;
 	margin: 2px 0 0 !important;
 	font-size: 13px;
-	color: rgba(255, 255, 255, 0.85);
+	color: #4a5b63;
 }
 
 /* -------------------------------------------------------------------- */
