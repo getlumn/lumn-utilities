@@ -43,16 +43,25 @@ require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/locations.php');
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/rest.php');
 register_activation_hook(__FILE__, 'Lumn\Utilities\lumn_ut_rest_ensure_capability');
 
-// Enqueue admin scripts and styles
+// Enqueue admin scripts and styles.
+// Versioned by filemtime() rather than left blank: with no $ver, WP falls
+// back to the current WP core version as the cache-busting query string,
+// which doesn't change between plugin deploys - so browsers (and any
+// HTTP-layer/CDN cache) keep serving a stale copy of these assets across
+// every update until WP core itself is upgraded. filemtime() changes on
+// every deploy, so it busts the cache every time these files change.
 function lumn_ut_admin_scripts() {
-    wp_enqueue_style( 'lumn-ut-admin-styles', plugins_url( '/admin/admin-styles.css' , __FILE__ ));
-    wp_enqueue_script( 'lumn-ut-admin-scripts', plugins_url( '/admin/admin-scripts.js' , __FILE__ ), array( 'jquery' ) );
+    $styles_path = LUMN_UTILITIES_PLUGIN_PATH . 'admin/admin-styles.css';
+    $scripts_path = LUMN_UTILITIES_PLUGIN_PATH . 'admin/admin-scripts.js';
+    wp_enqueue_style( 'lumn-ut-admin-styles', plugins_url( '/admin/admin-styles.css' , __FILE__ ), array(), file_exists( $styles_path ) ? filemtime( $styles_path ) : null );
+    wp_enqueue_script( 'lumn-ut-admin-scripts', plugins_url( '/admin/admin-scripts.js' , __FILE__ ), array( 'jquery' ), file_exists( $scripts_path ) ? filemtime( $scripts_path ) : null );
 }
 add_action( 'admin_enqueue_scripts', 'Lumn\Utilities\lumn_ut_admin_scripts' );
 
 // Public facing styles
 function lumn_ut_public_scripts() {
-    wp_enqueue_style( 'lumn-ut-styles', plugins_url( 'styles.css' , __FILE__ ));
+    $public_styles_path = LUMN_UTILITIES_PLUGIN_PATH . 'styles.css';
+    wp_enqueue_style( 'lumn-ut-styles', plugins_url( 'styles.css' , __FILE__ ), array(), file_exists( $public_styles_path ) ? filemtime( $public_styles_path ) : null );
 }
 add_action( 'wp_enqueue_scripts', 'Lumn\Utilities\lumn_ut_public_scripts' );
 
