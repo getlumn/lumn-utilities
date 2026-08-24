@@ -113,9 +113,15 @@ function lumn_ut_get_primary_location() {
 }
 
 /**
- * Resolves a "location" shortcode attribute (blank, "primary", a slug, or a numeric ID)
- * to a location array. Returns null when no locations have been created, so callers can
- * fall back to the legacy global options.
+ * Resolves a "location" shortcode attribute (blank, "primary", a slug, or a numeric ID).
+ * Returns:
+ * - a location array, when $location_ref resolves to one
+ * - null, when NO locations have been created yet - callers fall back to
+ *   the legacy single-practice options in this case
+ * - false, when locations exist but $location_ref (a slug/ID that isn't
+ *   blank or 'primary') didn't match any of them - deliberately distinct
+ *   from null, so an unknown reference resolves to nothing rather than
+ *   silently falling back to the legacy options or the primary location.
  */
 function lumn_ut_resolve_location($location_ref = '') {
     $locations = lumn_ut_get_locations();
@@ -133,7 +139,12 @@ function lumn_ut_resolve_location($location_ref = '') {
         return $by_id;
     }
 
-    return lumn_ut_get_location_by_slug(sanitize_title($location_ref));
+    $by_slug = lumn_ut_get_location_by_slug(sanitize_title($location_ref));
+    if ($by_slug) {
+        return $by_slug;
+    }
+
+    return false;
 }
 
 /**
