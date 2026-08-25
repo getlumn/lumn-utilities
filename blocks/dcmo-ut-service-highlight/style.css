@@ -1,0 +1,48 @@
+.dcmo-ut-service-highlight {
+    min-height: 50px;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+.dcmo-ut-service-highlight .dcmo-service-text {
+    padding: 20px;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    transition: background-color .5s;
+}
+.dcmo-ut-service-highlight:hover .dcmo-service-text,
+.dcmo-ut-service-highlight:focus .dcmo-service-text
+{
+    padding: 40px;
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    line-height: 1.2;
+    font-size: 14px;
+}
+.dcmo-ut-service-highlight .dcmo-service-text-expand {
+    display: none;
+}
+.dcmo-ut-service-highlight:hover .dcmo-service-text-expand,
+.dcmo-ut-service-highlight:focus .dcmo-service-text-expand
+{
+    display: block;
+}
+.dcmo-ut-service-highlight .dcmo-service-text .dcmo-service-heading {
+    text-align: center;
+    margin: 0;
+}
+.dcmo-ut-service-highlight:hover .dcmo-service-text .dcmo-service-heading,
+.dcmo-ut-service-highlight:focus .dcmo-service-text .dcmo-service-heading
+{
+    margin-bottom: 20px;
+}

@@ -1,0 +1,24 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "genesis-custom-blocks/dcmo-ut-slick-slider",
+    "title": "DCMO UT Slick Slider",
+    "category": "media",
+    "icon": "code",
+    "attributes": {
+        "className": { "type": "string" },
+        "slider-class": { "type": "string", "default": "" },
+        "slider-settings": { "type": "string", "default": "" },
+        "left-arrow": { "type": "integer" },
+        "right-arrow": { "type": "integer" },
+        "arrow-alignment": { "type": "string", "default": "dcmo-slick-block-arrows-middle" },
+        "arrow-topbottom-distance": { "type": "integer" },
+        "arrow-topbottom-distance-unit": { "type": "string", "default": "px" },
+        "arrow-edge-distance": { "type": "integer", "default": -25 },
+        "arrow-edge-distance-unit": { "type": "string", "default": "px" },
+        "slider-leftright-margin": { "type": "integer" },
+        "slider-leftright-margin-unit": { "type": "string", "default": "px" },
+        "slick-slide": { "type": "string", "default": "" }
+    },
+    "render": "file:./render.php"
+}

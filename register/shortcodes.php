@@ -81,6 +81,21 @@ function lumn_ut_address_shortcode( $atts = '' ) {
     $lumn_address_state = esc_html(lumn_ut_get_location_field('address_state', $value['location']));
     $lumn_address_zip = esc_html(lumn_ut_get_location_field('address_zip', $value['location']));
 
+    // Nothing entered anywhere under this plugin's structured address fields -
+    // fall back to DCMO Utilities' old single freeform address field (see
+    // register/legacy-compat.php) rather than showing a blank address on a
+    // site that only ever ran that older plugin.
+    if ($lumn_address_street === '' && $lumn_address_street2 === '' && $lumn_address_city === '' && $lumn_address_state === '' && $lumn_address_zip === '') {
+        $dcmo_address = get_option('dcmo_address');
+        if ($dcmo_address) {
+            $address = $value['singleline'] ? esc_html($dcmo_address) : nl2br(esc_html($dcmo_address));
+            if ($value['html_tag'] && lumn_ut_check_html_tag_value($value['html_tag'])) {
+                return '<' . $value['html_tag'] . '>' . $address . '</' . $value['html_tag'] . '>';
+            }
+            return $address;
+        }
+    }
+
     $address_parts = array_filter(array(
         $lumn_address_street,
         $lumn_address_street2,
@@ -170,9 +185,38 @@ function lumn_ut_hours_shortcode( $atts = '' ) {
 
     $hours = [];
     $lumn_ut_days_of_week = lumn_ut_get_days_of_week();
+    $any_day_set = false;
 
     foreach ($lumn_ut_days_of_week as $day) {
-        $hours[$day] = esc_html(lumn_ut_get_location_hours($day, $value['location'])) ?: 'Closed';
+        $day_hours = esc_html(lumn_ut_get_location_hours($day, $value['location']));
+        if ($day_hours !== '') {
+            $any_day_set = true;
+        }
+        $hours[$day] = $day_hours ?: 'Closed';
+    }
+
+    // Nothing entered anywhere under this plugin's per-day hours - fall back
+    // to DCMO Utilities' old single freeform hours field (see
+    // register/legacy-compat.php), reproducing its exact old output, rather
+    // than showing every day as "Closed" on a site that only ever ran that
+    // older plugin.
+    if (!$any_day_set) {
+        $dcmo_hours = get_option('dcmo_hours');
+        if ($dcmo_hours) {
+            if ($value['format'] === 'table') {
+                $output = '<table>';
+                foreach (explode("\n", $dcmo_hours) as $row) {
+                    $output .= '<tr><td>' . esc_html($row) . '</td></tr>';
+                }
+                $output .= '</table>';
+            } else {
+                $output = nl2br(esc_html($dcmo_hours));
+            }
+            if ($value['html_tag'] && lumn_ut_check_html_tag_value($value['html_tag'])) {
+                return '<' . $value['html_tag'] . '>' . $output . '</' . $value['html_tag'] . '>';
+            }
+            return $output;
+        }
     }
 
     if ($value['grouped']) {
@@ -323,9 +367,14 @@ function lumn_ut_social_url_shortcode( $atts = '' ) {
     if($url) {
         return $url;
     }
-    else {
-        return '';
-    }
+
+    // Falls back to DCMO Utilities' old dcmo_social_url_{name} option (see
+    // register/legacy-compat.php) - that plugin's item names (facebook,
+    // yelp, twitter, instagram, tiktok, youtube, google, blog) were
+    // arbitrary, same as this shortcode's `name` attribute, so this works
+    // for any name, not just the ones this plugin has its own field for.
+    $dcmo_url = get_option('dcmo_social_url_' . $value['name']);
+    return $dcmo_url ?: '';
 }
 add_shortcode('lumn_social_url', 'Lumn\Utilities\lumn_ut_social_url_shortcode');
 

@@ -1,0 +1,23 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "genesis-custom-blocks/dcmo-ut-service-highlight",
+    "title": "DCMO UT Service Highlight",
+    "category": "text",
+    "icon": "view_column",
+    "attributes": {
+        "className": { "type": "string" },
+        "heading-color": { "type": "string", "default": "" },
+        "heading-color-hover": { "type": "string", "default": "" },
+        "text-color": { "type": "string", "default": "" },
+        "service-highlight-height": { "type": "integer", "default": 300 },
+        "border-radius": { "type": "integer" },
+        "background-image": { "type": "integer" },
+        "service-text-overlay": { "type": "string", "default": "" },
+        "service-text-overlay-hover": { "type": "string", "default": "" },
+        "service-heading": { "type": "string", "default": "" },
+        "service-hover-content": { "type": "string", "default": "" }
+    },
+    "style": "file:./style.css",
+    "render": "file:./render.php"
+}

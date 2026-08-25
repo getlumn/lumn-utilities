@@ -3,7 +3,7 @@
 Plugin Name: LUMN Utilites
 Plugin URI: https://getlumn.com
 Description: A set of custom shortcodes and tools for LUMN sites.
-Version: 3.4.0-beta.1
+Version: 3.5.0-beta.1
 Author: LUMN
 Author URI: https://getlumn.com
 License: GPL2
@@ -28,6 +28,14 @@ require_once(LUMN_UTILITIES_PLUGIN_PATH . 'register/fields.php');
 
 // Register Shortcodes
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/shortcodes.php');
+
+// Backward compatibility with predecessor plugins (LUMN-Utilites-OLD,
+// lumn-utilities-2) - see register/legacy-compat.php for what this covers.
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/legacy-compat.php');
+
+// Reimplements LUMN-Utilites-OLD's custom Gutenberg blocks natively - see
+// register/legacy-blocks.php.
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/legacy-blocks.php');
 
 // Register Redirects
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/redirects.php');

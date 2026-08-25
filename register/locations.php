@@ -172,7 +172,10 @@ function lumn_ut_legacy_location_option_map() {
 /**
  * Central lookup for future location-aware shortcodes, e.g. [lumn_call location="primary"].
  * Falls back to the existing legacy options when no locations exist yet, so current
- * installs keep behaving exactly as they do today.
+ * installs keep behaving exactly as they do today. When that legacy option is also
+ * empty, falls back one tier further to the old DCMO Utilities option it replaced
+ * (see register/legacy-compat.php) - only relevant to a site that only ever ran
+ * that older plugin and never entered data into this one's schema.
  */
 function lumn_ut_get_location_field($field_key, $location_ref = '') {
     $location = lumn_ut_resolve_location($location_ref);
@@ -180,7 +183,8 @@ function lumn_ut_get_location_field($field_key, $location_ref = '') {
     if ($location === null) {
         $legacy_map = lumn_ut_legacy_location_option_map();
         if (isset($legacy_map[$field_key])) {
-            return get_option($legacy_map[$field_key]);
+            $value = get_option($legacy_map[$field_key]);
+            return ($value !== '' && $value !== false) ? $value : lumn_ut_legacy_dcmo_get($field_key);
         }
         return '';
     }
