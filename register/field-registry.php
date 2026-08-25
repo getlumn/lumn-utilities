@@ -13,6 +13,35 @@ namespace Lumn\Utilities;
  * Deliberately excludes 'lumn_other_shortcodes_field' - a Settings API
  * placeholder with no real data, not a practice-data field.
  */
+/**
+ * Canonical name => description map for the social/link shortcode types
+ * (lumn_social_url_{name}). Single source of truth shared by the settings
+ * registry below, the per-location override schema in register/locations.php,
+ * the [lumn_social_url] shortcode, and the redirect handler - adding a new
+ * social type only requires editing this list once.
+ */
+function lumn_ut_social_url_descriptions() {
+    return array(
+        'appointments' => 'Appointments link.',
+        'payments' => 'Payments link.',
+        'facebook' => 'Facebook URL.',
+        'google' => 'Google Business Profile URL.',
+        'instagram' => 'Instagram URL.',
+        'linkedin' => 'LinkedIn URL.',
+        'pinterest' => 'Pinterest URL.',
+        'threads' => 'Threads URL.',
+        'tiktok' => 'TikTok URL.',
+        'x' => 'X (Twitter) URL.',
+        'yelp' => 'Yelp URL.',
+        'youtube' => 'YouTube URL.',
+    );
+}
+
+// Just the names, e.g. for building '{name}_url' location override keys.
+function lumn_ut_social_url_names() {
+    return array_keys(lumn_ut_social_url_descriptions());
+}
+
 function lumn_ut_get_settings_registry() {
     $registry = array(
         'lumn_site_name' => array('sanitize_callback' => 'sanitize_text_field', 'type' => 'string', 'shortcode' => 'lumn_site_name', 'description' => 'Practice / site name.'),
@@ -37,21 +66,7 @@ function lumn_ut_get_settings_registry() {
         );
     }
 
-    $social_urls = array(
-        'appointments' => 'Appointments link.',
-        'payments' => 'Payments link.',
-        'facebook' => 'Facebook URL.',
-        'google' => 'Google Business Profile URL.',
-        'instagram' => 'Instagram URL.',
-        'linkedin' => 'LinkedIn URL.',
-        'pinterest' => 'Pinterest URL.',
-        'threads' => 'Threads URL.',
-        'tiktok' => 'TikTok URL.',
-        'x' => 'X (Twitter) URL.',
-        'yelp' => 'Yelp URL.',
-        'youtube' => 'YouTube URL.',
-    );
-    foreach ($social_urls as $name => $description) {
+    foreach (lumn_ut_social_url_descriptions() as $name => $description) {
         $registry['lumn_social_url_' . $name] = array(
             'sanitize_callback' => 'esc_url_raw',
             'type' => 'string',

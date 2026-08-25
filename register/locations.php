@@ -30,7 +30,12 @@ function lumn_ut_default_location() {
         );
     }
 
-    return array(
+    $social_url_overrides = array();
+    foreach (lumn_ut_social_url_names() as $name) {
+        $social_url_overrides[$name . '_url'] = '';
+    }
+
+    return array_merge(array(
         'id' => 0,
         'slug' => '',
         'name' => '',
@@ -52,12 +57,10 @@ function lumn_ut_default_location() {
         'timezone' => '',
         'structured_hours' => $structured_hours,
         'page_id' => null,
-        'appointments_url' => '',
-        'payments_url' => '',
         'is_primary' => false,
         'menu_order' => 0,
         'meta' => array(),
-    );
+    ), $social_url_overrides);
 }
 
 function lumn_ut_get_locations() {
@@ -301,7 +304,13 @@ function lumn_ut_sanitize_location_input($input) {
         $page_id = 0;
     }
 
-    return array(
+    $social_url_overrides = array();
+    foreach (lumn_ut_social_url_names() as $name) {
+        $key = $name . '_url';
+        $social_url_overrides[$key] = isset($input[$key]) ? esc_url_raw(wp_unslash($input[$key])) : '';
+    }
+
+    return array_merge(array(
         'name' => isset($input['name']) ? sanitize_text_field(wp_unslash($input['name'])) : '',
         'practice_name' => isset($input['practice_name']) ? sanitize_text_field(wp_unslash($input['practice_name'])) : '',
         'address_street' => isset($input['address_street']) ? sanitize_text_field(wp_unslash($input['address_street'])) : '',
@@ -321,9 +330,7 @@ function lumn_ut_sanitize_location_input($input) {
         'timezone' => $timezone,
         'structured_hours' => $structured_hours,
         'page_id' => $page_id > 0 ? $page_id : null,
-        'appointments_url' => isset($input['appointments_url']) ? esc_url_raw(wp_unslash($input['appointments_url'])) : '',
-        'payments_url' => isset($input['payments_url']) ? esc_url_raw(wp_unslash($input['payments_url'])) : '',
-    );
+    ), $social_url_overrides);
 }
 
 function lumn_ut_locations_redirect($notice) {

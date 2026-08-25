@@ -64,6 +64,7 @@ function lumn_ut_render_locations_list() {
     echo '<p>[lumn_call location="north-office"] &nbsp; [lumn_address location="primary"] &nbsp; [lumn_hours location="2"]</p>';
     echo '<p>' . esc_html__('Leaving the attribute off (or blank) always resolves to the Primary location. Use [lumn_locations] to list every location - useful for a "Find a Location" page.', 'lumn-utilities') . '</p>';
     echo '<p><strong>' . esc_html__('Display hours vs. structured hours:', 'lumn-utilities') . '</strong> ' . esc_html__('the free-text "Hours" fields are what [lumn_hours] displays on the page; the "Structured Hours" fields (exact open/close times) are for map and search-engine data and don\'t need to match word-for-word.', 'lumn-utilities') . '</p>';
+    echo '<p><strong>' . esc_html__('Overriding social/other links per location:', 'lumn-utilities') . '</strong> ' . esc_html__('each location\'s edit form has a "Link Overrides" section (Appointments, Payments, Facebook, Google, and every other link from the Social Links settings tab). Set one there to use it instead of the site-wide link for that location - both the [lumn_social_url] shortcode\'s location attribute and the /lumn-social-url-social_name/location-slug redirect will use it. Leave an override blank to keep using the site-wide link for that location.', 'lumn-utilities') . '</p>';
     echo '</div>';
     echo '</div>';
 
@@ -87,6 +88,7 @@ function lumn_ut_render_locations_list() {
 
     echo '<table class="widefat striped lumn-ut-locations-table">';
     echo '<thead><tr>';
+    echo '<th>' . esc_html__('ID', 'lumn-utilities') . '</th>';
     echo '<th>' . esc_html__('Name', 'lumn-utilities') . '</th>';
     echo '<th>' . esc_html__('Practice Name', 'lumn-utilities') . '</th>';
     echo '<th>' . esc_html__('Slug', 'lumn-utilities') . '</th>';
@@ -115,6 +117,7 @@ function lumn_ut_render_locations_list() {
         );
 
         echo '<tr>';
+        echo '<td><code>' . esc_html($location['id']) . '</code></td>';
         echo '<td><strong>' . esc_html($location['name']) . '</strong></td>';
         echo '<td>' . esc_html($location['practice_name']) . '</td>';
         echo '<td><code>' . esc_html($location['slug']) . '</code></td>';
@@ -200,9 +203,30 @@ function lumn_ut_render_location_form($location) {
     ));
     echo '</td></tr>';
 
-    lumn_ut_location_field_row('appointments_url', __('Appointments Link (override)', 'lumn-utilities'), $location['appointments_url'], 'text', __('Leave blank to use the site-wide Appointments link', 'lumn-utilities'));
-    lumn_ut_location_field_row('payments_url', __('Payments Link (override)', 'lumn-utilities'), $location['payments_url'], 'text', __('Leave blank to use the site-wide Payments link', 'lumn-utilities'));
+    echo '</table>';
 
+    echo '<h4>' . esc_html__('Link Overrides', 'lumn-utilities') . '</h4>';
+    echo '<p class="description">' . esc_html__('Leave any of these blank to use the site-wide link from the Social Links settings tab.', 'lumn-utilities') . '</p>';
+    echo '<table class="form-table">';
+    $social_url_labels = array(
+        'appointments' => __('Appointments', 'lumn-utilities'),
+        'payments' => __('Payments', 'lumn-utilities'),
+        'facebook' => __('Facebook', 'lumn-utilities'),
+        'google' => __('Google', 'lumn-utilities'),
+        'instagram' => __('Instagram', 'lumn-utilities'),
+        'linkedin' => __('LinkedIn', 'lumn-utilities'),
+        'pinterest' => __('Pinterest', 'lumn-utilities'),
+        'threads' => __('Threads', 'lumn-utilities'),
+        'tiktok' => __('TikTok', 'lumn-utilities'),
+        'x' => __('X', 'lumn-utilities'),
+        'yelp' => __('Yelp', 'lumn-utilities'),
+        'youtube' => __('YouTube', 'lumn-utilities'),
+    );
+    foreach (lumn_ut_social_url_names() as $name) {
+        $key = $name . '_url';
+        $label = isset($social_url_labels[$name]) ? $social_url_labels[$name] : ucfirst($name);
+        lumn_ut_location_field_row($key, $label . ' ' . __('(override)', 'lumn-utilities'), isset($location[$key]) ? $location[$key] : '', 'text', __('Leave blank to use the site-wide link', 'lumn-utilities'));
+    }
     echo '</table>';
 
     echo '<h4>' . esc_html__('Hours', 'lumn-utilities') . '</h4>';

@@ -305,13 +305,13 @@ foreach ($lumn_ut_days_of_week as $day) {
 function lumn_ut_social_url_shortcode( $atts = '' ) {
 	$value = shortcode_atts( array(
         'name' => '',
-        'location' => '' // Only appointments/payments support a per-location override
+        'location' => '' // Every social URL type supports a per-location override
     ), $atts );
 
-    // appointments/payments may differ per location; every other social URL
-    // (facebook, yelp, etc.) stays site-level regardless of a location attribute.
-    $overridable_names = array('appointments', 'payments');
-    if (in_array($value['name'], $overridable_names, true)) {
+    // Every social/link URL (appointments, facebook, yelp, etc.) may be
+    // overridden per location; falls back to the site-wide option below
+    // when the resolved location has no override set.
+    if (in_array($value['name'], lumn_ut_social_url_names(), true)) {
         $location = lumn_ut_resolve_location($value['location']);
         $override_key = $value['name'] . '_url';
         if ($location !== null && !empty($location[$override_key])) {

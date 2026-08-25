@@ -108,9 +108,11 @@ function lumn_ut_register_utilites_sections() {
         echo '<h3>Shortcodes</h3>';
         echo '<p>Used to return individual social link urls.</p>';
         echo '<p><strong>[lumn_social_url name="social_name"]</strong></p>';
+        echo '<p>Every link type here can be overridden for a specific practice location. Add a <strong>location="slug-or-id"</strong> attribute (or <strong>location="primary"</strong>) to use that location&#8217;s override link from its Practice Locations entry instead of the site-wide URL above - see the Practice Locations page to set per-location overrides. Leave the attribute off, or leave a location&#8217;s override blank, to use the site-wide link.</p>';
         echo '<h3>Redirects</h3>';
         echo '<p>Predefined redirects that can be used in places where shortcodes are not accepted.</p>';
         echo '<p><strong>/lumn-social-url-social_name</strong></p>';
+        echo '<p>Add a location slug or ID as a trailing path segment to use that location&#8217;s override instead, e.g. <strong>/lumn-social-url-social_name/location-slug</strong>. Falls back to the site-wide link if the location doesn&#8217;t have an override set (or isn&#8217;t found), so this redirect never breaks.</p>';
         echo '</div>';
         echo '</div>';
         echo '</div>';
