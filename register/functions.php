@@ -22,6 +22,82 @@ function lumn_ut_svg_to_base64 ($filepath){
     }
 }
 
+// Validate and rebuild a Google Maps embed iframe from untrusted input.
+// Only a src pointing at a Google Maps embed URL survives; everything else
+// about the tag (dimensions, attributes) is regenerated from fixed safe
+// defaults rather than passed through, so nothing besides the map location
+// itself is attacker-controlled. Returns '' when the input isn't a
+// recognizable Google Maps embed.
+function lumn_ut_sanitize_google_maps_embed($raw) {
+    $raw = is_string($raw) ? trim($raw) : '';
+    if ($raw === '') {
+        return '';
+    }
+
+    if (!preg_match('/<iframe\b[^>]*\bsrc=(["\'])(.*?)\1/is', $raw, $matches)) {
+        return '';
+    }
+
+    $src = html_entity_decode($matches[2], ENT_QUOTES);
+    $parts = wp_parse_url($src);
+
+    if (empty($parts['host']) || empty($parts['scheme'])) {
+        return '';
+    }
+
+    if (!in_array(strtolower($parts['scheme']), array('http', 'https'), true)) {
+        return '';
+    }
+
+    $host = strtolower($parts['host']);
+    $allowed_hosts = array('www.google.com', 'google.com', 'maps.google.com');
+    if (!in_array($host, $allowed_hosts, true)) {
+        return '';
+    }
+
+    $path = isset($parts['path']) ? $parts['path'] : '';
+    if (strpos($path, '/maps/embed') !== 0) {
+        return '';
+    }
+
+    $clean_src = esc_url_raw($src);
+    if ($clean_src === '') {
+        return '';
+    }
+
+    return sprintf(
+        '<iframe src="%s" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>',
+        esc_url($clean_src)
+    );
+}
+
+// Shared branded header for the plugin's admin screens (settings + Practice
+// Locations). Uses the official LUMN logo (admin/lumn-logo.png - the fish
+// mark + "LUMN" wordmark, brand blue on transparent) via a data URI so it
+// renders with zero extra HTTP requests. The logo already reads "LUMN", so
+// only "Utilities" is added as a styled suffix rather than duplicating it.
+// Version is pulled from index.php's header comment so it never needs
+// updating by hand here.
+function lumn_ut_render_admin_header($subtitle = '') {
+    $logo_src = lumn_ut_svg_to_base64('admin/lumn-logo.png');
+    $version = lumn_ut_get_plugin_version();
+
+    echo '<div class="lumn-ut-admin-header">';
+    echo '<div class="lumn-ut-admin-header-brand">';
+    if ($logo_src) {
+        echo '<img class="lumn-ut-admin-header-logo" src="' . esc_attr($logo_src) . '" alt="LUMN" />';
+    }
+    echo '<span class="lumn-ut-admin-header-wordmark-suffix">Utilities</span>';
+    if ($version) {
+        echo '<span class="lumn-ut-admin-header-version">v' . esc_html($version) . '</span>';
+    }
+    echo '</div>';
+    if ($subtitle) {
+        echo '<p class="lumn-ut-admin-header-subtitle">' . esc_html($subtitle) . '</p>';
+    }
+    echo '</div>';
+}
+
 // Helper function to check if a shortcode's "html_tag" attribute input value is valid
 function lumn_ut_check_html_tag_value($value) {
     if($value) {
@@ -49,7 +125,7 @@ add_action('admin_menu', 'Lumn\Utilities\lumn_ut_shortcode_settings_add_admin_me
 function lumn_ut_shortcode_settings_options_page_callback() {
     ?>
     <div class="lumn-ut-admin-settings-wrap wrap">
-        <h2><?php echo get_admin_page_title(); ?></h2>
+        <?php lumn_ut_render_admin_header('Shortcode settings for practice info, address, hours, and social links.'); ?>
         <form class="lumn-ut-admin-settings-form" method="post" action="options.php">
             <?php
                 settings_errors();

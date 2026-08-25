@@ -1,0 +1,14 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "genesis-custom-blocks/dcmo-ut-su-lightbox-content",
+    "title": "DCMO UT SU Lightbox Content",
+    "category": "text",
+    "icon": "announcement",
+    "attributes": {
+        "className": { "type": "string" },
+        "id": { "type": "string", "default": "" },
+        "content": { "type": "string", "default": "" }
+    },
+    "render": "file:./render.php"
+}

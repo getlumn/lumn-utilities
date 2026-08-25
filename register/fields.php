@@ -3,7 +3,7 @@ namespace Lumn\Utilities;
 
 function lumn_ut_register_utilites_fields() {
     // Register [lumn_site_name] field
-    register_setting('lumn_ut_shortcode_settings', 'lumn_site_name');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_site_name', lumn_ut_registered_setting_args('lumn_site_name'));
     add_settings_field('lumn_site_name_field', 'Site Name', 'Lumn\Utilities\lumn_ut_site_name_field_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_practice_info_section');
     // Callback function for the [lumn_site_name] field
     function lumn_ut_site_name_field_callback() {
@@ -13,7 +13,7 @@ function lumn_ut_register_utilites_fields() {
     }
 
     // Register [lumn_call] field
-    register_setting('lumn_ut_shortcode_settings', 'lumn_call');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_call', lumn_ut_registered_setting_args('lumn_call'));
     add_settings_field('lumn_call_field', 'Call', 'Lumn\Utilities\lumn_ut_call_field_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_practice_info_section');
     // Callback function for the [lumn_call] field
     function lumn_ut_call_field_callback() {
@@ -23,7 +23,7 @@ function lumn_ut_register_utilites_fields() {
     }
 
     // Register [lumn_txt] field
-    register_setting('lumn_ut_shortcode_settings', 'lumn_txt');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_txt', lumn_ut_registered_setting_args('lumn_txt'));
     add_settings_field('lumn_txt_field', 'Text', 'Lumn\Utilities\lumn_ut_txt_field_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_practice_info_section');
     // Callback function for the [lumn_txt] field
     function lumn_ut_txt_field_callback() {
@@ -33,7 +33,7 @@ function lumn_ut_register_utilites_fields() {
     }
 
     // Register [lumn_fax] field
-    register_setting('lumn_ut_shortcode_settings', 'lumn_fax');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_fax', lumn_ut_registered_setting_args('lumn_fax'));
     add_settings_field('lumn_fax_field', 'Fax', 'Lumn\Utilities\lumn_ut_fax_field_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_practice_info_section');
     // Callback function for the [lumn_fax] field
     function lumn_ut_fax_field_callback() {
@@ -43,7 +43,7 @@ function lumn_ut_register_utilites_fields() {
     }
 
     // Register [lumn_email] field
-    register_setting('lumn_ut_shortcode_settings', 'lumn_email');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_email', lumn_ut_registered_setting_args('lumn_email'));
     add_settings_field('lumn_email_field', 'Email', 'Lumn\Utilities\lumn_ut_email_field_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_practice_info_section');
     // Callback function for the [lumn_email] field
     function lumn_ut_email_field_callback() {
@@ -52,7 +52,7 @@ function lumn_ut_register_utilites_fields() {
         echo '<div class="lumn-shortcode-hint">[lumn_email]</div>';
     }
 
-    register_setting('lumn_ut_shortcode_settings', 'lumn_address_street');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_address_street', lumn_ut_registered_setting_args('lumn_address_street'));
     add_settings_field('lumn_address_street_field', 'Street Address', 'Lumn\Utilities\lumn_ut_address_street_field_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_practice_address_section');
     // Callback function for the [lumn_address_street] field
     function lumn_ut_address_street_field_callback() {
@@ -61,7 +61,7 @@ function lumn_ut_register_utilites_fields() {
         echo '<div class="lumn-shortcode-hint">[lumn_address_street]</div>';
     }
 
-    register_setting('lumn_ut_shortcode_settings', 'lumn_address_street2');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_address_street2', lumn_ut_registered_setting_args('lumn_address_street2'));
     add_settings_field('lumn_address_street2_field', 'Street Address Line 2', 'Lumn\Utilities\lumn_ut_address_street2_field_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_practice_address_section');
     // Callback function for the [lumn_address_street2] field
     function lumn_ut_address_street2_field_callback() {
@@ -70,7 +70,7 @@ function lumn_ut_register_utilites_fields() {
         echo '<div class="lumn-shortcode-hint">[lumn_address_street2]</div>';
     }
 
-    register_setting('lumn_ut_shortcode_settings', 'lumn_address_city');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_address_city', lumn_ut_registered_setting_args('lumn_address_city'));
     add_settings_field('lumn_address_city_field', 'City', 'Lumn\Utilities\lumn_ut_address_city_field_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_practice_address_section');
     // Callback function for the [lumn_address_city] field
     function lumn_ut_address_city_field_callback() {
@@ -79,7 +79,7 @@ function lumn_ut_register_utilites_fields() {
         echo '<div class="lumn-shortcode-hint">[lumn_address_city]</div>';
     }
 
-    register_setting('lumn_ut_shortcode_settings', 'lumn_address_state');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_address_state', lumn_ut_registered_setting_args('lumn_address_state'));
     add_settings_field('lumn_address_state_field', 'State', 'Lumn\Utilities\lumn_ut_address_state_field_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_practice_address_section');
     // Callback function for the [lumn_address_state] field
     function lumn_ut_address_state_field_callback() {
@@ -88,7 +88,7 @@ function lumn_ut_register_utilites_fields() {
         echo '<div class="lumn-shortcode-hint">[lumn_address_state]</div>';
     }
 
-    register_setting('lumn_ut_shortcode_settings', 'lumn_address_zip');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_address_zip', lumn_ut_registered_setting_args('lumn_address_zip'));
     add_settings_field('lumn_address_zip_field', 'ZIP Code', 'Lumn\Utilities\lumn_ut_address_zip_field_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_practice_address_section');
     // Callback function for the [lumn_address_zip] field
     function lumn_ut_address_zip_field_callback() {
@@ -98,7 +98,11 @@ function lumn_ut_register_utilites_fields() {
     }
 
     // Register [lumn_map] field
-    register_setting('lumn_ut_shortcode_settings', 'lumn_map');
+    // Sanitized to a strict Google Maps embed allowlist - see
+    // lumn_ut_sanitize_google_maps_embed() in register/functions.php. This is
+    // the only option whose value becomes raw markup, so it gets the
+    // strictest validation of anything registered here.
+    register_setting('lumn_ut_shortcode_settings', 'lumn_map', lumn_ut_registered_setting_args('lumn_map'));
     add_settings_field('lumn_map_field', 'Google Maps Iframe', 'Lumn\Utilities\lumn_ut_map_field_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_practice_address_section');
     // Callback function for the [lumn_map] field
     function lumn_ut_map_field_callback() {
@@ -110,7 +114,7 @@ function lumn_ut_register_utilites_fields() {
     $lumn_ut_days_of_week = lumn_ut_get_days_of_week();
 
     foreach ($lumn_ut_days_of_week as $day) {
-        register_setting('lumn_ut_shortcode_settings', 'lumn_hours_' . $day);
+        register_setting('lumn_ut_shortcode_settings', 'lumn_hours_' . $day, lumn_ut_registered_setting_args('lumn_hours_' . $day));
         add_settings_field('lumn_hours_' . $day . '_field', ucfirst($day) . ' Hours', function() use ($day) {
             lumn_ut_hours_field_callback($day);
         }, 'lumn_ut_shortcode_settings', 'lumn_ut_practice_hours_section');
@@ -124,40 +128,40 @@ function lumn_ut_register_utilites_fields() {
     }
 
     // Register the social URL fields
-    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_appointments');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_appointments', lumn_ut_registered_setting_args('lumn_social_url_appointments'));
     add_settings_field('lumn_social_url_appointments', 'Appointments', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_appointments', 'item' => 'appointments', 'placeholder_url' => '/request-an-appointment'));
 
-    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_payments');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_payments', lumn_ut_registered_setting_args('lumn_social_url_payments'));
     add_settings_field('lumn_social_url_payments', 'Payments', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_payments', 'item' => 'payments', 'placeholder_url' => 'https://www.example.com/'));
 
-    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_facebook');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_facebook', lumn_ut_registered_setting_args('lumn_social_url_facebook'));
     add_settings_field('lumn_social_url_facebook', 'Facebook', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_facebook', 'item' => 'facebook', 'placeholder_url' => 'https://www.facebook.com/example/'));
 
-    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_google');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_google', lumn_ut_registered_setting_args('lumn_social_url_google'));
     add_settings_field('lumn_social_url_google', 'Google', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_google', 'item' => 'google', 'placeholder_url' => 'https://maps.app.goo.gl/example'));
 
-    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_instagram');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_instagram', lumn_ut_registered_setting_args('lumn_social_url_instagram'));
     add_settings_field('lumn_social_url_instagram', 'Instagram', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_instagram', 'item' => 'instagram', 'placeholder_url' => 'https://www.instagram.com/example/'));
 
-    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_linkedin');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_linkedin', lumn_ut_registered_setting_args('lumn_social_url_linkedin'));
     add_settings_field('lumn_social_url_linkedin', 'Linkedin', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_linkedin', 'item' => 'linkedin', 'placeholder_url' => 'https://www.linkedin.com/company/example/'));
 
-    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_pinterest');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_pinterest', lumn_ut_registered_setting_args('lumn_social_url_pinterest'));
     add_settings_field('lumn_social_url_pinterest', 'Pinterest', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_pinterest', 'item' => 'pinterest', 'placeholder_url' => 'https://www.pinterest.com/example/'));
 
-    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_threads');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_threads', lumn_ut_registered_setting_args('lumn_social_url_threads'));
     add_settings_field('lumn_social_url_threads', 'Threads', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_threads', 'item' => 'threads', 'placeholder_url' => 'https://www.threads.net/@example'));
 
-    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_tiktok');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_tiktok', lumn_ut_registered_setting_args('lumn_social_url_tiktok'));
     add_settings_field('lumn_social_url_tiktok', 'TikTok', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_tiktok', 'item' => 'tiktok', 'placeholder_url' => 'https://www.tiktok.com/@example'));
 
-    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_x');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_x', lumn_ut_registered_setting_args('lumn_social_url_x'));
     add_settings_field('lumn_social_url_x', 'X', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_x', 'item' => 'x', 'placeholder_url' => 'https://x.com/example'));
 
-    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_yelp');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_yelp', lumn_ut_registered_setting_args('lumn_social_url_yelp'));
     add_settings_field('lumn_social_url_yelp', 'Yelp', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_yelp', 'item' => 'yelp', 'placeholder_url' => 'https://www.yelp.com/biz/example'));
 
-    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_youtube');
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_youtube', lumn_ut_registered_setting_args('lumn_social_url_youtube'));
     add_settings_field('lumn_social_url_youtube', 'YouTube', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_youtube', 'item' => 'youtube', 'placeholder_url' => 'https://www.youtube.com/@example'));
 
     // Callback function for each social media URL
@@ -173,7 +177,9 @@ function lumn_ut_register_utilites_fields() {
     }
 
     // Register other shortcodes fields (empty field to prevent errors when registering the section)
-    register_setting('lumn_ut_shortcode_settings', 'lumn_other_shortcodes_field');
+    // Not in the practice-data registry (register/field-registry.php) - this
+    // is a Settings API placeholder with no real data, not a REST-exposed field.
+    register_setting('lumn_ut_shortcode_settings', 'lumn_other_shortcodes_field', array('sanitize_callback' => 'sanitize_text_field'));
     add_settings_field('lumn_other_shortcodes_field', 'empty_field', 'Lumn\Utilities\lumn_ut_other_shortcode_field_callback', 'lumn_ut_shortcode_settings', 'other_shortcodes_section');
     function lumn_ut_other_shortcode_field_callback() {
         return;

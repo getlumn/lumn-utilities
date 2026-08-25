@@ -1,0 +1,15 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "genesis-custom-blocks/dcmo-ut-hyperlink",
+    "title": "DCMO UT Hyperlink",
+    "category": "text",
+    "icon": "link",
+    "attributes": {
+        "className": { "type": "string" },
+        "link": { "type": "string", "default": "" },
+        "link-target": { "type": "string", "default": "_self" },
+        "inner-content": { "type": "string", "default": "" }
+    },
+    "render": "file:./render.php"
+}

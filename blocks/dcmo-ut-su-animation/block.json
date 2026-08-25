@@ -1,0 +1,18 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "genesis-custom-blocks/dcmo-ut-su-animation",
+    "title": "DCMO UT SU Animation",
+    "category": "media",
+    "icon": "widgets",
+    "attributes": {
+        "className": { "type": "string" },
+        "animation": { "type": "string", "default": "" },
+        "duration": { "type": "integer", "default": 1 },
+        "delay": { "type": "integer", "default": 0 },
+        "inline": { "type": "string", "default": "no" },
+        "class": { "type": "string", "default": "" },
+        "inner-content": { "type": "string", "default": "" }
+    },
+    "render": "file:./render.php"
+}

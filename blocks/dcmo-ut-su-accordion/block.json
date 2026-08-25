@@ -1,0 +1,25 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "genesis-custom-blocks/dcmo-ut-su-accordion",
+    "title": "DCMO UT SU Accordion",
+    "category": "text",
+    "icon": "view_day",
+    "attributes": {
+        "className": { "type": "string" },
+        "style": { "type": "string", "default": "default" },
+        "icon": { "type": "string", "default": "plus" },
+        "spoiler": {
+            "type": "array",
+            "default": [],
+            "items": {
+                "type": "object",
+                "properties": {
+                    "title": { "type": "string" },
+                    "content": { "type": "string" }
+                }
+            }
+        }
+    },
+    "render": "file:./render.php"
+}

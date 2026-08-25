@@ -1,12 +1,90 @@
+/* ==========================================================================
+   LUMN Utilities admin styles
+   Brand colors: --lumn-blue #00A0E3 (primary), --lumn-navy #045A7B (deep accent)
+   Redesigned in 3.3 to be visually distinct from the pre-3.3 flat-grey UI.
+   ========================================================================== */
+
+.toplevel_page_lumn-ut-shortcode-settings,
+.lumn-ut-locations-page {
+	--lumn-blue: #00a0e3;
+	--lumn-navy: #045a7b;
+	--lumn-blue-tint: #e6f6fd;
+	--lumn-navy-tint: #eaf1f4;
+	--lumn-ink: #12232b;
+	--lumn-border: #d8e4ea;
+}
+
+/* -------------------------------------------------------------------- */
+/* Branded header (settings page + Practice Locations page)             */
+/* -------------------------------------------------------------------- */
+
+.lumn-ut-admin-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 18px;
+	background: #fff;
+	padding: 20px 28px 22px;
+	margin: 20px 0 24px -20px;
+	width: calc(100% + 20px);
+	border-bottom: 4px solid;
+	border-image: linear-gradient(90deg, var(--lumn-blue) 0%, var(--lumn-navy) 100%) 1;
+	box-shadow: 0 1px 4px rgba(4, 90, 123, 0.1);
+}
+.lumn-ut-admin-header-brand {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+.lumn-ut-admin-header-logo {
+	display: block;
+	height: 36px;
+	width: auto;
+}
+.lumn-ut-admin-header-wordmark-suffix {
+	font-size: 22px;
+	font-weight: 400;
+	letter-spacing: 0.02em;
+	color: var(--lumn-navy);
+	margin-left: -4px;
+}
+.lumn-ut-admin-header-version {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	background: var(--lumn-blue);
+	color: #fff;
+	border-radius: 999px;
+	padding: 3px 10px;
+	margin-left: 6px;
+}
+.lumn-ut-admin-header-subtitle {
+	width: 100%;
+	margin: 2px 0 0 !important;
+	font-size: 13px;
+	color: #4a5b63;
+}
+
+/* -------------------------------------------------------------------- */
+/* Headings / body copy                                                 */
+/* -------------------------------------------------------------------- */
+
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form h2 {
 	font-size: 1.8em;
 	margin-top: 0;
+	color: var(--lumn-navy);
 }
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form h3 {
-	font-size: 1.4em;
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form h3,
+.lumn-ut-locations-page h3 {
+	font-size: 1.3em;
+	color: var(--lumn-navy);
 }
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form h4 {
-	font-size: 1.2em;
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form h4,
+.lumn-ut-locations-page h4 {
+	font-size: 1.1em;
+	color: var(--lumn-ink);
 }
 
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form p {
@@ -14,39 +92,45 @@
 	margin-bottom: 15px;
 }
 
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-social-icon-url {
-    display: none;
-}
-
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-social-icon-url,
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .social-icon-tr {
-    display: none;
+	display: none;
 }
 
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form input:not([type="checkbox"]):not([type="button"]):not([type="submit"]),
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form textarea
+/* -------------------------------------------------------------------- */
+/* Form fields                                                          */
+/* -------------------------------------------------------------------- */
+
+/* Text-like inputs and textareas only - checkboxes, radios, and time
+   inputs are handled separately below so they keep a sane native width
+   instead of inheriting this. */
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form input:not([type="checkbox"]):not([type="radio"]):not([type="time"]):not([type="button"]):not([type="submit"]),
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form textarea,
+.lumn-ut-locations-page .lumn-ut-location-form select
 {
 	width: 300px;
 	max-width: calc(100% - 60px);
 	padding: 10px 15px;
-	border-radius: 0;
-	border: none;
+	border-radius: 4px;
+	border: 1px solid var(--lumn-border);
 	margin-bottom: 5px;
+}
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form input:focus:not([type="checkbox"]):not([type="radio"]),
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form textarea:focus,
+.lumn-ut-locations-page .lumn-ut-location-form input:focus:not([type="checkbox"]):not([type="radio"])
+{
+	border-color: var(--lumn-blue);
+	box-shadow: 0 0 0 1px var(--lumn-blue);
 }
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form textarea {
 	height: 100px;
 }
 
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form input::placeholder {
-	color: #bebebe;
-}
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form input::-ms-input-placeholder {
-	color: #bebebe;
-}
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form textarea::placeholder {
-	color: #bebebe;
-}
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form input::placeholder,
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form input::-ms-input-placeholder,
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form textarea::placeholder,
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form textarea::-ms-input-placeholder {
-	color: #bebebe;
+	color: #a9b6bd;
 }
 
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .predefined-icons {
@@ -61,15 +145,24 @@
 	margin: 5px auto 0 auto;
 	max-width: 50px;
 	height: auto;
+	color: var(--lumn-blue);
 }
 
+/* -------------------------------------------------------------------- */
+/* Section cards                                                        */
+/* -------------------------------------------------------------------- */
+
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-ut-admin-settings-section {
-	background-color: #ddd;
-	padding: 30px;
-	margin-top: 30px;
+	background-color: #fff;
+	border: 1px solid var(--lumn-border);
+	border-left: 4px solid var(--lumn-blue);
+	border-radius: 6px;
+	padding: 28px 30px;
+	margin-top: 24px;
+	box-shadow: 0 1px 3px rgba(4, 90, 123, 0.06);
 }
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-ut-admin-settings-section:first-of-type {
-	margin-top: 26px;
+	margin-top: 20px;
 }
 
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-ut-admin-settings-section.has-submit-button {
@@ -85,74 +178,211 @@
 	display: none;
 }
 
+/* -------------------------------------------------------------------- */
+/* Buttons                                                              */
+/* -------------------------------------------------------------------- */
+
+.toplevel_page_lumn-ut-shortcode-settings .button-primary,
+.lumn-ut-locations-page .button-primary {
+	background: var(--lumn-blue);
+	border-color: var(--lumn-navy);
+	box-shadow: none;
+	text-shadow: none;
+}
+.toplevel_page_lumn-ut-shortcode-settings .button-primary:hover,
+.toplevel_page_lumn-ut-shortcode-settings .button-primary:focus,
+.lumn-ut-locations-page .button-primary:hover,
+.lumn-ut-locations-page .button-primary:focus {
+	background: var(--lumn-navy);
+	border-color: var(--lumn-navy);
+}
+.toplevel_page_lumn-ut-shortcode-settings .button:not(.button-primary),
+.lumn-ut-locations-page .button:not(.button-primary) {
+	border-color: var(--lumn-navy);
+	color: var(--lumn-navy);
+}
+
+/* -------------------------------------------------------------------- */
+/* Reference tables (attribute docs + locations list)                   */
+/* -------------------------------------------------------------------- */
+
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table {
 	border-collapse: collapse;
 	margin-bottom: 15px;
+	width: 100%;
 }
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table, 
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table td, 
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table th 
-{  
-	border: 1px solid #000;
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table,
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table td,
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table th,
+.lumn-ut-locations-page .lumn-utilites-table,
+.lumn-ut-locations-page .lumn-utilites-table td,
+.lumn-ut-locations-page .lumn-utilites-table th
+{
+	border: 1px solid var(--lumn-border);
 	text-align: left;
 }
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table td,
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table th
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table th,
+.lumn-ut-locations-page .lumn-utilites-table td,
+.lumn-ut-locations-page .lumn-utilites-table th
 {
-	padding: 15px;
+	padding: 10px 14px;
+}
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table th,
+.lumn-ut-locations-page .lumn-utilites-table th {
+	background: var(--lumn-navy-tint);
+	color: var(--lumn-navy);
+	font-weight: 600;
 }
 
-/* lumn-utilites-admin-accordion styles */
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-admin-accordion {
-    border: 1px solid #ddd;
-    margin-bottom: 10px;
-	/* max-width: 600px; */
-	overflow: auto;
+.lumn-ut-locations-page .lumn-ut-locations-table {
+	margin-top: 10px;
+	border: 1px solid var(--lumn-border);
+}
+.lumn-ut-locations-page .lumn-ut-locations-table thead th {
+	background: var(--lumn-navy-tint);
+	color: var(--lumn-navy);
+}
+.lumn-ut-locations-page .lumn-ut-primary-badge {
+	display: inline-block;
+	padding: 2px 10px;
+	background-color: var(--lumn-blue);
+	color: #fff;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 600;
 }
 
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-admin-accordion-header {
-    background-color: #f5f5f5;
-    color: #333;
-	font-weight: bold;
-    cursor: pointer;
-    padding: 15px;
+/* -------------------------------------------------------------------- */
+/* "How to Use" accordion                                               */
+/* -------------------------------------------------------------------- */
+
+.lumn-utilites-admin-accordion {
+	border: 1px solid var(--lumn-border);
+	border-radius: 6px;
+	margin-bottom: 14px;
+	overflow: hidden;
+}
+
+.lumn-utilites-admin-accordion-header {
+	background-color: var(--lumn-blue-tint);
+	color: var(--lumn-navy);
+	font-weight: 600;
+	cursor: pointer;
+	padding: 12px 16px;
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
 }
+.lumn-utilites-admin-accordion-header::before {
+	content: "?";
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	margin-right: 8px;
+	border-radius: 50%;
+	background: var(--lumn-blue);
+	color: #fff;
+	font-size: 12px;
+	font-weight: 700;
+}
+.lumn-utilites-admin-accordion-header .icon-title {
+	display: flex;
+	align-items: center;
+	flex: 1;
+}
+.lumn-utilites-admin-accordion-header .plus,
+.lumn-utilites-admin-accordion-header .minus {
+	color: var(--lumn-blue);
+	font-weight: 700;
+}
 
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-admin-accordion-header .minus {
+.lumn-utilites-admin-accordion-header .minus {
 	display: none;
 }
 
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-admin-accordion-content {
-    display: none;
-    padding: 15px;
+.lumn-utilites-admin-accordion-content {
+	display: none;
+	padding: 16px;
 	background-color: #fff;
+	border-top: 1px solid var(--lumn-border);
 }
 
-/* Toggle the lumn-utilites-admin-accordion content visibility on click */
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-admin-accordion.active .lumn-utilites-admin-accordion-content {
-    display: block;
+.lumn-utilites-admin-accordion.active .lumn-utilites-admin-accordion-content {
+	display: block;
 	overflow: auto;
 }
 
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-admin-accordion.active .lumn-utilites-admin-accordion-header .minus {
+.lumn-utilites-admin-accordion.active .lumn-utilites-admin-accordion-header .minus {
 	display: block;
 }
 
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-admin-accordion.active .lumn-utilites-admin-accordion-header .plus {
+.lumn-utilites-admin-accordion.active .lumn-utilites-admin-accordion-header .plus {
 	display: none;
 }
 
 @media screen and (max-width: 782px) {
+	.lumn-ut-admin-header {
+		margin-left: -10px;
+		width: calc(100% + 10px);
+		padding: 18px 20px;
+	}
 	.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-ut-admin-settings-section {
 		padding: 15px;
 	}
-	.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form input:not([type="checkbox"]):not([type="button"]):not([type="submit"]),
+	.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form input:not([type="checkbox"]):not([type="radio"]):not([type="time"]):not([type="button"]):not([type="submit"]),
 	.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form textarea
 	{
 		width: 100%;
 		max-width: 100%;
 	}
+}
+
+/* -------------------------------------------------------------------- */
+/* Practice Locations admin page                                        */
+/* -------------------------------------------------------------------- */
+
+.lumn-ut-locations-page .lumn-ut-location-form input:not([type="checkbox"]):not([type="radio"]):not([type="time"]):not([type="submit"]) {
+	width: 300px;
+	max-width: calc(100% - 20px);
+	padding: 6px 10px;
+	border-radius: 4px;
+	border: 1px solid var(--lumn-border);
+}
+
+/* Checkboxes and radios: reset to their native size - this is the fix for
+   the "Closed" checkbox (and any future checkbox/radio field) inheriting
+   the 300px text-input width above. */
+.lumn-ut-locations-page .lumn-ut-location-form input[type="checkbox"],
+.lumn-ut-locations-page .lumn-ut-location-form input[type="radio"] {
+	width: 16px;
+	height: 16px;
+	margin: 0 6px 0 0;
+	vertical-align: middle;
+	accent-color: var(--lumn-blue);
+}
+
+/* Time inputs: a fixed, reasonable width instead of stretching to 300px */
+.lumn-ut-locations-page .lumn-ut-location-form input[type="time"] {
+	width: 130px;
+	padding: 6px 10px;
+	border-radius: 4px;
+	border: 1px solid var(--lumn-border);
+}
+
+.lumn-ut-locations-page .lumn-ut-location-form .form-table td label {
+	display: inline-flex;
+	align-items: center;
+	margin-right: 18px;
+	font-weight: 400;
+}
+.lumn-ut-locations-page .lumn-ut-location-form .form-table td label:last-child {
+	margin-right: 0;
+}
+
+.lumn-ut-locations-page .description {
+	color: #5f6b72;
+	font-size: 13px;
 }
