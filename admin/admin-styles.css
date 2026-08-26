@@ -130,6 +130,24 @@
 	height: 100px;
 }
 
+/* Belt-and-suspenders: the Automatic Classification Settings textareas
+   (Step 5) live on the same settings form as the rules above, but scoped
+   directly to the page wrapper too, so their box styling isn't solely
+   dependent on the exact WP-generated body class matching. */
+.lumn-ut-tracking-page .lumn-ut-admin-settings-form textarea {
+	width: 300px;
+	max-width: calc(100% - 60px);
+	padding: 10px 15px;
+	border-radius: 4px;
+	border: 1px solid var(--lumn-border);
+	margin-bottom: 5px;
+	height: 100px;
+}
+.lumn-ut-tracking-page .lumn-ut-admin-settings-form textarea:focus {
+	border-color: var(--lumn-blue);
+	box-shadow: 0 0 0 1px var(--lumn-blue);
+}
+
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form input::placeholder,
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form input::-ms-input-placeholder,
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form textarea::placeholder,

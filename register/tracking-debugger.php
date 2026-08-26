@@ -137,6 +137,10 @@ function lumn_ut_tracking_debugger_public_scripts() {
         $features_out[$key] = array('label' => $meta['label'], 'enabled' => lumn_ut_tracking_feature_enabled($key));
     }
 
+    $classification_config = function_exists('Lumn\Utilities\lumn_ut_tracking_get_classification_config')
+        ? lumn_ut_tracking_get_classification_config()
+        : array('appointment_url_patterns' => array(), 'appointment_domains' => array(), 'external_link_excluded_domains' => array());
+
     wp_localize_script(LUMN_UT_DEBUG_OVERLAY_SCRIPT_HANDLE, 'lumnTrackingDebuggerConfig', array(
         'masterEnabled' => lumn_ut_tracking_is_enabled(),
         'debuggerFeatureEnabled' => lumn_ut_tracking_feature_enabled('debugger'),
@@ -144,6 +148,10 @@ function lumn_ut_tracking_debugger_public_scripts() {
         'events' => $events_out,
         'features' => $features_out,
         'appointmentUrls' => lumn_ut_tracking_known_appointment_urls(),
+        'downloadExtensions' => lumn_ut_tracking_download_extensions(),
+        'appointmentUrlPatterns' => $classification_config['appointment_url_patterns'],
+        'appointmentDomains' => $classification_config['appointment_domains'],
+        'externalLinkExcludedDomains' => $classification_config['external_link_excluded_domains'],
         'toggleOffUrl' => lumn_ut_debug_overlay_toggle_url(false),
         'settingsUrl' => admin_url('admin.php?page=' . LUMN_UT_TRACKING_PAGE_SLUG),
     ));
@@ -348,6 +356,11 @@ function lumn_ut_health_run_checks($run_remote_checks = false) {
         }
     }
 
+    $classification_issues = lumn_ut_health_check_classification_config();
+    foreach ($classification_issues as $issue) {
+        $checks[] = array('label' => __('Automatic CTA Classification', 'lumn-utilities'), 'status' => 'warning', 'message' => $issue, 'can_verify' => true);
+    }
+
     if ($run_remote_checks) {
         $html = lumn_ut_health_fetch_homepage_html();
 
@@ -394,10 +407,129 @@ function lumn_ut_health_run_checks($run_remote_checks = false) {
                     ), 'can_verify' => true);
                 }
             }
+
+            // "Qualifying elements detected" for the Step 5 engagement
+            // features - always 'good' either way per docs/TRACKING.md
+            // "Health checker": a feature having nothing to track on THIS
+            // one page is not a problem to warn about, only useful
+            // context. Skipped entirely when a feature is off, since its
+            // disabled state is already reported by the feature-toggle
+            // loop above.
+            if (lumn_ut_tracking_feature_enabled('video_tracking')) {
+                $video_count = substr_count(strtolower($html), '<video');
+                $checks[] = array(
+                    'label' => __('Video Tracking', 'lumn-utilities'),
+                    'status' => 'good',
+                    'message' => $video_count > 0
+                        ? sprintf(_n('%d <video> element detected on the front page.', '%d <video> elements detected on the front page.', $video_count, 'lumn-utilities'), $video_count)
+                        : __('Enabled, but no <video> elements were found on the front page - not necessarily a problem, the front page may simply not have one.', 'lumn-utilities'),
+                    'can_verify' => true,
+                );
+            }
+
+            if (lumn_ut_tracking_feature_enabled('download_tracking')) {
+                $download_count = lumn_ut_health_count_download_links($html);
+                $checks[] = array(
+                    'label' => __('Download Tracking', 'lumn-utilities'),
+                    'status' => 'good',
+                    'message' => $download_count > 0
+                        ? sprintf(_n('%d downloadable-file link detected on the front page.', '%d downloadable-file links detected on the front page.', $download_count, 'lumn-utilities'), $download_count)
+                        : __('Enabled, but no downloadable-file links were found on the front page - not necessarily a problem.', 'lumn-utilities'),
+                    'can_verify' => true,
+                );
+            }
+
+            if (lumn_ut_tracking_feature_enabled('external_link_tracking')) {
+                $external_count = lumn_ut_health_count_external_links($html);
+                $checks[] = array(
+                    'label' => __('External Link Tracking', 'lumn-utilities'),
+                    'status' => 'good',
+                    'message' => $external_count > 0
+                        ? sprintf(_n('%d external link detected on the front page.', '%d external links detected on the front page.', $external_count, 'lumn-utilities'), $external_count)
+                        : __('Enabled, but no external links were found on the front page - not necessarily a problem.', 'lumn-utilities'),
+                    'can_verify' => true,
+                );
+            }
         }
     }
 
     return $checks;
+}
+
+// Validates the shape (not the truth) of admin-configured classification
+// settings - a pattern that can't possibly match anything (doesn't start
+// with "/") or a "domain" that clearly isn't one (contains a space or a
+// path separator). Config is entirely optional, so an empty config is
+// never an issue.
+function lumn_ut_health_check_classification_config() {
+    $issues = array();
+    if (!function_exists('Lumn\Utilities\lumn_ut_tracking_get_classification_config')) {
+        return $issues;
+    }
+
+    $config = lumn_ut_tracking_get_classification_config();
+
+    foreach ($config['appointment_url_patterns'] as $pattern) {
+        if (strpos($pattern, '/') !== 0) {
+            $issues[] = sprintf(
+                /* translators: %s: the configured appointment URL pattern */
+                __('Appointment URL pattern "%s" does not start with "/" - it will never match a path on this site.', 'lumn-utilities'),
+                $pattern
+            );
+        }
+    }
+
+    foreach (array_merge($config['appointment_domains'], $config['external_link_excluded_domains']) as $domain) {
+        if ($domain === '' || strpos($domain, '/') !== false || strpos($domain, ' ') !== false) {
+            $issues[] = sprintf(
+                /* translators: %s: the configured value that doesn't look like a valid domain */
+                __('"%s" does not look like a valid domain.', 'lumn-utilities'),
+                $domain
+            );
+        }
+    }
+
+    return $issues;
+}
+
+// Every href="..." attribute value found in raw HTML - used only by the
+// two element-count checks below, against the single already-fetched,
+// already-cached front-page HTML (see lumn_ut_health_fetch_homepage_html()).
+function lumn_ut_health_extract_hrefs($html) {
+    if (!preg_match_all('/href=["\']([^"\']+)["\']/i', $html, $matches)) {
+        return array();
+    }
+    return $matches[1];
+}
+
+function lumn_ut_health_count_download_links($html) {
+    $extensions = lumn_ut_tracking_download_extensions();
+    $count = 0;
+    foreach (lumn_ut_health_extract_hrefs($html) as $href) {
+        $path = wp_parse_url($href, PHP_URL_PATH);
+        if (!$path) {
+            continue;
+        }
+        if (preg_match('/\.([a-z0-9]{2,5})$/i', $path, $m) && in_array(strtolower($m[1]), $extensions, true)) {
+            $count++;
+        }
+    }
+    return $count;
+}
+
+function lumn_ut_health_count_external_links($html) {
+    $home_host = wp_parse_url(home_url('/'), PHP_URL_HOST);
+    $count = 0;
+    foreach (lumn_ut_health_extract_hrefs($html) as $href) {
+        if (stripos($href, 'tel:') === 0 || stripos($href, 'mailto:') === 0 || stripos($href, 'javascript:') === 0 || strpos($href, '#') === 0) {
+            continue;
+        }
+        $host = wp_parse_url($href, PHP_URL_HOST);
+        if ($host && $home_host && strtolower($host) !== strtolower($home_host)) {
+            $count++;
+        }
+    }
+    return $count;
 }
 
 function lumn_ut_health_overall_status($checks) {
@@ -446,6 +578,12 @@ function lumn_ut_tracking_gtm_recipe($event_key) {
         $recipe['ga4_note'] = __('Consider mapping to a GA4 generate_lead event for lead-generating form types (e.g. appointment, contact, consultation) - but probably not employment or newsletter forms. This decision belongs in GTM, made by whoever owns this site\'s analytics; LUMN Utilities never sends this to GA4 directly.', 'lumn-utilities');
     } elseif (in_array($event_key, array('LUMN_PHONE_CLICK', 'LUMN_APPOINTMENT_CLICK', 'LUMN_DIRECTIONS_CLICK', 'LUMN_EMAIL_CLICK'), true)) {
         $recipe['ga4_note'] = __('Consider mapping to a GA4 generate_lead event, since this represents a lead-generating interaction. Configured entirely in GTM - LUMN Utilities never sends this to GA4 directly.', 'lumn-utilities');
+    } elseif ($event_key === 'LUMN_FILE_DOWNLOAD') {
+        $recipe['ga4_note'] = __('GA4 has a built-in file_download recommended event - consider mapping to that, using lumn_file_name/lumn_file_type as the file_name/file_extension parameters. Configured entirely in GTM.', 'lumn-utilities');
+    } elseif (in_array($event_key, array('LUMN_VIDEO_START', 'LUMN_VIDEO_PROGRESS', 'LUMN_VIDEO_COMPLETE'), true)) {
+        $recipe['ga4_note'] = __('GA4 has built-in video_start / video_progress / video_complete recommended events - consider mapping directly to the matching one. Configured entirely in GTM.', 'lumn-utilities');
+    } elseif ($event_key === 'LUMN_EXTERNAL_LINK') {
+        $recipe['ga4_note'] = __('GA4\'s built-in enhanced-measurement "click" event (with outbound: true) covers similar ground - decide in GTM whether you want both, or to map this to it instead.', 'lumn-utilities');
     }
 
     return $recipe;

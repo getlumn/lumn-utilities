@@ -73,18 +73,23 @@ function lumn_ut_tracking_feature_registry() {
         ),
         'download_tracking' => array(
             'label' => __('Download Tracking', 'lumn-utilities'),
-            'description' => __('lumn_file_download - clicks on downloadable file links.', 'lumn-utilities'),
-            'implemented' => false,
-        ),
-        'video_tracking' => array(
-            'label' => __('Video Tracking', 'lumn-utilities'),
-            'description' => __('lumn_video_start / lumn_video_complete - embedded video engagement.', 'lumn-utilities'),
-            'implemented' => false,
+            'description' => __('Sends a standardized lumn_file_download event when a visitor clicks a link to a downloadable file (PDF, Word, Excel, ZIP, etc.). Never includes the full URL - only the file type and name.', 'lumn-utilities'),
+            'implemented' => true,
         ),
         'external_link_tracking' => array(
             'label' => __('External Link Tracking', 'lumn-utilities'),
-            'description' => __('lumn_external_link - clicks that navigate off-site.', 'lumn-utilities'),
-            'implemented' => false,
+            'description' => __('Sends a standardized lumn_external_link event when a visitor clicks a link to another domain - except tel:/mailto:, and any click already claimed by a more specific LUMN event (appointment, directions, download, explicit) or an excluded domain below. Never includes the full URL - only the destination domain.', 'lumn-utilities'),
+            'implemented' => true,
+        ),
+        'video_tracking' => array(
+            'label' => __('Video Tracking', 'lumn-utilities'),
+            'description' => __('Sends lumn_video_start / lumn_video_progress / lumn_video_complete for native HTML5 <video> elements on the page (the WordPress Video block, or any theme/plugin that renders a real <video> tag). Third-party embeds like YouTube/Vimeo are not tracked yet.', 'lumn-utilities'),
+            'implemented' => true,
+        ),
+        'cta_classification' => array(
+            'label' => __('Automatic CTA Classification', 'lumn-utilities'),
+            'description' => __('Extends automatic appointment-click detection beyond this site\'s exact configured Appointments link(s), using the URL patterns and scheduling-provider domains configured below. Deliberately conservative - an ambiguous link never fires an event, and this never scans page text.', 'lumn-utilities'),
+            'implemented' => true,
         ),
         'debugger' => array(
             'label' => __('Debugger', 'lumn-utilities'),
@@ -245,26 +250,62 @@ function lumn_ut_tracking_event_registry() {
             'feature' => 'video_tracking',
             'category' => 'engagement',
             'action' => 'video_start',
-            'description' => __('An embedded video began playing.', 'lumn-utilities'),
-            'params' => array('lumn_video_title', 'lumn_video_provider'),
+            'description' => __('A video began playing. Fires once per playback session - resuming after a pause never fires it again.', 'lumn-utilities'),
+            'params' => array('lumn_video_title', 'lumn_video_provider', 'lumn_video_id'),
+        ),
+        'LUMN_VIDEO_PROGRESS' => array(
+            'name' => 'lumn_video_progress',
+            'feature' => 'video_tracking',
+            'category' => 'engagement',
+            'action' => 'video_progress',
+            'description' => __('A video reached a 25/50/75% playback milestone. Each milestone fires at most once per playback session.', 'lumn-utilities'),
+            'params' => array('lumn_video_title', 'lumn_video_provider', 'lumn_video_id', 'lumn_video_percent'),
         ),
         'LUMN_VIDEO_COMPLETE' => array(
             'name' => 'lumn_video_complete',
             'feature' => 'video_tracking',
             'category' => 'engagement',
             'action' => 'video_complete',
-            'description' => __('An embedded video reached its completion threshold.', 'lumn-utilities'),
-            'params' => array('lumn_video_title', 'lumn_video_provider', 'lumn_video_percent'),
+            'description' => __('A video reached its end. Fires once per playback session; watching the same video again from the start fires it again.', 'lumn-utilities'),
+            'params' => array('lumn_video_title', 'lumn_video_provider', 'lumn_video_id', 'lumn_video_percent'),
         ),
         'LUMN_EXTERNAL_LINK' => array(
             'name' => 'lumn_external_link',
             'feature' => 'external_link_tracking',
             'category' => 'engagement',
             'action' => 'external_link_click',
-            'description' => __('A link that navigates off-site was clicked.', 'lumn-utilities'),
-            'params' => array('lumn_destination_domain'),
+            'description' => __('A link to another domain was clicked, and wasn\'t already claimed by a more specific LUMN event or an excluded domain.', 'lumn-utilities'),
+            'params' => array('lumn_external_domain'),
         ),
     );
+}
+
+/**
+ * Default file extensions (lowercase, no leading dot) LUMN treats as
+ * "download-like" for automatic lumn_file_download classification -
+ * common document/archive/data types only, deliberately excluding
+ * image/audio/video extensions (a raw video file link is judged by
+ * Video Tracking's own rules, not this list - see docs/TRACKING.md
+ * "Download classification"). Filterable via 'lumn_ut_download_extensions'
+ * so a site/developer can extend this without a plugin update - the
+ * architecture supports arbitrary extensions even though the shipped
+ * default stays a conservative, curated list (avoids false positives from
+ * treating e.g. a redirect script's extension as a "download").
+ */
+function lumn_ut_tracking_download_extensions() {
+    $extensions = array(
+        'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+        'csv', 'txt', 'rtf', 'odt', 'ods', 'odp',
+        'zip', 'rar', '7z',
+    );
+
+    /**
+     * Filters the file extensions (lowercase, no leading dot) LUMN treats
+     * as a download for automatic lumn_file_download classification.
+     *
+     * @param string[] $extensions
+     */
+    return apply_filters('lumn_ut_download_extensions', $extensions);
 }
 
 // Looks up one event definition by its dataLayer event name (e.g.

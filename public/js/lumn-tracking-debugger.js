@@ -338,30 +338,96 @@
         return false;
     }
 
+    function hostMatchesAny(hostname, domainList) {
+        var domains = domainList || [];
+        var host = String(hostname || '').toLowerCase();
+        for (var i = 0; i < domains.length; i++) {
+            var domain = String(domains[i] || '').toLowerCase();
+            if (domain && (host === domain || host.slice(-(domain.length + 1)) === '.' + domain)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function matchesAppointmentUrlPattern(url) {
+        var patterns = config.appointmentUrlPatterns || [];
+        var path = url.pathname.toLowerCase();
+        for (var i = 0; i < patterns.length; i++) {
+            var pattern = String(patterns[i] || '').toLowerCase();
+            if (pattern && path.indexOf(pattern) === 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    var DOWNLOAD_EXCLUDED_PATH_FRAGMENTS = ['/wp-admin/', '/wp-json/', '/wp-cron.php', 'admin-ajax.php', '/feed/'];
+
+    function isDownloadUrl(url) {
+        var path = url.pathname.toLowerCase();
+        for (var i = 0; i < DOWNLOAD_EXCLUDED_PATH_FRAGMENTS.length; i++) {
+            if (path.indexOf(DOWNLOAD_EXCLUDED_PATH_FRAGMENTS[i]) !== -1) {
+                return false;
+            }
+        }
+        var match = /\.([a-z0-9]{2,5})$/i.exec(url.pathname);
+        var ext = match ? match[1].toLowerCase() : null;
+        if (!ext) {
+            return false;
+        }
+        return (config.downloadExtensions || []).indexOf(ext) !== -1;
+    }
+
+    // Preview-only classifier - see the file-level note above for why
+    // this deliberately mirrors, rather than reuses,
+    // classifyAnchor()/handleClick() in lumn-tracking-events.js,
+    // including its data-lumn-track="false" suppression and full
+    // precedence order (Step 5).
     function classifyAnchorForPreview(anchor) {
+        if (anchor.closest && anchor.closest('[data-lumn-track="false"]')) {
+            return { key: null, suppressed: true };
+        }
+
         var href = anchor.getAttribute('href') || '';
         if (!href) {
-            return null;
+            return { key: null };
         }
         if (/^tel:/i.test(href)) {
-            return 'LUMN_PHONE_CLICK';
+            return { key: 'LUMN_PHONE_CLICK' };
         }
         if (/^mailto:/i.test(href)) {
-            return 'LUMN_EMAIL_CLICK';
+            return { key: 'LUMN_EMAIL_CLICK' };
+        }
+        if (/^javascript:/i.test(href)) {
+            return { key: null };
         }
         var absolute;
         try {
             absolute = new window.URL(href, window.location.href);
         } catch (e) {
-            return null;
+            return { key: null };
         }
+
         if (isKnownAppointmentUrl(absolute)) {
-            return 'LUMN_APPOINTMENT_CLICK';
+            return { key: 'LUMN_APPOINTMENT_CLICK' };
+        }
+        if (config.features && config.features.cta_classification && config.features.cta_classification.enabled) {
+            if (matchesAppointmentUrlPattern(absolute) || hostMatchesAny(absolute.hostname, config.appointmentDomains)) {
+                return { key: 'LUMN_APPOINTMENT_CLICK' };
+            }
         }
         if (isKnownDirectionsUrl(absolute)) {
-            return 'LUMN_DIRECTIONS_CLICK';
+            return { key: 'LUMN_DIRECTIONS_CLICK' };
         }
-        return null;
+        if (isDownloadUrl(absolute)) {
+            return { key: 'LUMN_FILE_DOWNLOAD' };
+        }
+        if (absolute.hostname.toLowerCase() !== window.location.hostname.toLowerCase() && !hostMatchesAny(absolute.hostname, config.externalLinkExcludedDomains)) {
+            return { key: 'LUMN_EXTERNAL_LINK' };
+        }
+
+        return { key: null };
     }
 
     function resolveExplicitEventKeyForPreview(rawValue) {
@@ -423,13 +489,24 @@
             if (!markSeen(anchor)) {
                 return;
             }
-            var key = classifyAnchorForPreview(anchor);
-            if (!key) {
+            var classification = classifyAnchorForPreview(anchor);
+            if (classification.suppressed) {
+                results.push({
+                    label: elementLabel(anchor),
+                    event: null,
+                    raw: null,
+                    source: 'Suppressed (data-lumn-track="false")',
+                    recognized: true,
+                    suppressed: true
+                });
+                return;
+            }
+            if (!classification.key) {
                 return;
             }
             results.push({
                 label: elementLabel(anchor),
-                event: config.events[key] ? config.events[key].name : key,
+                event: config.events[classification.key] ? config.events[classification.key].name : classification.key,
                 raw: null,
                 source: 'Automatic detection',
                 recognized: true
@@ -456,7 +533,10 @@
             }
             results.forEach(function (r) {
                 var line = el('div', { class: 'lumn-ut-dbg-scan-item' }, []);
-                if (r.recognized) {
+                if (r.suppressed) {
+                    line.appendChild(el('div', {}, [r.label]));
+                    line.appendChild(el('div', { class: 'lumn-ut-dbg-muted' }, ['Source: ' + r.source]));
+                } else if (r.recognized) {
                     line.appendChild(el('div', {}, [r.label]));
                     line.appendChild(el('div', { class: 'lumn-ut-dbg-muted' }, ['Event: ' + r.event + ' - Source: ' + r.source]));
                 } else {

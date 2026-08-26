@@ -333,6 +333,7 @@ function lumn_ut_tracking_public_scripts() {
     $script_path = LUMN_UTILITIES_PLUGIN_PATH . 'public/js/lumn-tracking.js';
     $events_script_path = LUMN_UTILITIES_PLUGIN_PATH . 'public/js/lumn-tracking-events.js';
     $forms_script_path = LUMN_UTILITIES_PLUGIN_PATH . 'public/js/lumn-tracking-forms.js';
+    $video_script_path = LUMN_UTILITIES_PLUGIN_PATH . 'public/js/lumn-tracking-video.js';
     if (!file_exists($script_path)) {
         return;
     }
@@ -366,6 +367,10 @@ function lumn_ut_tracking_public_scripts() {
         $form_providers[$key] = lumn_ut_tracking_form_provider_enabled($key);
     }
 
+    $classification_config = function_exists('Lumn\Utilities\lumn_ut_tracking_get_classification_config')
+        ? lumn_ut_tracking_get_classification_config()
+        : array('appointment_url_patterns' => array(), 'appointment_domains' => array(), 'external_link_excluded_domains' => array());
+
     wp_localize_script(LUMN_UT_TRACKING_SCRIPT_HANDLE, 'lumnTrackingConfig', array(
         'enabled' => true,
         'features' => $features,
@@ -373,6 +378,10 @@ function lumn_ut_tracking_public_scripts() {
         'forbiddenParamKeys' => lumn_ut_tracking_forbidden_param_keys(),
         'appointmentUrls' => lumn_ut_tracking_known_appointment_urls(),
         'formProviders' => $form_providers,
+        'downloadExtensions' => lumn_ut_tracking_download_extensions(),
+        'appointmentUrlPatterns' => $classification_config['appointment_url_patterns'],
+        'appointmentDomains' => $classification_config['appointment_domains'],
+        'externalLinkExcludedDomains' => $classification_config['external_link_excluded_domains'],
         'debug' => lumn_ut_tracking_feature_enabled('debugger'),
     ));
 
@@ -401,6 +410,20 @@ function lumn_ut_tracking_public_scripts() {
             plugins_url('public/js/lumn-tracking-forms.js', LUMN_UTILITIES_PLUGIN_PATH . 'index.php'),
             array(LUMN_UT_TRACKING_SCRIPT_HANDLE),
             filemtime($forms_script_path),
+            true
+        );
+    }
+
+    // Native HTML5 <video> play/progress/complete tracking. See
+    // public/js/lumn-tracking-video.js - it self-bails (no listener
+    // attached) if Video Tracking is off, and does nothing for a page
+    // with no <video> elements.
+    if (file_exists($video_script_path)) {
+        wp_enqueue_script(
+            LUMN_UT_TRACKING_SCRIPT_HANDLE . '-video',
+            plugins_url('public/js/lumn-tracking-video.js', LUMN_UTILITIES_PLUGIN_PATH . 'index.php'),
+            array(LUMN_UT_TRACKING_SCRIPT_HANDLE),
+            filemtime($video_script_path),
             true
         );
     }

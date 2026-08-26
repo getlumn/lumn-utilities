@@ -98,6 +98,9 @@ inherits the opt-in guarantees automatically.
 | Debug overlay activation/authorization, its script enqueue, Health Checker, GTM recipe generator | `register/tracking-debugger.php` |
 | Admin page rendering (Debugger / Event Catalog / Health Check / GTM Guide tabs) | `admin/tracking-debugger-page.php` |
 | Front-end debug overlay panel (Recent Events, Test Event tool, page scanner) | `public/js/lumn-tracking-debugger.js` |
+| Automatic CTA classification config (URL patterns/domains/excluded domains), its Settings API registration, download-extensions registry | `register/engagement-tracking.php` |
+| Download/external-link classification + `data-lumn-track="false"` suppression (extends the Step 2 click engine) | `public/js/lumn-tracking-events.js` |
+| Native HTML5 `<video>` engagement tracking (start/progress/complete) | `public/js/lumn-tracking-video.js` |
 
 ## Settings
 
@@ -120,8 +123,10 @@ Recognized keys: `master`, plus every key in
 screen: `phone_click_tracking`, `email_click_tracking`,
 `appointment_click_tracking`, `directions_click_tracking`,
 `event_tracking` (labeled **Explicit Event Tracking** - see below),
-`form_tracking`, `download_tracking`, `video_tracking`,
-`external_link_tracking`, `debugger` - plus one `form_tracking_{provider}`
+`form_tracking`, `download_tracking`, `external_link_tracking`,
+`video_tracking`, `cta_classification` (labeled **Automatic CTA
+Classification** - see "Engagement, download, video, and CTA tracking
+(Step 5)" below), `debugger` - plus one `form_tracking_{provider}`
 key per entry in `lumn_ut_tracking_form_provider_registry()`
 (`form_tracking_gravity_forms`, `form_tracking_formidable_forms`), added
 automatically by `lumn_ut_tracking_default_settings()` so a new provider
@@ -169,7 +174,7 @@ below) - it never makes its own decision about what's enabled.
 **Naming convention:** `lumn_[object]_[action]`, e.g. `lumn_form_submit`,
 `lumn_phone_click`, `lumn_appointment_click`, `lumn_directions_click`,
 `lumn_email_click`, `lumn_file_download`, `lumn_video_start`,
-`lumn_video_complete`, `lumn_external_link`.
+`lumn_video_progress`, `lumn_video_complete`, `lumn_external_link`.
 
 Every event is registered once, in `lumn_ut_tracking_event_registry()`
 (`register/tracking-registry.php`), keyed by an upper-snake-case constant
@@ -769,7 +774,296 @@ Concretely, to add e.g. "Contact Form 7":
    `lumn_ut_form_tracking_forms_table_callback()`.
 6. Leave every new toggle's default at `false`.
 
-## Debugger, catalog, health checker, and GTM guide (Step 4)
+## Engagement, download, video, and CTA tracking (Step 5)
+
+Four independently-toggled features, all built on top of the Step 2 click
+engine (`public/js/lumn-tracking-events.js`) and a new native `<video>`
+engine (`public/js/lumn-tracking-video.js`): **Download Tracking**,
+**External Link Tracking**, **Video Tracking**, and **Automatic CTA
+Classification**. Every one of them defaults to off, same as every prior
+feature, and requires the master switch plus its own toggle.
+
+**This step is deliberately conservative.** A false positive (an event
+firing for something that wasn't really that kind of interaction) or a
+duplicate event (two events for one click) is treated as strictly worse
+than not tracking an ambiguous interaction at all - every classification
+rule below is a fixed, deterministic check, never a heuristic score or a
+"probably."
+
+### Download tracking
+
+`classifyAnchor()` (in the same delegated click handler as Step 2)
+recognizes a link as a download when its `href`'s path ends in an
+extension from `lumn_ut_tracking_download_extensions()`
+(`register/tracking-registry.php`):
+
+```
+pdf, doc, docx, xls, xlsx, ppt, pptx, csv, txt, rtf, odt, ods, odp, zip, rar, 7z
+```
+
+Audio/video extensions are intentionally excluded from this list - a
+`.mp4`/`.mp3` link is Video Tracking's concern, not Download Tracking's, so
+the same file can never fire both a download and a video event. A site can
+extend the list without any admin UI, via the standard WordPress filter:
+
+```php
+add_filter('lumn_ut_download_extensions', function ($extensions) {
+    $extensions[] = 'dicom';
+    return $extensions;
+});
+```
+
+**Exclusions** (never classified as a download, matched before the
+extension check): any path containing `/wp-admin/`, `/wp-json/`,
+`/wp-cron.php`, `admin-ajax.php`, or `/feed/`, and (already ruled out
+earlier in `classifyAnchor()`) any `tel:`, `mailto:`, or `javascript:`
+link. There is no `HEAD` request or file-existence check - classification
+is extension-only, purely from the `href` string, so it never makes an
+extra network call per link on the page.
+
+**Payload** (`lumn_file_download` / `LUMN_FILE_DOWNLOAD`):
+
+```javascript
+{
+    event: "lumn_file_download",
+    lumn_event_category: "engagement",
+    lumn_event_action: "file_download",
+    lumn_file_type: "pdf",
+    lumn_file_name: "new-patient-forms.pdf"
+}
+```
+
+`lumn_file_name` is only ever the decoded final path segment (the file's
+own name) - never the full URL, never any query string or token the link
+might carry (e.g. a signed download URL). `lumn_file_type` is always the
+lowercased extension.
+
+### External link tracking
+
+Any link whose resolved hostname differs from the current page's hostname,
+that didn't already match a more specific automatic category above it in
+the precedence chain (below), and whose hostname isn't in the configured
+exclusion list, fires `lumn_external_link`. `tel:`, `mailto:`, and
+`javascript:` links are never considered (ruled out earlier in
+`classifyAnchor()`), and a same-page anchor (`href="#section"`) is never
+"external" since it has no hostname of its own.
+
+**Payload** (`lumn_external_link` / `LUMN_EXTERNAL_LINK`):
+
+```javascript
+{
+    event: "lumn_external_link",
+    lumn_event_category: "engagement",
+    lumn_event_action: "external_link",
+    lumn_external_domain: "www.facebook.com"
+}
+```
+
+Only the bare hostname is ever sent (`lumn_external_domain`) - never the
+full destination URL, and never any query string it might carry (a
+referral/UTM parameter, or worse, something identifying). This is a
+narrower version of the same rule already applied to
+`LUMN_APPOINTMENT_CLICK`/`LUMN_DIRECTIONS_CLICK` above.
+
+**Exclusions**: `external_link_excluded_domains`, an admin-configured list
+(see "Automatic Classification Settings" below) of domains that should
+never fire `lumn_external_link` even though they're technically
+off-site - e.g. a separate patient-portal subdomain the practice considers
+part of "their" experience. Excluding a domain here only means *this
+specific event* doesn't fire for it - it does not suppress any other
+event; a link to an excluded domain that also happens to match a
+configured appointment-scheduling domain (below) still fires
+`lumn_appointment_click` normally.
+
+### Detection precedence
+
+```
+Explicit data-lumn-event (nearest ancestor)
+        |
+        v
+data-lumn-track="false" (nearest ancestor) --> no event at all
+        |
+        v
+Automatic classification, in order:
+  tel: / mailto:
+        |
+  Known appointment URL (exact match, Step 2) or, only if
+  Automatic CTA Classification is on, a configured URL pattern/domain match
+        |
+  Known directions/maps URL
+        |
+  Download (extension match)
+        |
+  External link (different host, not excluded)
+        |
+        v
+   No event
+```
+
+The first match wins, exactly as in Step 2 - a PDF hosted on an external
+scheduling domain that is *also* explicitly tagged
+`data-lumn-event="appointment_click"` still fires exactly one event (the
+explicit one, never also `lumn_file_download` or `lumn_external_link`). A
+link that is both a `.pdf` and hosted off-site fires only
+`lumn_file_download`, never additionally `lumn_external_link` - download
+classification is checked first.
+
+#### `data-lumn-track="false"`
+
+Suppresses **automatic** classification only, on the tagged element or any
+of its descendants - it never blocks an explicit `data-lumn-event` on that
+same (or a more specific descendant) element, since explicit detection is
+checked first, before the suppression check. Use it on a link that would
+otherwise be automatically (mis)classified but genuinely shouldn't
+generate a LUMN event - e.g. a same-domain "external-looking" staff
+directory link a practice doesn't consider a meaningful conversion signal:
+
+```html
+<div data-lumn-track="false">
+    <a href="https://provider-directory.example.com/dr-smith">Dr. Smith's directory profile</a>
+</div>
+```
+
+### Video tracking
+
+**Provider support: native HTML5 `<video>` only, in this step.** Before
+building this, the existing LUMN site patterns
+(`patterns/text-and-video.html`, `patterns/video-full.html`,
+`blocks/dcmo-ut-su-lightbox/render.php`) were inspected first, per the
+spec's own instruction. They use the third-party "Shortcodes Ultimate"
+`[su_lightbox type="iframe" src="....mp4"]` shortcode - a lightbox popup
+containing a **cross-origin `<iframe>` pointed directly at a raw `.mp4`
+file**, not a YouTube/Vimeo embed. A cross-origin iframe showing a raw
+media file exposes no JS API (no `postMessage` protocol, no accessible
+DOM) - it cannot be reliably tracked at all, by this plugin or any script.
+A `[su_lightbox type="video"]` (not used in the sampled patterns, but
+possible elsewhere on a LUMN site) renders an actual `<video>` element,
+as does WordPress core's own Video block or any theme's native markup -
+those **are** reliably trackable, which is what this step implements.
+
+**YouTube and Vimeo are explicitly deferred**, per the spec's own
+permission to defer "rather than creating brittle tracking" when a
+provider can't be implemented reliably without a large third-party
+library or DOM-inference guessing. Nothing about the current architecture
+(the `providers` object in `public/js/lumn-tracking-video.js`) needs to
+change to add them later - each provider is just another
+`providers.<name>.bind()` implementation using that platform's own
+supported embed API (the YouTube IFrame API / Vimeo Player SDK), never DOM
+scraping or polling.
+
+`public/js/lumn-tracking-video.js` attaches capture-phase `play`,
+`timeupdate`, and `ended` listeners to `document` once (native media
+events don't bubble, so capture-phase delegation is required to catch
+them without instrumenting every `<video>` element individually). Per-
+element session state is tracked in a `WeakMap`, not a `data-*` attribute,
+so it never pollutes the DOM and is garbage-collected naturally when an
+element is removed.
+
+- **`play` -> `lumn_video_start`**: fires once per playback session. A
+  `pause()` followed by `play()` (resume) does **not** fire a second
+  start - session state already has `started: true`. Starting playback
+  again *after* `ended` fired (a replay) **does** fire a new
+  `lumn_video_start` - a full replay is treated as a new session, matching
+  how a marketer would actually want to count it.
+- **`ended` -> `lumn_video_complete`**: fires once per session; a second
+  native `ended` event (some browsers can fire it more than once) is
+  guarded against.
+- **`timeupdate` -> `lumn_video_progress`**: at most once per session per
+  milestone (25/50/75), in order, computed as
+  `currentTime / duration * 100`. Guarded against `duration` being `0`,
+  `NaN`, or `Infinity` (a live stream or a video whose metadata hasn't
+  loaded) - no progress events are ever generated in that case, rather
+  than spamming milestones.
+
+**Payload** (`lumn_video_start` / `LUMN_VIDEO_START`, same shape for
+`lumn_video_progress` and `lumn_video_complete` with `lumn_video_percent`
+added):
+
+```javascript
+{
+    event: "lumn_video_start",
+    lumn_event_category: "engagement",
+    lumn_event_action: "video_start",
+    lumn_video_title: "New Patient Welcome",
+    lumn_video_provider: "html5",
+    lumn_video_id: "welcome-video"
+}
+```
+
+`lumn_video_id` comes from `data-lumn-video-id`, falling back to the
+element's own `id` attribute, falling back to a generated
+`video-N` - never anything derived from the visitor. `lumn_video_title`
+comes from `data-lumn-video-title`, falling back to the element's `title`
+or `aria-label` attribute, sanitized (HTML-stripped, length-capped); if
+none of those exist, the param is simply omitted, never sent as an empty
+string. Nothing about viewer identity, form input, the video's source URL,
+or any query string is ever included.
+
+### Automatic CTA classification
+
+The pre-existing **Appointment Click Tracking** feature (Step 2) already
+fires `lumn_appointment_click` for an exact match against an
+administrator-configured Appointments URL (site-wide or per Practice
+Location) - that behavior is unchanged and needs no additional toggle.
+
+**Automatic CTA Classification** is a *separate*, additional toggle that
+extends appointment detection with two more, still fully
+administrator-configured, deterministic signals - never page text, button
+copy, or a hardcoded list of third-party scheduling vendors:
+
+1. **A configured URL path pattern** (`appointment_url_patterns`) - a
+   simple string prefix an internal path must start with, e.g.
+   `/request-appointment/` matching `/request-appointment/new-patient/`.
+2. **A configured scheduling domain** (`appointment_domains`) - matches
+   that exact host or any subdomain of it (e.g. configuring
+   `scheduler.example.com` also matches `booking.scheduler.example.com`).
+
+Both lists are entirely optional and empty by default - configuring
+nothing here means Automatic CTA Classification, even when its toggle is
+on, never additionally matches anything beyond the exact-URL behavior
+Appointment Click Tracking already had. There is no confidence score or
+percentage exposed anywhere in this system - a URL either matches a
+configured rule or it doesn't; deliberately not attempting to be "smarter"
+than that is what keeps false positives out.
+
+**This toggle only adds matches - it never removes tracking for anything.**
+When it's off, a link on a configured scheduling domain doesn't just fail
+to become `lumn_appointment_click` - detection falls through to the next
+rule in the precedence chain (typically `lumn_external_link`), exactly
+like any other link. Nothing "disappears" from tracking because a more
+specific classification is turned off.
+
+### Administrator classification settings
+
+Three new textareas under **LUMN Utilities -> SEO & Tracking ->
+Automatic Classification Settings** (`register/engagement-tracking.php`,
+one option, `lumn_ut_tracking_classification_config`), one value per line
+(commas also accepted):
+
+| Setting | Feeds | Accepts |
+| --- | --- | --- |
+| Appointment URL Patterns | `appointment_url_patterns` | a leading-`/` path prefix, e.g. `/request-appointment/` |
+| Appointment / Scheduling Domains | `appointment_domains` | a bare domain, e.g. `scheduler.example.com` |
+| External Link Tracking: Excluded Domains | `external_link_excluded_domains` | a bare domain, e.g. `portal.example.com` |
+
+All three are entirely optional. Pasting a full URL into a domain field
+(e.g. `https://scheduler.example.com/book`) is handled gracefully - only
+the host is kept. Every value is lowercased, trimmed, and deduped on save.
+The Health Checker (below) flags an obviously-wrong entry (a pattern
+missing its leading `/`, a "domain" containing a space) as a warning, not
+an error, since it's a configuration nit, not a broken feature.
+
+### Event delegation, no polling
+
+Both the click-based features (download/external link) and video tracking
+use the same delegated, capture-phase listener pattern as Step 2 - nothing
+scans the DOM on a timer or via `MutationObserver`. A download or external
+link inserted into the page after load (an AJAX-loaded block, a lightbox)
+is tracked automatically the moment it's clicked, with no re-initialization
+step; the same is true of a `<video>` element added later, since the
+`play`/`timeupdate`/`ended` listeners are already attached to `document`.
+
+
 
 Four read-only/diagnostic tools under `LUMN Utilities -> Tracking
 Debugger`, none of which enable tracking, inject GTM/GA4, or talk to
@@ -917,7 +1211,12 @@ Utilities never creates or modifies anything in GTM or GA4.
   whether their LUMN toggle is on; and, for each provider actually
   detected, any of its live forms with no LUMN tracking configured yet
   (exactly the `"Form 7 is detected but not configured"` example from the
-  spec).
+  spec). Also (Step 5): any configured Appointment URL Pattern that
+  doesn't start with `/`, or any configured domain (Appointment /
+  Scheduling Domains, External Link Tracking: Excluded Domains) that
+  doesn't look like a valid domain - reported as a `warning`, never an
+  `error`, since this configuration is entirely optional and an empty
+  config is never flagged.
 - **Only checked when an admin clicks "Run Health Check"**
   (`admin/tracking-debugger-page.php`'s Health Check tab - never on tab
   load): a single `wp_remote_get( home_url( '/' ) )`, cached briefly
@@ -926,7 +1225,16 @@ Utilities never creates or modifies anything in GTM or GA4.
   (`googletagmanager.com/gtm.js` or a `GTM-XXXXXXX` id), and for any
   `data-lumn-event="..."` attributes, each validated against
   `lumn_ut_tracking_resolve_event_key()` (mirrors the client-side
-  resolution in `public/js/lumn-tracking-events.js`).
+  resolution in `public/js/lumn-tracking-events.js`); and (Step 5), for
+  whichever of Video/Download/External Link Tracking are currently
+  enabled, a simple count of `<video>` elements / downloadable-file links /
+  external links found on that one page. **This count is always reported
+  as `good`, never as a warning or error, whether it's zero or not** - a
+  feature having nothing to track on this one particular page is normal,
+  useful context, not a problem (finding zero `<video>` elements on a page
+  that isn't expected to have one is not "broken"). This check is skipped
+  entirely for a feature that's off, since its disabled state is already
+  covered by the feature-toggle loop above it.
 
 **This fetch always targets this site's own front page - never LUMN's
 servers, never any third party.** It is the one place in this whole
@@ -1075,3 +1383,66 @@ Requires a test form on a Gravity Forms or Formidable Forms install.
 13. Click **Disable Debugging** - confirm the front-end panel no longer
     appears on reload, and that this alone didn't change any Master
     Tracking / feature toggle settings.
+
+### Engagement, download, video, and CTA tracking (Step 5)
+
+1. With Master Tracking on and Debugger on, check **Download Tracking**
+   -> Save Changes. On a page with a link to a `.pdf`, open the console,
+   click it - confirm `[LUMN Tracking] Event detected: lumn_file_download`
+   with `lumn_file_type: "pdf"` and `lumn_file_name` equal to just the
+   file's own name (no path, no query string).
+2. Check **External Link Tracking** -> Save Changes. Click a link to a
+   different domain (not the PDF from step 1, and not the domain you'll
+   configure in step 6) - confirm `lumn_external_link` fires with only
+   `lumn_external_domain` (a bare hostname, never a full URL).
+3. Click the same `.pdf` link from step 1 again - confirm it still fires
+   only `lumn_file_download`, never additionally `lumn_external_link`,
+   even if that PDF happens to be hosted off-site.
+4. Add `data-lumn-track="false"` to the wrapper of any external or
+   download link, reload, click it - confirm nothing fires. Add an
+   explicit `data-lumn-event="phone_click"` to that same suppressed
+   element - confirm it now fires normally (suppression never blocks an
+   explicit tag).
+5. Check **Video Tracking** -> Save Changes. On a page with an actual
+   `<video>` element (not the SU-lightbox `.mp4`-in-iframe pattern - see
+   docs above for why that one can't be tracked), press play - confirm
+   `lumn_video_start` fires once, with `lumn_video_provider: "html5"` and
+   no source URL anywhere in the payload.
+6. Pause and resume the same video - confirm no second `lumn_video_start`
+   fires. Let it play to at least the 25% mark - confirm
+   `lumn_video_progress` fires with `lumn_video_percent: 25` (and again at
+   50/75 if you let it keep playing), each exactly once. Let it finish -
+   confirm `lumn_video_complete` fires once. Play it again from the start
+   - confirm a *new* `lumn_video_start` fires.
+7. Under **Automatic Classification Settings**, add a path (e.g.
+   `/request-appointment/`) to **Appointment URL Patterns** and a domain
+   (e.g. a real scheduling widget's domain, if this site uses one) to
+   **Appointment/Scheduling Domains** -> Save Changes. Check **Automatic
+   CTA Classification** -> Save Changes. Click a link matching either
+   configured rule - confirm `lumn_appointment_click` fires (not
+   `lumn_external_link`), with no confidence score or extra metadata in
+   the payload.
+8. Uncheck **Automatic CTA Classification** only (leave the domain/pattern
+   settings in place) -> Save Changes -> reload. Click that same
+   scheduling-domain link again - confirm it now falls through to
+   `lumn_external_link` instead of firing nothing - configuring a pattern
+   never means a link "disappears" from tracking entirely, only that its
+   more specific classification is off.
+9. Add a domain to **External Link Tracking: Excluded Domains**, reload, click a link to
+   that domain - confirm no `lumn_external_link` fires for it.
+10. Open the **Health Check** tab and run it. With Download/External
+    Link/Video Tracking all enabled, confirm each shows **Good** with a
+    count of what it found on the front page (or "no elements found... not
+    necessarily a problem" if the front page doesn't have one) - never a
+    warning purely for finding zero. Temporarily enter
+    `no-leading-slash` (missing the `/`) into Appointment URL Patterns,
+    re-run - confirm it's flagged as a warning, not an error.
+11. Insert a download link and an external link into the page dynamically
+    (e.g. via the browser console:
+    `document.body.insertAdjacentHTML('beforeend', '<a href="/test.pdf">t</a>')`)
+    and click the newly-inserted link - confirm it still fires correctly
+    with no page reload or re-initialization needed.
+12. Uncheck the master switch - confirm no further downloads, external
+    links, video plays, or CTA clicks push anything, and that (after a
+    fresh page load) no `lumn-tracking-video.js` script tag is present in
+    the page source when Video Tracking is off.
