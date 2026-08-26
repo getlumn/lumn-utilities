@@ -49,6 +49,13 @@ function lumn_ut_render_tracking_intro() {
 
     echo '<p>' . esc_html__('See docs/TRACKING.md in the plugin for the full developer specification: automatic vs. explicit detection, supported data-lumn-* attributes, event naming convention, standard parameters, the feature-flag API, and recommended GTM triggers for each event.', 'lumn-utilities') . '</p>';
 
+    $debugger_url = admin_url('admin.php?page=' . LUMN_UT_TRACKING_DEBUGGER_PAGE_SLUG);
+    echo '<p>' . sprintf(
+        /* translators: %s: link to the Tracking Debugger admin page */
+        esc_html__('Need to see events as they happen, browse every event in one place, or check this site\'s tracking configuration? Visit %s.', 'lumn-utilities'),
+        '<a href="' . esc_url($debugger_url) . '">' . esc_html__('Tracking Debugger', 'lumn-utilities') . '</a>'
+    ) . '</p>';
+
     echo '</div>';
     echo '</div>';
 }

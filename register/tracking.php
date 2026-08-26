@@ -143,7 +143,7 @@ function lumn_ut_tracking_form_provider_enabled($provider) {
  * reason (tracking disabled, feature disabled, unrecognized event key,
  * or the tracking script isn't enqueued on this request).
  */
-function lumn_ut_tracking_push_event($event_key, $params = array()) {
+function lumn_ut_tracking_push_event($event_key, $params = array(), $source = null) {
     if (!lumn_ut_tracking_is_enabled()) {
         return false;
     }
@@ -177,7 +177,8 @@ function lumn_ut_tracking_push_event($event_key, $params = array()) {
 
     $inline = 'window.dataLayer = window.dataLayer || []; window.dataLayer.push(' . wp_json_encode($payload) . ');';
     if (lumn_ut_tracking_feature_enabled('debugger')) {
-        $inline .= ' if (window.dispatchEvent && window.CustomEvent) { window.dispatchEvent(new CustomEvent("lumn:tracking:event", {detail: ' . wp_json_encode(array('key' => $event_key, 'payload' => $payload)) . '})); }';
+        $debug_detail = array('key' => $event_key, 'event' => $event['name'], 'source' => $source, 'detail' => $payload);
+        $inline .= ' if (window.dispatchEvent && window.CustomEvent) { window.dispatchEvent(new CustomEvent("lumn:tracking:event", {detail: ' . wp_json_encode($debug_detail) . '})); }';
     }
 
     wp_add_inline_script(LUMN_UT_TRACKING_SCRIPT_HANDLE, $inline);
@@ -254,7 +255,7 @@ const LUMN_UT_TRACKING_RELAY_TTL = 300; // 5 minutes - long enough for a redirec
  * (tracking disabled, unrecognized event key, or headers already sent so
  * the cookie couldn't be set).
  */
-function lumn_ut_tracking_relay_event($event_key, $params = array()) {
+function lumn_ut_tracking_relay_event($event_key, $params = array(), $source = null) {
     if (!lumn_ut_tracking_is_enabled()) {
         return false;
     }
@@ -278,7 +279,17 @@ function lumn_ut_tracking_relay_event($event_key, $params = array()) {
     unset($payload['event'], $payload['lumn_event_category'], $payload['lumn_event_action']); // recomputed client-side from eventKey, not carried in the cookie
 
     $queue = lumn_ut_tracking_read_relay_queue();
-    $queue[] = array('eventKey' => $event_key, 'params' => $payload);
+    $queue_item = array('eventKey' => $event_key, 'params' => $payload);
+    if ($source !== null && $source !== '') {
+        // Debug-only provenance label (e.g. "Gravity Forms") for the
+        // Tracking Debugger's Recent Events feed - see
+        // docs/TRACKING.md "Debugger event sources". Sanitized as plain
+        // text like any other value that ends up client-readable; never
+        // part of the dataLayer payload itself (stripped by
+        // LumnTracking.pushEvent(), which only reads 'eventKey'/'params').
+        $queue_item['source'] = sanitize_text_field((string) $source);
+    }
+    $queue[] = $queue_item;
     if (count($queue) > LUMN_UT_TRACKING_RELAY_MAX_QUEUED) {
         $queue = array_slice($queue, -LUMN_UT_TRACKING_RELAY_MAX_QUEUED);
     }

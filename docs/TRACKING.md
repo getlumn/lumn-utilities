@@ -9,10 +9,16 @@ is, why it exists, and how to build on it safely.
 - **Step 2** implements the first usable layer of click events: phone,
   email, appointment, directions clicks, and the explicit `data-lumn-event`
   markup mechanism.
-- **Step 3** (this revision) adds provider-agnostic form submission
-  tracking - Gravity Forms and Formidable Forms today, with an adapter
-  pattern future providers plug into. A GTM administrator sees the same
+- **Step 3** adds provider-agnostic form submission tracking - Gravity
+  Forms and Formidable Forms today, with an adapter pattern future
+  providers plug into. A GTM administrator sees the same
   `lumn_form_submit` event regardless of which plugin generated it.
+- **Step 4** (this revision) makes the system observable: a front-end
+  Tracking Debugger overlay, an admin-facing Event Catalog, a Tracking
+  Health Checker, and a deterministic GTM Setup Guide. Nothing here
+  enables tracking, injects GTM/GA4, or talks to anything outside this
+  site - it only helps answer "what does this site generate, and why
+  isn't it working."
 
 ## What this is, and why it exists
 
@@ -89,6 +95,9 @@ inherits the opt-in guarantees automatically.
 | Front-end data-layer abstraction (`LumnTracking.pushEvent()`, `consumeRelay()`, debugger) | `public/js/lumn-tracking.js` |
 | Automatic + explicit click detection (phone/email/appointment/directions, `data-lumn-event`) | `public/js/lumn-tracking-events.js` |
 | Form-submission relay consumption (Gravity Forms / Formidable "confirmation shown" listeners) | `public/js/lumn-tracking-forms.js` |
+| Debug overlay activation/authorization, its script enqueue, Health Checker, GTM recipe generator | `register/tracking-debugger.php` |
+| Admin page rendering (Debugger / Event Catalog / Health Check / GTM Guide tabs) | `admin/tracking-debugger-page.php` |
+| Front-end debug overlay panel (Recent Events, Test Event tool, page scanner) | `public/js/lumn-tracking-debugger.js` |
 
 ## Settings
 
@@ -760,6 +769,182 @@ Concretely, to add e.g. "Contact Form 7":
    `lumn_ut_form_tracking_forms_table_callback()`.
 6. Leave every new toggle's default at `false`.
 
+## Debugger, catalog, health checker, and GTM guide (Step 4)
+
+Four read-only/diagnostic tools under `LUMN Utilities -> Tracking
+Debugger`, none of which enable tracking, inject GTM/GA4, or talk to
+anything outside this site.
+
+### Front-end Tracking Debugger overlay
+
+A small panel (`public/js/lumn-tracking-debugger.js`) that renders on the
+site's front end, rendered inside a Shadow DOM root (`host.attachShadow()`)
+so the host theme's CSS can never bleed into it and its own styles can
+never leak out. It listens for the exact same `lumn:tracking:event` /
+`lumn:tracking:suppressed` browser events the tracking core already
+dispatches (Steps 1-2) - it doesn't change what gets dispatched or add any
+new server-side event storage, it only visualizes what's already
+happening. The Recent Events feed is a plain in-memory JS array, reset on
+every page load; nothing is written to localStorage, a cookie, or any
+server-side store to build it.
+
+**Authorization** (`lumn_ut_debug_overlay_should_render()`,
+`register/tracking-debugger.php`) is independent of the master/feature
+toggles - it requires an authenticated user with the
+`LUMN_UT_TRACKING_CAPABILITY` capability, full stop, regardless of any
+query string. An already-authorized admin can activate it two ways:
+
+- **Persistently**, via a nonce-verified `admin-post.php` action
+  (`lumn_ut_toggle_debug_overlay`) that flips a per-user meta flag
+  (`lumn_ut_debug_overlay_enabled`) - available from the Debugger admin
+  tab or the overlay's own "Disable debugging" link.
+- **For one page view**, via `?lumn_debug=1` - never persisted, and safe
+  without its own nonce because it's not a state-changing action: it only
+  decides whether to render extra HTML/JS for a viewer who has already
+  passed the same capability check above.
+
+The overlay script is only enqueued at all when
+`lumn_ut_debug_overlay_should_render()` is true - a normal visitor's page
+load never loads this file, attaches no listener, and renders no UI. This
+is separate from, and does not require, the `debugger` *feature* toggle
+(Step 1) being on - if it's off, the panel still renders (so an admin can
+see that it's off) but its Recent Events feed stays empty, since nothing
+is being dispatched for it to observe.
+
+**Debugger event sources** (spec item 6): `pushEvent()` and
+`consumeRelay()` both accept an optional `source` argument - a
+human-readable string like `"Automatic phone detection"`, `"Explicit
+data-lumn-event"`, or a provider label like `"Gravity Forms"` - purely for
+this debug display, never part of the dataLayer payload itself. Automatic
+clicks (`public/js/lumn-tracking-events.js`) and relayed form submissions
+(`register/form-tracking.php`, via `lumn_ut_tracking_relay_event()`'s
+`$source` param) all supply one.
+
+**Safety**: the event detail view only ever reads keys the clicked
+event's own registry entry declares in `params` - never arbitrary
+properties off the raw browser event, even if something (a bug, a
+tampered relay cookie) put extra keys there. Since every event that
+reaches this UI already passed through the same
+allowlist/denylist/scalar filtering as any other LUMN event before it was
+dispatched, the debugger inherits those PII/PHI guarantees automatically
+rather than needing its own.
+
+### Test events
+
+A "Test Event" tool lets an admin pick any registered event and send it
+for real, through the normal `LumnTracking.pushEvent()` path - only
+available when `window.LumnTracking` exists (i.e. Master Tracking is on;
+otherwise the tool explains why it's unavailable instead of showing a
+button that can't work). Every test event:
+
+- requires an explicit button click, gated by a `confirm()` warning
+  dialog naming the event and warning that an existing GTM container may
+  still react to it - never sent automatically, never on page load;
+- is always sent with `lumn_debug: true` (added to
+  `lumn_ut_tracking_base_event_params()`, so every event type can carry
+  it) and `source: 'Debugger Test Event'`, so it's unambiguous in both the
+  data layer and the debugger's own feed that it wasn't a genuine
+  interaction;
+- goes through the real `dataLayer`/GTM pipeline, deliberately - renaming
+  or otherwise hiding it from GTM's Custom Event trigger would make the
+  debugger inaccurate for its actual purpose (previewing what a real event
+  looks like), so the warning dialog is the safeguard, not event-name
+  trickery;
+- is never sent directly to GA4 or any other destination - it only ever
+  reaches `window.dataLayer`, the same as any other LUMN event.
+
+### Page scanner (current-page inspector)
+
+The overlay's "Scan This Page" button walks the *current* page's DOM
+(`document.querySelectorAll('a[href]')` / `'[data-lumn-event]'`) on
+demand - never automatically, never across every page on the site - and
+classifies each element with the same rules as
+`public/js/lumn-tracking-events.js` (tel:/mailto:/known appointment or
+maps URLs, and `data-lumn-event` resolution). This logic is deliberately
+**re-implemented**, not imported from that script: the click-detection
+script self-bails (attaches no listener, or isn't loaded at all when
+Master Tracking is off) whenever nothing would actually fire, but the
+scanner's whole purpose is to keep working in exactly that situation, to
+help answer "why isn't this tracking." Keep both in sync if the
+classification rules ever change. An unrecognized `data-lumn-event` value
+is reported clearly (`⚠ Unknown LUMN event: "..."`) rather than silently
+ignored, and is never fired.
+
+### Event Catalog
+
+`admin/tracking-debugger-page.php`'s Catalog tab renders directly from
+`lumn_ut_tracking_event_registry()` - name, category, action, required
+feature (and whether it's currently on), full parameter list, and a
+recommended GTM trigger, with no data duplicated by hand. Each event is an
+accordion item (the same `.lumn-utilites-admin-accordion` component used
+elsewhere in this plugin), so nothing new needs to be learned to use it.
+
+### GTM Guide and recipes
+
+`lumn_ut_tracking_gtm_recipe( $event_key )` (`register/tracking-debugger.php`)
+is the single source of truth for GTM setup guidance - trigger type
+(always "Custom Event"), the exact event name to match, an optional
+condition (currently only `lumn_form_submit`'s `lumn_form_type equals
+...`, generated from `lumn_ut_tracking_form_type_registry()` rather than
+hardcoded), and an optional GA4-mapping suggestion. Both the Event Catalog
+tab and the dedicated GTM Guide tab render through the same
+`lumn_ut_render_gtm_recipe()` function, so the guidance can never drift
+between the two places it appears. Every "Copy" button
+(`lumn_ut_render_copy_button()`, wired up in `admin/admin-scripts.js`)
+copies one exact value - an event name or a condition value - so a
+coworker can paste it straight into GTM.
+
+GA4 mapping guidance follows docs/TRACKING.md's existing rule: lead-like
+events (phone/appointment/directions/email clicks, and form submissions
+of type appointment/contact/consultation) suggest `generate_lead`; an
+employment-type form submission gets no GA4 suggestion at all, since a job
+application isn't a patient lead. This is documentation only - LUMN
+Utilities never creates or modifies anything in GTM or GA4.
+
+### Tracking Health Checker
+
+`lumn_ut_health_run_checks( $run_remote_checks )`
+(`register/tracking-debugger.php`) runs a fixed set of checks and returns
+`good` / `warning` / `error` / `info` results, each explicitly marked
+`can_verify` true or false:
+
+- **Always checked** (no network involved): Master Tracking and every
+  implemented feature's current state (`info`, not `warning`/`error` -
+  "off" is a normal, valid state, not a problem); structural validity of
+  the event registry itself (an `error` here would only ever mean a
+  future code change broke the registry, never a site admin's settings);
+  a note on Data Layer availability; Gravity Forms/Formidable detection +
+  whether their LUMN toggle is on; and, for each provider actually
+  detected, any of its live forms with no LUMN tracking configured yet
+  (exactly the `"Form 7 is detected but not configured"` example from the
+  spec).
+- **Only checked when an admin clicks "Run Health Check"**
+  (`admin/tracking-debugger-page.php`'s Health Check tab - never on tab
+  load): a single `wp_remote_get( home_url( '/' ) )`, cached briefly
+  (60 seconds) to avoid re-fetching on every click, used for two things -
+  scanning the response body for a GTM container signature
+  (`googletagmanager.com/gtm.js` or a `GTM-XXXXXXX` id), and for any
+  `data-lumn-event="..."` attributes, each validated against
+  `lumn_ut_tracking_resolve_event_key()` (mirrors the client-side
+  resolution in `public/js/lumn-tracking-events.js`).
+
+**This fetch always targets this site's own front page - never LUMN's
+servers, never any third party.** It is the one place in this whole
+system that makes an HTTP request at all, and it's a local self-check, on
+demand, not a remote tracking/collection service.
+
+**What LUMN can and cannot verify** - stated explicitly in the UI, not
+just here: finding a GTM container is a reasonably solid "yes"
+(`can_verify: true`); *not* finding one is a much weaker signal
+(`can_verify: false`) - GTM might load conditionally, only on other pages,
+or the fetch itself might have failed for an unrelated reason - so it's
+reported as a `warning`, never an `error`, and never phrased as "GTM is
+broken." **LUMN Utilities can confirm a GTM container appears to be
+installed. It cannot determine whether a specific GTM trigger or tag is
+actually configured to consume LUMN events** - that lives entirely inside
+GTM's own configuration, which this plugin has no access to and does not
+attempt to inspect.
+
 ## Adding a new event (for future steps)
 
 1. Add an entry to `lumn_ut_tracking_event_registry()` in
@@ -846,3 +1031,47 @@ Requires a test form on a Gravity Forms or Formidable Forms install.
 12. Confirm nothing else changed: any existing GTM/GA4 tags on this site
     still behave exactly as before - LUMN only added a new dataLayer
     event for GTM to optionally react to.
+
+### Debugger, catalog, health checker, GTM guide (Step 4)
+
+1. Log out (or open a private window) and confirm a normal visitor sees
+   no debugger UI anywhere, and that `?lumn_debug=1` on any page does
+   nothing for them either.
+2. Log back in as an administrator. `LUMN Utilities -> Tracking Debugger`
+   - confirm Status shows **● Debugging OFF**.
+3. Click **Enable Debugging**, then visit any front-end page - a small
+   panel should appear in the bottom-right corner.
+4. With Master Tracking + Debugger + Phone Click Tracking all on (see the
+   earlier click-tracking procedure), click a `tel:` link - it should
+   appear in the panel's Recent Events within a moment, and clicking that
+   entry should expand Category/Action/Source/params - never a phone
+   number.
+5. Click an appointment CTA and submit a tracked test form - both should
+   appear the same way, the form entry showing Provider/Form ID/Form
+   Name/Form Type.
+6. In the panel, use **Scan This Page** - confirm it lists the elements
+   you just interacted with, each with an Event and a Source (Automatic
+   or Explicit).
+7. Temporarily add `data-lumn-event="not_a_real_event"` to any element's
+   markup, reload, scan again - confirm it's reported as an unrecognized
+   event rather than silently ignored (and that nothing fired for it).
+8. Use the **Test Event** dropdown to pick an event, click **Send Test
+   Event** - confirm the browser `confirm()` warning appears, that
+   declining sends nothing, and that confirming adds an entry to
+   `window.dataLayer` with `lumn_debug: true`.
+9. Back in wp-admin, open the **Event Catalog** tab - confirm every
+   implemented event appears, expand one, and click a **Copy** button;
+   paste somewhere to confirm the exact event name was copied.
+10. Open the **GTM Guide** tab - confirm the architecture explanation and
+    a recipe per event, including the `lumn_form_type equals ...`
+    condition under the form submission recipe.
+11. Open the **Health Check** tab, click **Run Health Check** - confirm
+    results appear only after clicking (not automatically), that
+    everything you've enabled shows "Good", and that GTM detection is
+    labeled with what LUMN can/cannot verify.
+12. Disable one enabled form's tracking (or leave a detected form
+    unconfigured) - re-run the Health Check and confirm it's flagged as a
+    warning ("detected but not configured"), not an error.
+13. Click **Disable Debugging** - confirm the front-end panel no longer
+    appears on reload, and that this alone didn't change any Master
+    Tracking / feature toggle settings.

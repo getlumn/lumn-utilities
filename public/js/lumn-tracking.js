@@ -110,8 +110,13 @@
 
     // status is 'fired' or 'suppressed'. detail is a plain object of
     // extra fields to log (payload params for 'fired', a human-readable
-    // reason for 'suppressed').
-    function debugLog(status, key, eventDef, detail) {
+    // reason for 'suppressed'). source (Step 4) is an optional
+    // human-readable string describing how the event was detected (e.g.
+    // "Automatic phone detection", "Explicit data-lumn-event", "Gravity
+    // Forms") - shown by the Tracking Debugger overlay's Recent Events
+    // feed (see docs/TRACKING.md "Debugger event sources"). It is
+    // debug-only: never part of the dataLayer payload itself.
+    function debugLog(status, key, eventDef, detail, source) {
         if (!config.debug) {
             return;
         }
@@ -130,6 +135,9 @@
                 console.log('Category:', eventDef.category);
                 console.log('Action:', eventDef.action);
             }
+            if (source) {
+                console.log('Source:', source);
+            }
             if (detail) {
                 for (var k in detail) {
                     if (Object.prototype.hasOwnProperty.call(detail, k)) {
@@ -146,7 +154,7 @@
         if (typeof window.CustomEvent === 'function') {
             var eventName = status === 'fired' ? 'lumn:tracking:event' : 'lumn:tracking:suppressed';
             window.dispatchEvent(new window.CustomEvent(eventName, {
-                detail: { key: key, event: eventDef ? eventDef.name : null, detail: detail || {} }
+                detail: { key: key, event: eventDef ? eventDef.name : null, source: source || null, detail: detail || {} }
             }));
         }
     }
@@ -179,10 +187,16 @@
          * window.dataLayer is only ever created here, lazily, the first
          * time an event actually gets pushed - never on script load.
          *
+         * source (Step 4, optional) is a human-readable string
+         * describing how this call was triggered (e.g. "Automatic phone
+         * detection", "Gravity Forms") - purely for the Tracking
+         * Debugger's Recent Events feed / console log, never added to
+         * the dataLayer payload itself.
+         *
          * Returns true if an event was pushed, false if it was
          * suppressed.
          */
-        pushEvent: function (eventKey, extraParams) {
+        pushEvent: function (eventKey, extraParams, source) {
             if (!config.enabled) {
                 return false;
             }
@@ -194,7 +208,7 @@
             }
 
             if (!this.isFeatureEnabled(eventDef.feature)) {
-                debugLog('suppressed', eventKey, eventDef, { Reason: 'Feature "' + eventDef.feature + '" is disabled.' });
+                debugLog('suppressed', eventKey, eventDef, { Reason: 'Feature "' + eventDef.feature + '" is disabled.' }, source);
                 return false;
             }
 
@@ -209,7 +223,7 @@
                     logDetail[k] = payload[k];
                 }
             }
-            debugLog('fired', eventKey, eventDef, logDetail);
+            debugLog('fired', eventKey, eventDef, logDetail, source);
 
             return true;
         },
@@ -263,7 +277,7 @@
             var fired = 0;
             for (var i = 0; i < queue.length; i++) {
                 var item = queue[i];
-                if (item && typeof item.eventKey === 'string' && this.pushEvent(item.eventKey, item.params || {})) {
+                if (item && typeof item.eventKey === 'string' && this.pushEvent(item.eventKey, item.params || {}, item.source || null)) {
                     fired++;
                 }
             }

@@ -78,12 +78,15 @@
 	color: var(--lumn-navy);
 }
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form h3,
-.lumn-ut-locations-page h3 {
+.lumn-ut-locations-page h3,
+.lumn-ut-tracking-debugger-page h2,
+.lumn-ut-tracking-debugger-page h3 {
 	font-size: 1.3em;
 	color: var(--lumn-navy);
 }
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form h4,
-.lumn-ut-locations-page h4 {
+.lumn-ut-locations-page h4,
+.lumn-ut-tracking-debugger-page h4 {
 	font-size: 1.1em;
 	color: var(--lumn-ink);
 }
@@ -217,7 +220,10 @@
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table th,
 .lumn-ut-locations-page .lumn-utilites-table,
 .lumn-ut-locations-page .lumn-utilites-table td,
-.lumn-ut-locations-page .lumn-utilites-table th
+.lumn-ut-locations-page .lumn-utilites-table th,
+.lumn-ut-tracking-debugger-page .lumn-utilites-table,
+.lumn-ut-tracking-debugger-page .lumn-utilites-table td,
+.lumn-ut-tracking-debugger-page .lumn-utilites-table th
 {
 	border: 1px solid var(--lumn-border);
 	text-align: left;
@@ -225,12 +231,15 @@
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table td,
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table th,
 .lumn-ut-locations-page .lumn-utilites-table td,
-.lumn-ut-locations-page .lumn-utilites-table th
+.lumn-ut-locations-page .lumn-utilites-table th,
+.lumn-ut-tracking-debugger-page .lumn-utilites-table td,
+.lumn-ut-tracking-debugger-page .lumn-utilites-table th
 {
 	padding: 10px 14px;
 }
 .toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table th,
-.lumn-ut-locations-page .lumn-utilites-table th {
+.lumn-ut-locations-page .lumn-utilites-table th,
+.lumn-ut-tracking-debugger-page .lumn-utilites-table th {
 	background: var(--lumn-navy-tint);
 	color: var(--lumn-navy);
 	font-weight: 600;
@@ -425,4 +434,67 @@
 }
 .lumn-ut-tracking-page .lumn-ut-form-tracking-table td {
 	vertical-align: middle;
+}
+
+/* -------------------------------------------------------------------- */
+/* Tracking Debugger / Event Catalog / Health Check / GTM Guide          */
+/* -------------------------------------------------------------------- */
+
+.lumn-ut-tracking-debugger-page .lumn-ut-tracking-debugger-tabs {
+	margin-bottom: 16px;
+}
+.lumn-ut-tracking-debugger-page .lumn-ut-status-checks,
+.lumn-ut-tracking-debugger-page .lumn-ut-health-table {
+	margin-top: 10px;
+	margin-bottom: 16px;
+}
+.lumn-ut-tracking-debugger-page .lumn-ut-health-table thead th {
+	background: var(--lumn-navy-tint);
+	color: var(--lumn-navy);
+}
+.lumn-ut-tracking-debugger-page .lumn-ut-health-status-cell {
+	width: 110px;
+	white-space: nowrap;
+}
+
+.lumn-ut-health-badge {
+	display: inline-block;
+	padding: 2px 10px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 600;
+}
+.lumn-ut-health-badge.lumn-ut-health-good {
+	background-color: #e4f7ec;
+	color: #1a7f4b;
+}
+.lumn-ut-health-badge.lumn-ut-health-warning {
+	background-color: #fdf3d8;
+	color: #93690a;
+}
+.lumn-ut-health-badge.lumn-ut-health-error {
+	background-color: #fbe4e2;
+	color: #a3271f;
+}
+.lumn-ut-health-badge.lumn-ut-health-info {
+	background-color: var(--lumn-navy-tint);
+	color: var(--lumn-navy);
+}
+
+.lumn-ut-tracking-page .lumn-ut-catalog-item .lumn-utilites-admin-accordion-header .icon-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.lumn-ut-tracking-page .lumn-ut-gtm-recipe {
+	background: var(--lumn-blue-tint);
+	border-radius: 6px;
+	padding: 10px 14px;
+	margin-top: 10px;
+}
+.lumn-ut-tracking-page .lumn-ut-gtm-recipe table {
+	background: transparent;
+}
+.lumn-ut-copy-btn {
+	margin-left: 6px;
 }

@@ -161,8 +161,15 @@ function lumn_ut_tracking_default_settings() {
 // below. 'event', 'lumn_event_category', and 'lumn_event_action' are
 // computed by the push helpers themselves (never caller-supplied), so
 // they are not part of this allowlist.
+//
+// 'lumn_debug' (Step 4) is a boolean flag the Tracking Debugger's Test
+// Event tool sets on a deliberately-triggered test push - see
+// docs/TRACKING.md "Test events" - so it's visible to anyone consuming
+// the data layer (including an existing GTM container) as clearly not a
+// genuine user interaction. Real, automatic/explicit LUMN events never
+// set it.
 function lumn_ut_tracking_base_event_params() {
-    return array('lumn_location', 'lumn_component', 'lumn_page_type');
+    return array('lumn_location', 'lumn_component', 'lumn_page_type', 'lumn_debug');
 }
 
 /**
@@ -269,6 +276,39 @@ function lumn_ut_tracking_event_by_name($event_name) {
             return array_merge($event, array('key' => $key));
         }
     }
+    return null;
+}
+
+/**
+ * Resolves a data-lumn-event-style string against the registry: a
+ * registry key (case-insensitive, e.g. "LUMN_PHONE_CLICK"), the dataLayer
+ * event name (e.g. "lumn_phone_click"), or the short action form (e.g.
+ * "phone_click"). Mirrors resolveExplicitEventKey() in
+ * public/js/lumn-tracking-events.js - keep both in sync if the resolution
+ * rules ever change. Used server-side by the Tracking Health Checker
+ * (Step 4) to validate data-lumn-event attributes found on a page.
+ * Returns the registry key, or null if unrecognized.
+ */
+function lumn_ut_tracking_resolve_event_key($raw) {
+    $needle = is_string($raw) ? trim($raw) : '';
+    if ($needle === '') {
+        return null;
+    }
+
+    $registry = lumn_ut_tracking_event_registry();
+
+    $upper = strtoupper($needle);
+    if (isset($registry[$upper])) {
+        return $upper;
+    }
+
+    $lower = strtolower($needle);
+    foreach ($registry as $key => $event) {
+        if ($event['name'] === $lower || $event['action'] === $lower) {
+            return $key;
+        }
+    }
+
     return null;
 }
 

@@ -176,7 +176,10 @@ function lumn_ut_form_tracking_submit($provider, $form_id, $form_name) {
         // params, per docs/TRACKING.md - never invents one.
     }
 
-    return lumn_ut_tracking_relay_event('LUMN_FORM_SUBMIT', $params);
+    $providers = lumn_ut_tracking_form_provider_registry();
+    $source = isset($providers[$provider]['label']) ? $providers[$provider]['label'] : $provider;
+
+    return lumn_ut_tracking_relay_event('LUMN_FORM_SUBMIT', $params, $source);
 }
 
 // ---------------------------------------------------------------------

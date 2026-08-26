@@ -113,6 +113,17 @@
 
     // ---- automatic classification --------------------------------------
 
+    // Human-readable "how was this detected" labels for the Tracking
+    // Debugger's Recent Events feed (Step 4) - see docs/TRACKING.md
+    // "Debugger event sources". Purely descriptive; never part of the
+    // dataLayer payload.
+    var AUTOMATIC_SOURCE_LABELS = {
+        LUMN_PHONE_CLICK: 'Automatic phone detection',
+        LUMN_EMAIL_CLICK: 'Automatic email detection',
+        LUMN_APPOINTMENT_CLICK: 'Automatic appointment detection',
+        LUMN_DIRECTIONS_CLICK: 'Automatic directions detection'
+    };
+
     function classifyAnchor(anchor) {
         var href = anchor.getAttribute('href') || '';
         if (!href) {
@@ -215,7 +226,7 @@
                 return;
             }
 
-            LumnTracking.pushEvent(eventKey, readExplicitParams(explicitEl));
+            LumnTracking.pushEvent(eventKey, readExplicitParams(explicitEl), 'Explicit data-lumn-event');
             return;
         }
 
@@ -229,7 +240,7 @@
             return;
         }
 
-        LumnTracking.pushEvent(autoKey, {});
+        LumnTracking.pushEvent(autoKey, {}, AUTOMATIC_SOURCE_LABELS[autoKey] || 'Automatic detection');
     }
 
     document.addEventListener('click', handleClick, true);
