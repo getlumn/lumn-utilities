@@ -26,7 +26,7 @@ $service_hover_content = lumn_ut_legacy_inner_content($content, isset($attribute
 <?php echo $background_image ? 'background-image: url(' . esc_url(wp_get_attachment_url($background_image)) . ');' : ''; ?>
 ">
     <div class="dcmo-service-text">
-        <h3 class="dcmo-service-heading"><?php echo esc_html($service_heading); ?></h3>
+        <h3 class="dcmo-service-heading"><?php echo wp_kses_post($service_heading); ?></h3>
         <div class="dcmo-service-text-expand" style="
             <?php echo $text_color ? 'color: ' . esc_html($text_color) . ';' : ''; ?>
         ">
