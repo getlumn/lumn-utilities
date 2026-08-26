@@ -576,7 +576,7 @@ function lumn_ut_tracking_gtm_recipe($event_key) {
             'example_values' => array_keys($types),
         );
         $recipe['ga4_note'] = __('Consider mapping to a GA4 generate_lead event for lead-generating form types (e.g. appointment, contact, consultation) - but probably not employment or newsletter forms. This decision belongs in GTM, made by whoever owns this site\'s analytics; LUMN Utilities never sends this to GA4 directly.', 'lumn-utilities');
-    } elseif (in_array($event_key, array('LUMN_PHONE_CLICK', 'LUMN_APPOINTMENT_CLICK', 'LUMN_DIRECTIONS_CLICK', 'LUMN_EMAIL_CLICK'), true)) {
+    } elseif (in_array($event_key, array('LUMN_PHONE_CLICK', 'LUMN_SMS_CLICK', 'LUMN_APPOINTMENT_CLICK', 'LUMN_DIRECTIONS_CLICK', 'LUMN_EMAIL_CLICK'), true)) {
         $recipe['ga4_note'] = __('Consider mapping to a GA4 generate_lead event, since this represents a lead-generating interaction. Configured entirely in GTM - LUMN Utilities never sends this to GA4 directly.', 'lumn-utilities');
     } elseif ($event_key === 'LUMN_FILE_DOWNLOAD') {
         $recipe['ga4_note'] = __('GA4 has a built-in file_download recommended event - consider mapping to that, using lumn_file_name/lumn_file_type as the file_name/file_extension parameters. Configured entirely in GTM.', 'lumn-utilities');

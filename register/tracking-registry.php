@@ -237,6 +237,14 @@ function lumn_ut_tracking_event_registry() {
             'description' => __('A mailto: link was clicked.', 'lumn-utilities'),
             'params' => array(),
         ),
+        'LUMN_SMS_CLICK' => array(
+            'name' => 'lumn_sms_click',
+            'feature' => 'phone_click_tracking',
+            'category' => 'lead',
+            'action' => 'sms_click',
+            'description' => __('An sms: (click-to-text) link was clicked.', 'lumn-utilities'),
+            'params' => array(),
+        ),
         'LUMN_FILE_DOWNLOAD' => array(
             'name' => 'lumn_file_download',
             'feature' => 'download_tracking',

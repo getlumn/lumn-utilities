@@ -173,8 +173,9 @@ below) - it never makes its own decision about what's enabled.
 
 **Naming convention:** `lumn_[object]_[action]`, e.g. `lumn_form_submit`,
 `lumn_phone_click`, `lumn_appointment_click`, `lumn_directions_click`,
-`lumn_email_click`, `lumn_file_download`, `lumn_video_start`,
-`lumn_video_progress`, `lumn_video_complete`, `lumn_external_link`.
+`lumn_email_click`, `lumn_sms_click`, `lumn_file_download`,
+`lumn_video_start`, `lumn_video_progress`, `lumn_video_complete`,
+`lumn_external_link`.
 
 Every event is registered once, in `lumn_ut_tracking_event_registry()`
 (`register/tracking-registry.php`), keyed by an upper-snake-case constant
@@ -287,13 +288,14 @@ describe **metadata about the interaction**, never the content a visitor
 typed. If you are unsure whether a field is safe to include, leave it out.
 
 This also means: never add the phone number itself to
-`LUMN_PHONE_CLICK`'s params, never the email address to
-`LUMN_EMAIL_CLICK`'s, and never the full destination URL to
+`LUMN_PHONE_CLICK`'s or `LUMN_SMS_CLICK`'s params, never the email address
+to `LUMN_EMAIL_CLICK`'s, and never the full destination URL to
 `LUMN_APPOINTMENT_CLICK` or `LUMN_DIRECTIONS_CLICK` - a destination URL is
 an easy way to accidentally smuggle a query string containing a patient's
 identifying information into analytics. None of `LUMN_PHONE_CLICK`,
-`LUMN_EMAIL_CLICK`, `LUMN_APPOINTMENT_CLICK`, or `LUMN_DIRECTIONS_CLICK`
-declare any event-specific params in the registry for exactly this reason
+`LUMN_SMS_CLICK`, `LUMN_EMAIL_CLICK`, `LUMN_APPOINTMENT_CLICK`, or
+`LUMN_DIRECTIONS_CLICK` declare any event-specific params in the registry
+for exactly this reason
 - only the base params (`lumn_location`, `lumn_component`, `lumn_page_type`)
 are available to them, and `lumn-tracking-events.js` never reads an
 element's `href` into the payload.
@@ -368,8 +370,19 @@ fixed order - the first match wins:
 | --- | --- | --- |
 | `tel:...` | `lumn_phone_click` | Phone Click Tracking |
 | `mailto:...` | `lumn_email_click` | Email Click Tracking |
+| `sms:...` | `lumn_sms_click` | Phone Click Tracking |
 | Matches this site's configured Appointments link (site-wide `[lumn_social_url name="appointments"]`, or any Practice Location's per-location override) | `lumn_appointment_click` | Appointment Click Tracking |
 | `maps.google.com`, `google.com/maps` or `www.google.com/maps`, `goo.gl/maps`, `maps.apple.com`, `bing.com/maps` or `www.bing.com/maps`, `waze.com` | `lumn_directions_click` | Directions Click Tracking |
+
+`lumn_sms_click` (`LUMN_SMS_CLICK`) reuses the **Phone Click Tracking**
+toggle rather than getting its own - an `sms:` link is the same
+click-to-contact-a-phone-number action as a `tel:` link, just via text
+instead of a call, so there's no separate feature to turn on. Before this
+was added, an `sms:` link had no dedicated `tel:`-style guard in
+`classifyAnchor()`, so it fell through to the generic external-link check
+- and since `new URL('sms:...')` parses with an empty hostname (same as
+`tel:`/`mailto:`/`javascript:`), it incorrectly registered as
+`lumn_external_link` when External Link Tracking was on.
 
 A link matching none of these produces no event. Appointment detection is
 deliberately **not** based on button text or a hardcoded third-party
@@ -493,6 +506,7 @@ uses a GTM **Custom Event** trigger matching the `event` name:
 | --- | --- | --- |
 | `lumn_phone_click` | Custom Event | `lumn_phone_click` |
 | `lumn_email_click` | Custom Event | `lumn_email_click` |
+| `lumn_sms_click` | Custom Event | `lumn_sms_click` |
 | `lumn_appointment_click` | Custom Event | `lumn_appointment_click` |
 | `lumn_directions_click` | Custom Event | `lumn_directions_click` |
 | `lumn_form_submit` | Custom Event | `lumn_form_submit` |

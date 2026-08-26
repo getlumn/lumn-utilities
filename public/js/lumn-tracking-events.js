@@ -26,15 +26,16 @@
  *    prevention (Step 5)"):
  *      a. tel:                                    -> LUMN_PHONE_CLICK
  *      b. mailto:                                  -> LUMN_EMAIL_CLICK
- *      c. matches a configured Appointments link    -> LUMN_APPOINTMENT_CLICK
+ *      c. sms:                                     -> LUMN_SMS_CLICK
+ *      d. matches a configured Appointments link    -> LUMN_APPOINTMENT_CLICK
  *         (site-wide or per-location, exact match)
- *      d. matches a configured Appointment URL       -> LUMN_APPOINTMENT_CLICK
+ *      e. matches a configured Appointment URL       -> LUMN_APPOINTMENT_CLICK
  *         pattern or scheduling-provider domain
  *         (only attempted when Automatic CTA
  *         Classification is on)
- *      e. known maps/directions domain               -> LUMN_DIRECTIONS_CLICK
- *      f. known download-file extension               -> LUMN_FILE_DOWNLOAD
- *      g. any other cross-origin link, unless its      -> LUMN_EXTERNAL_LINK
+ *      f. known maps/directions domain               -> LUMN_DIRECTIONS_CLICK
+ *      g. known download-file extension               -> LUMN_FILE_DOWNLOAD
+ *      h. any other cross-origin link, unless its      -> LUMN_EXTERNAL_LINK
  *         domain is excluded
  *    A link that matches none of these produces no event - an ambiguous
  *    interaction is never guessed at.
@@ -138,6 +139,7 @@
     var AUTOMATIC_SOURCE_LABELS = {
         LUMN_PHONE_CLICK: 'Automatic phone detection',
         LUMN_EMAIL_CLICK: 'Automatic email detection',
+        LUMN_SMS_CLICK: 'Automatic SMS detection',
         LUMN_APPOINTMENT_CLICK: 'Automatic appointment detection',
         LUMN_DIRECTIONS_CLICK: 'Automatic directions detection',
         LUMN_FILE_DOWNLOAD: 'Automatic download detection',
@@ -155,6 +157,9 @@
         }
         if (/^mailto:/i.test(href)) {
             return 'LUMN_EMAIL_CLICK';
+        }
+        if (/^sms:/i.test(href)) {
+            return 'LUMN_SMS_CLICK';
         }
         // javascript: parses "successfully" via new URL() with an empty
         // hostname, which would otherwise look like an external link

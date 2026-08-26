@@ -399,6 +399,9 @@
         if (/^mailto:/i.test(href)) {
             return { key: 'LUMN_EMAIL_CLICK' };
         }
+        if (/^sms:/i.test(href)) {
+            return { key: 'LUMN_SMS_CLICK' };
+        }
         if (/^javascript:/i.test(href)) {
             return { key: null };
         }
