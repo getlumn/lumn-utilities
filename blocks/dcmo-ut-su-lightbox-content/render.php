@@ -9,10 +9,10 @@ namespace Lumn\Utilities;
 // nothing changes here.
 $id = isset($attributes['id']) ? $attributes['id'] : '';
 $class_name = isset($attributes['className']) ? $attributes['className'] : '';
-$content = isset($attributes['content']) ? $attributes['content'] : '';
+$lightbox_content = lumn_ut_legacy_inner_content($content, isset($attributes['content']) ? $attributes['content'] : '');
 
 $shortcode = '[su_lightbox_content id="' . esc_attr($id) . '" class="dcmo-ut-su-lightbox-content dcmo-ut-block ' . esc_attr($class_name) . '"]'
-    . lumn_ut_render_legacy_block_content($content)
+    . $lightbox_content
     . '[/su_lightbox_content]';
 
 echo do_shortcode($shortcode);

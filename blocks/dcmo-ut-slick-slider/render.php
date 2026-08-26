@@ -12,7 +12,7 @@ $block_name = 'dcmo-ut-slick';
 $block_suffix = wp_rand(1000, 9999);
 $block_id = $block_name . '-' . $block_suffix;
 
-$slick_slide = isset($attributes['slick-slide']) ? lumn_ut_render_legacy_block_content($attributes['slick-slide']) : '';
+$slick_slide = lumn_ut_legacy_inner_content($content, isset($attributes['slick-slide']) ? $attributes['slick-slide'] : '');
 $slider_class = isset($attributes['slider-class']) ? $attributes['slider-class'] : '';
 $slider_settings = isset($attributes['slider-settings']) ? $attributes['slider-settings'] : '';
 $left_arrow = isset($attributes['left-arrow']) ? (int) $attributes['left-arrow'] : 0;

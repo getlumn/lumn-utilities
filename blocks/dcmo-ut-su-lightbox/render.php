@@ -14,10 +14,10 @@ namespace Lumn\Utilities;
 $type = isset($attributes['type']) ? $attributes['type'] : '';
 $src = isset($attributes['src']) ? $attributes['src'] : '';
 $class_name = isset($attributes['className']) ? $attributes['className'] : '';
-$inner_content = isset($attributes['inner-content']) ? $attributes['inner-content'] : '';
+$inner_content = lumn_ut_legacy_inner_content($content, isset($attributes['inner-content']) ? $attributes['inner-content'] : '');
 
 $shortcode = '[su_lightbox type="' . esc_attr($type) . '" src="' . esc_attr($src) . '" class="' . esc_attr($class_name) . ' dcmo-ut-su-lightbox dcmo-ut-block"]'
-    . lumn_ut_render_legacy_block_content($inner_content)
+    . $inner_content
     . '[/su_lightbox]';
 
 echo do_shortcode($shortcode);

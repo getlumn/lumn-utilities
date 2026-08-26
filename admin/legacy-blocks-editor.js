@@ -8,11 +8,14 @@
  *
  * Fields that were a Genesis Custom Blocks "inner_blocks" control
  * (inner-content, service-hover-content, slick-slide, content) are edited
- * here as raw HTML in a textarea rather than as real nested blocks - GCB
- * stored their value as a plain string attribute (see
- * register/legacy-blocks.php), so this keeps read/write symmetric with
- * exactly what's saved, at the cost of a plain-text editing experience for
- * just those specific fields rather than full visual nested-block editing.
+ * here with a real <InnerBlocks /> area, matching how Genesis Custom Blocks
+ * itself stored them - as the block's actual nested child blocks, not as a
+ * JSON attribute (see the comment on lumn_ut_legacy_inner_content() in
+ * register/legacy-blocks.php for how that was confirmed). save() for every
+ * block with such a field returns <InnerBlocks.Content /> so those children
+ * get serialized into post_content the normal WordPress way; the PHP
+ * render_callback (blocks/*\/render.php) reads them from its $content
+ * parameter, not from $attributes.
  */
 ( function( wp ) {
 	'use strict';
@@ -20,6 +23,7 @@
 	var el = wp.element.createElement;
 	var registerBlockType = wp.blocks.registerBlockType;
 	var InspectorControls = wp.blockEditor.InspectorControls;
+	var InnerBlocks = wp.blockEditor.InnerBlocks;
 	var useBlockProps = wp.blockEditor.useBlockProps;
 	var PanelBody = wp.components.PanelBody;
 	var TextControl = wp.components.TextControl;
@@ -64,12 +68,12 @@
 			} );
 		}
 
-		if ( def.control === 'textarea' || def.control === 'html' ) {
+		if ( def.control === 'textarea' ) {
 			return el( TextareaControl, {
 				label: def.label,
 				help: def.help,
 				value: value,
-				rows: def.control === 'html' ? 6 : 4,
+				rows: 4,
 				onChange: onChange,
 			} );
 		}
@@ -108,7 +112,16 @@
 		} );
 	}
 
+	// innerBlocksField: the name of this block's Genesis Custom Blocks
+	// "inner_blocks" control field, if it has one (a block has at most one -
+	// see the comment at the top of this file). When set, that field is
+	// edited as a real <InnerBlocks /> area rather than an inspector field,
+	// and save() persists it as real child blocks instead of returning null.
 	function registerLegacyBlock( name, config ) {
+		var settingsFields = config.fields.filter( function( def ) {
+			return def.attr !== config.innerBlocksField;
+		} );
+
 		registerBlockType( name, {
 			apiVersion: 3,
 			title: config.title,
@@ -121,13 +134,14 @@
 				var blockProps = useBlockProps( { className: 'lumn-ut-legacy-block-editor' } );
 
 				return el( 'div', blockProps,
-					el( InspectorControls, {}, el( PanelBody, { title: __( 'Settings', 'lumn-utilities' ), initialOpen: true }, inspectorFields( attributes, setAttributes, config.fields ) ) ),
-					config.editorBody ? config.editorBody( attributes, setAttributes ) : null,
-					el( ServerSideRender, { block: name, attributes: attributes } )
+					el( InspectorControls, {}, el( PanelBody, { title: __( 'Settings', 'lumn-utilities' ), initialOpen: true }, inspectorFields( attributes, setAttributes, settingsFields ) ) ),
+					config.innerBlocksField
+						? el( InnerBlocks, {} )
+						: el( ServerSideRender, { block: name, attributes: attributes } )
 				);
 			},
 			save: function() {
-				return null;
+				return config.innerBlocksField ? el( InnerBlocks.Content ) : null;
 			},
 		} );
 	}
@@ -138,10 +152,10 @@
 		icon: 'link',
 		category: 'text',
 		attributes: { className: { type: 'string' }, link: { type: 'string' }, 'link-target': { type: 'string' }, 'inner-content': { type: 'string' } },
+		innerBlocksField: 'inner-content',
 		fields: [
 			{ attr: 'link', label: __( 'Link URL', 'lumn-utilities' ), control: 'text' },
 			{ attr: 'link-target', label: __( 'Link Target', 'lumn-utilities' ), control: 'select', options: [ { label: '_self', value: '_self' }, { label: '_blank', value: '_blank' }, { label: '_parent', value: '_parent' }, { label: '_top', value: '_top' } ] },
-			{ attr: 'inner-content', label: __( 'Inner Content (HTML)', 'lumn-utilities' ), control: 'html' },
 		],
 	} );
 
@@ -163,9 +177,9 @@
 			'service-heading': { type: 'string' },
 			'service-hover-content': { type: 'string' },
 		},
+		innerBlocksField: 'service-hover-content',
 		fields: [
 			{ attr: 'service-heading', label: __( 'Service Heading', 'lumn-utilities' ), control: 'text' },
-			{ attr: 'service-hover-content', label: __( 'Hover Content (HTML)', 'lumn-utilities' ), control: 'html' },
 			{ attr: 'background-image', label: __( 'Background Image', 'lumn-utilities' ), control: 'image' },
 			{ attr: 'service-highlight-height', label: __( 'Min Height (px)', 'lumn-utilities' ), control: 'number' },
 			{ attr: 'border-radius', label: __( 'Border Radius (px)', 'lumn-utilities' ), control: 'number' },
@@ -183,13 +197,13 @@
 		icon: 'controls-play',
 		category: 'media',
 		attributes: { className: { type: 'string' }, animation: { type: 'string' }, duration: { type: 'integer' }, delay: { type: 'integer' }, inline: { type: 'string' }, class: { type: 'string' }, 'inner-content': { type: 'string' } },
+		innerBlocksField: 'inner-content',
 		fields: [
 			{ attr: 'animation', label: __( 'Animation', 'lumn-utilities' ), control: 'text', help: __( 'An animate.css animation name, e.g. fadeIn, bounce, tada.', 'lumn-utilities' ) },
 			{ attr: 'duration', label: __( 'Duration (seconds)', 'lumn-utilities' ), control: 'number' },
 			{ attr: 'delay', label: __( 'Delay', 'lumn-utilities' ), control: 'number' },
 			{ attr: 'inline', label: __( 'Inline', 'lumn-utilities' ), control: 'select', options: [ { label: 'no', value: 'no' }, { label: 'yes', value: 'yes' } ] },
 			{ attr: 'class', label: __( 'Extra CSS Class', 'lumn-utilities' ), control: 'text' },
-			{ attr: 'inner-content', label: __( 'Inner Content (HTML)', 'lumn-utilities' ), control: 'html' },
 		],
 	} );
 
@@ -199,10 +213,10 @@
 		icon: 'format-gallery',
 		category: 'text',
 		attributes: { className: { type: 'string' }, type: { type: 'string' }, src: { type: 'string' }, 'inner-content': { type: 'string' } },
+		innerBlocksField: 'inner-content',
 		fields: [
 			{ attr: 'type', label: __( 'Type', 'lumn-utilities' ), control: 'select', options: [ { label: '—', value: '' }, { label: 'iframe', value: 'iframe' }, { label: 'image', value: 'image' }, { label: 'inline', value: 'inline' } ] },
 			{ attr: 'src', label: __( 'Src (URL, or CSS selector for "inline")', 'lumn-utilities' ), control: 'text' },
-			{ attr: 'inner-content', label: __( 'Inner Content (HTML)', 'lumn-utilities' ), control: 'html' },
 		],
 	} );
 
@@ -212,9 +226,9 @@
 		icon: 'megaphone',
 		category: 'text',
 		attributes: { className: { type: 'string' }, id: { type: 'string' }, content: { type: 'string' } },
+		innerBlocksField: 'content',
 		fields: [
 			{ attr: 'id', label: __( 'Id (used by the matching Lightbox block)', 'lumn-utilities' ), control: 'text' },
-			{ attr: 'content', label: __( 'Content (HTML)', 'lumn-utilities' ), control: 'html' },
 		],
 	} );
 
@@ -238,8 +252,8 @@
 			'slider-leftright-margin-unit': { type: 'string' },
 			'slick-slide': { type: 'string' },
 		},
+		innerBlocksField: 'slick-slide',
 		fields: [
-			{ attr: 'slick-slide', label: __( 'Slides (HTML)', 'lumn-utilities' ), control: 'html', help: __( 'It is recommended to embed each slide in a Group or Container block.', 'lumn-utilities' ) },
 			{ attr: 'slider-class', label: __( 'Slider Class', 'lumn-utilities' ), control: 'text' },
 			{ attr: 'slider-settings', label: __( 'Slider Settings (JS object body)', 'lumn-utilities' ), control: 'textarea', help: __( 'e.g. infinite: true, autoplay: true, - see kenwheeler.github.io/slick', 'lumn-utilities' ) },
 			{ attr: 'left-arrow', label: __( 'Left Arrow Image', 'lumn-utilities' ), control: 'image' },

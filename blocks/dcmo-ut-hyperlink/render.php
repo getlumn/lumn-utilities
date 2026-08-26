@@ -8,12 +8,12 @@ namespace Lumn\Utilities;
 $link = isset($attributes['link']) ? $attributes['link'] : '';
 $link_target = isset($attributes['link-target']) ? $attributes['link-target'] : '_self';
 $class_name = isset($attributes['className']) ? $attributes['className'] : '';
-$inner_content = isset($attributes['inner-content']) ? $attributes['inner-content'] : '';
+$inner_content = lumn_ut_legacy_inner_content($content, isset($attributes['inner-content']) ? $attributes['inner-content'] : '');
 
 printf(
     '<a href="%s" target="%s" class="%s dcmo-ut-hyperlink dcmo-ut-block">%s</a>',
     esc_url($link),
     esc_attr($link_target),
     esc_attr($class_name),
-    lumn_ut_render_legacy_block_content($inner_content)
+    $inner_content
 );
