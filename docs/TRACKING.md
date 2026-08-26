@@ -6,11 +6,13 @@ is, why it exists, and how to build on it safely.
 - **Step 1** built the architectural foundation: settings, the
   feature-flag API, the event specification, the data-layer API, and the
   hooks a debugger uses. No tracking event actually fired yet.
-- **Step 2** (this revision) implements the first usable layer of events on
-  top of that foundation: phone clicks, email clicks, appointment clicks,
-  directions clicks, and the explicit `data-lumn-event` markup mechanism.
-  Form-plugin tracking (Gravity Forms, Formidable, etc.) is a later step
-  and is intentionally not covered here.
+- **Step 2** implements the first usable layer of click events: phone,
+  email, appointment, directions clicks, and the explicit `data-lumn-event`
+  markup mechanism.
+- **Step 3** (this revision) adds provider-agnostic form submission
+  tracking - Gravity Forms and Formidable Forms today, with an adapter
+  pattern future providers plug into. A GTM administrator sees the same
+  `lumn_form_submit` event regardless of which plugin generated it.
 
 ## What this is, and why it exists
 
@@ -80,11 +82,13 @@ inherits the opt-in guarantees automatically.
 
 | Piece | File |
 | --- | --- |
-| Feature registry, event registry, PII denylist | `register/tracking-registry.php` |
-| Settings storage, feature-flag API, PHP push API, script enqueue, Settings API registration, known-appointment-URL lookup | `register/tracking.php` |
+| Feature registry, event registry, form provider/type registries, PII denylist | `register/tracking-registry.php` |
+| Settings storage, feature-flag API, PHP push API, cross-request relay, script enqueue, Settings API registration, known-appointment-URL lookup | `register/tracking.php` |
 | Admin page rendering ("SEO & Tracking") | `admin/tracking-page.php` |
-| Front-end data-layer abstraction (`LumnTracking.pushEvent()`, debugger) | `public/js/lumn-tracking.js` |
+| Provider-agnostic Form Tracking API, per-form config, Gravity Forms + Formidable Forms adapters, "Form Tracking Providers"/"Tracked Forms" settings UI | `register/form-tracking.php` |
+| Front-end data-layer abstraction (`LumnTracking.pushEvent()`, `consumeRelay()`, debugger) | `public/js/lumn-tracking.js` |
 | Automatic + explicit click detection (phone/email/appointment/directions, `data-lumn-event`) | `public/js/lumn-tracking-events.js` |
+| Form-submission relay consumption (Gravity Forms / Formidable "confirmation shown" listeners) | `public/js/lumn-tracking-forms.js` |
 
 ## Settings
 
@@ -108,7 +112,13 @@ screen: `phone_click_tracking`, `email_click_tracking`,
 `appointment_click_tracking`, `directions_click_tracking`,
 `event_tracking` (labeled **Explicit Event Tracking** - see below),
 `form_tracking`, `download_tracking`, `video_tracking`,
-`external_link_tracking`, `debugger`.
+`external_link_tracking`, `debugger` - plus one `form_tracking_{provider}`
+key per entry in `lumn_ut_tracking_form_provider_registry()`
+(`form_tracking_gravity_forms`, `form_tracking_formidable_forms`), added
+automatically by `lumn_ut_tracking_default_settings()` so a new provider
+only needs registering once. Per-form tracking config (which individual
+forms are tracked, as what type, at which location) lives in a **separate**
+option, `lumn_ut_form_tracking_config` - see "Form tracking" below.
 
 `event_tracking`/"Explicit Event Tracking" is a second, additional gate
 specifically for the `data-lumn-event` markup mechanism (see "Explicit
@@ -209,11 +219,20 @@ Example (`lumn_form_submit`):
     event: "lumn_form_submit",
     lumn_event_category: "lead",
     lumn_event_action: "form_submit",
-    lumn_location: "contact_page",
-    lumn_component: "form",
-    lumn_form_type: "appointment"
+    lumn_form_id: "3",
+    lumn_form_name: "Request Appointment",
+    lumn_form_type: "appointment",
+    lumn_form_provider: "gravity_forms",
+    lumn_location_id: "2",
+    lumn_location_name: "Downtown Office"
 }
 ```
+
+(`lumn_location_id`/`lumn_location_name` only appear when the form is
+associated with a Practice Location - see "Form tracking" below;
+`lumn_location`/`lumn_component`/`lumn_page_type`, the generic base
+params, are also available to `lumn_form_submit` but aren't populated by
+the current provider adapters.)
 
 **Any parameter key not declared for that event is silently dropped**, both
 server-side and client-side - it never reaches the data layer. This is the
@@ -462,11 +481,284 @@ uses a GTM **Custom Event** trigger matching the `event` name:
 | `lumn_email_click` | Custom Event | `lumn_email_click` |
 | `lumn_appointment_click` | Custom Event | `lumn_appointment_click` |
 | `lumn_directions_click` | Custom Event | `lumn_directions_click` |
+| `lumn_form_submit` | Custom Event | `lumn_form_submit` |
 
 `lumn_event_category`, `lumn_event_action`, `lumn_location`, and
 `lumn_component` are all available as Data Layer Variables inside GTM once
 you create them there (Variable type: **Data Layer Variable**, matching
-variable name).
+variable name) - as are `lumn_form_id`, `lumn_form_name`, `lumn_form_type`,
+`lumn_form_provider`, `lumn_location_id`, and `lumn_location_name` for
+`lumn_form_submit` specifically.
+
+## Form tracking (Step 3)
+
+A provider-agnostic layer that normalizes successful form submissions from
+different WordPress form plugins into the single `lumn_form_submit` event
+- a GTM administrator never needs to know or care which plugin generated a
+given submission:
+
+```
+Gravity Forms submission  -\
+                             > lumn_ut_form_tracking_submit()  ->  lumn_form_submit  ->  dataLayer  ->  GTM
+Formidable submission     -/
+```
+
+Everything lives in `register/form-tracking.php`, split from
+`register/tracking.php`/`register/tracking-registry.php` the way
+`register/locations.php` is split from the rest of the plugin - forms
+logic in one place, the generic tracking core untouched.
+
+### The opt-in chain
+
+Four levels, all independently required, checked in this order:
+
+```
+Master switch (is_enabled())
+       |
+Form Tracking (feature_enabled('form_tracking'))
+       |
+This provider's own toggle (tracking_form_provider_enabled($provider))
+       |
+This specific form's own toggle (per-form config, default OFF)
+       |
+       v
+  lumn_form_submit
+```
+
+`lumn_ut_tracking_form_provider_enabled( $provider )`
+(`register/tracking.php`) checks the first three levels and fails closed
+on every axis, exactly like `lumn_ut_tracking_feature_enabled()`: master
+off, Form Tracking off, an unrecognized provider name, or that provider's
+own toggle off all resolve to `false`. The fourth level -
+`lumn_ut_form_tracking_get_form_config( $provider, $form_id )['enabled']`
+- defaults to `false` for any form with no saved config, so **every
+individual form must be explicitly turned on**, even when its provider and
+Form Tracking are both already enabled (a site can have Form 3 tracked and
+Forms 7/9 not, all under the same Gravity Forms install).
+
+### Provider adapters
+
+Each adapter (Gravity Forms / Formidable, both in
+`register/form-tracking.php`) only needs to:
+
+1. Detect a **successful** submission via the provider's own server-side
+   hook (never DOM scraping, never "the submit button was clicked").
+2. Read that provider's own form id/name.
+3. Call `lumn_ut_form_tracking_submit( $provider, $form_id, $form_name )`.
+
+Everything else - the opt-in chain above, PII filtering, building the
+`lumn_form_submit` payload, and getting it to the browser - is handled
+once, generically, by `lumn_ut_form_tracking_submit()` and the tracking
+core it calls into. No adapter ever talks to `lumn_ut_tracking_relay_event()`,
+the settings option, or `window.dataLayer` directly.
+
+#### Gravity Forms
+
+Hook: `gform_after_submission( $entry, $form )`. This is Gravity Forms'
+own "an entry was just successfully saved" action - it only ever fires
+after a successful submission (never on validation failure, never merely
+because the form displayed or a field changed), and fires identically
+whether the visitor used a normal postback or GF's AJAX (iframe)
+submission, since both go through the same server-side entry-saving code.
+Registered only when Gravity Forms is detected
+(`class_exists('GFForms') || class_exists('GFAPI')`) - absent, this
+integration never registers a hook and stays completely dormant.
+
+Form listing for the admin UI uses `GFAPI::get_forms()`, wrapped in a
+`class_exists()`/`method_exists()` check and a `try/catch`, so a future
+Gravity Forms API change degrades to "no forms found" rather than a fatal
+error.
+
+#### Formidable Forms
+
+Hook: `frm_after_create_entry( $entry_id, $form_id )`, at priority `30`
+(Formidable's own documented recommendation, so this runs after
+Formidable's core entry-creation processing finishes). An entry is only
+ever created on a successful submission, so - like Gravity Forms' hook -
+this is naturally success-only. Registered only when Formidable is
+detected (`class_exists('FrmForm') || class_exists('FrmAppHelper')`).
+
+Form listing tries `FrmForm::get_published_forms()`, falling back to
+`FrmForm::getAll()` if unavailable, both guarded the same defensive way as
+the Gravity Forms listing above.
+
+### Why a relay, not a direct push
+
+`lumn_ut_tracking_push_event()` (the Step 1 direct-push API) queues an
+inline `<script>` on the *current* response. That works fine when a
+form's confirmation renders inline, in the same request the submission
+hook fired in - but it silently loses the event whenever that isn't true:
+
+- **A redirect confirmation** (Gravity Forms "Page"/"URL" confirmation
+  type, or Formidable's `redirect` action): the hook fires, but the
+  response becomes a bare redirect before anything queued for output ever
+  gets printed.
+- **A hidden AJAX iframe** (Gravity Forms' classic AJAX mechanism): the
+  hook fires and the script *would* print - but inside the iframe's own
+  throwaway document, whose `window.dataLayer` is a different object than
+  the visible parent page's. GTM watching the parent page never sees it.
+
+`lumn_ut_tracking_relay_event()` (`register/tracking.php`) solves this
+generically: it queues the already-filtered, already-safe event into a
+short-lived (5 minute), non-sensitive cookie
+(`lumn_ut_pending_form_event`, capped at 5 queued events) instead of
+printing anything immediately. The front end then picks it up:
+
+- `LumnTracking.consumeRelay()` (`public/js/lumn-tracking.js`) reads and
+  clears that cookie and pushes every queued event through the normal
+  `pushEvent()` - same fail-closed feature check, same param filtering.
+  It runs automatically once, at script load, **only in the top-level
+  document** (`window.self === window.top`) - this guard is what stops a
+  Gravity Forms AJAX iframe from consuming (and clearing) the cookie
+  before the parent page ever gets a chance to see it. This alone covers
+  a plain postback and any redirect confirmation.
+- `public/js/lumn-tracking-forms.js` covers the AJAX case *promptly*
+  rather than waiting for the visitor's next page load: it listens for
+  Gravity Forms' `gform_confirmation_loaded` and Formidable's
+  `frmFormComplete` - both provider-documented jQuery events fired on the
+  **parent** document only when a successful confirmation is actually
+  displayed (never on a validation-error re-render) - and calls
+  `consumeRelay()` again at that moment. Calling it twice for the same
+  cookie is always safe: the first read clears it, so the second finds
+  nothing.
+
+Nothing PII-bearing is ever eligible to enter the relay cookie - it goes
+through the exact same allowlist/denylist/scalar filtering as a direct
+push before it's ever written (see `lumn_ut_tracking_relay_event()`), and
+`pushEvent()` re-validates it again on the way out. A visitor who tampers
+with their own (non-`httponly`, by necessity) cookie can only ever produce
+another fully schema-conforming `lumn_form_submit`-shaped event in their
+*own* browser - the same characteristic already true of anyone calling
+`window.LumnTracking.pushEvent()` directly from devtools.
+
+**Known limitation:** if a redirect confirmation sends the visitor to a
+different domain, or they close the tab before their next page load on
+this site, the relay cookie simply expires unused after 5 minutes - there
+is no way to deliver an event to a page this site doesn't control.
+
+### Duplicate-event prevention
+
+- One submission -> one `gform_after_submission`/`frm_after_create_entry`
+  call -> one relay-queue entry -> one `consumeRelay()` delivery (the
+  cookie is cleared on first read, so any later read - a redundant
+  provider event trigger, a page reload - finds nothing left to fire).
+- The top-level-only guard (above) prevents an AJAX iframe from consuming
+  the event before the parent page can.
+- Because form-provider hooks are inherently success-only server-side
+  signals, a validation failure never creates an entry, never fires the
+  hook, and therefore never queues anything - regardless of how many times
+  a visitor resubmits after fixing errors.
+
+### Form type classification
+
+An admin-assigned label describing what a form is *for*
+(`lumn_ut_tracking_form_type_registry()`): `appointment`, `contact`,
+`consultation`, `newsletter`, `insurance`, `employment`, or `other`. This
+is deliberately **not** inferred from submitted field content - it's
+either explicitly chosen by an administrator in the Tracked Forms table,
+or (only as the *initial* suggested dropdown value for a form with no
+saved config yet) guessed from the form's *name* via
+`lumn_ut_form_tracking_suggest_type()`. That guess is a courtesy default
+only - a form literally titled "Tell Us How We Can Help" is not assumed to
+be an `appointment` form just because it contains helpful-sounding words;
+once an administrator saves any value (including leaving the suggestion
+as-is), that becomes the real, explicit, stored classification.
+
+### Location association
+
+If a form's per-form config has a `location_id` set, `lumn_form_submit`
+includes `lumn_location_id`/`lumn_location_name`, resolved via
+`lumn_ut_get_location()` (the existing Practice Locations system - see
+`register/locations.php`; this step does not create a second location
+system). A stale/deleted location reference, or no location configured at
+all, simply omits both params rather than inventing a value.
+
+### Form Tracking settings UI
+
+Two new sections on `LUMN Utilities -> SEO & Tracking`, added to the same
+settings form/group as everything else (so they save together and share
+its capability check + Settings API nonce):
+
+- **Form Tracking Providers** - one row per registered provider, showing
+  a **Detected**/**Not detected** badge (`lumn_ut_form_tracking_provider_detected()`)
+  and, when detected, a checkbox to enable that provider. Detection only
+  changes what this page *shows* - a detected provider is never enabled
+  automatically, and an enabled-but-undetected provider's checkbox simply
+  isn't rendered (its stored value stays whatever it already was, still
+  gated by "is this provider actually detected right now" wherever it's
+  read).
+- **Tracked Forms** - one table per detected provider (ID / Name / Type /
+  Location / Tracking), reading live from that provider's own API
+  (`lumn_ut_form_tracking_get_gravity_forms_list()` /
+  `..._get_formidable_forms_list()`). Saved into
+  `lumn_ut_form_tracking_config`, sanitized by
+  `lumn_ut_form_tracking_sanitize_config()`, which validates shape
+  (provider must be recognized, `form_type` must be a known value or
+  falls back to `other`) but deliberately does **not** require the form to
+  currently exist in that provider's live list - so temporarily
+  deactivating a provider plugin never silently deletes its saved
+  configuration.
+
+### GA4 mapping (documentation only - not implemented)
+
+LUMN Utilities does not send anything to GA4 directly; this is guidance
+for whoever configures the GTM tag that reacts to `lumn_form_submit`:
+
+| LUMN | Potential GA4 event | Notes |
+| --- | --- | --- |
+| `lumn_form_submit` where `lumn_form_type` is `appointment`, `contact`, or `consultation` | `generate_lead` | These represent an actual prospective-patient inquiry. |
+| `lumn_form_submit` where `lumn_form_type` is `employment` | *(none recommended)* | A job application is not a patient lead - don't count it as one. |
+| `lumn_form_submit` where `lumn_form_type` is `newsletter` | `sign_up` (or similar) | Not a lead in the sales sense. |
+
+Filter on `lumn_form_type` inside the GTM trigger (e.g. "`lumn_form_type`
+equals `appointment`") to scope a `generate_lead` tag to just the form
+types that represent a real lead, rather than mapping every
+`lumn_form_submit` the same way. This mapping decision belongs to the
+site's marketing/analytics owner, configured entirely in GTM - LUMN
+Utilities only ever provides the standardized event.
+
+### Adding a new form provider
+
+```
+New Provider
+    |
+Detect it safely (class_exists()/function_exists() - never a hard dependency)
+    |
+Hook its own "submission succeeded" event (never DOM scraping)
+    |
+Normalize: form_id, form_name  ->  lumn_ut_form_tracking_submit($provider, $form_id, $form_name)
+    |
+    v
+lumn_form_submit  (handled generically - not the new adapter's concern)
+```
+
+Concretely, to add e.g. "Contact Form 7":
+
+1. Add `'contact_form_7' => array('label' => __('Contact Form 7', ...))` to
+   `lumn_ut_tracking_form_provider_registry()`
+   (`register/tracking-registry.php`) - this alone gives you a
+   `form_tracking_contact_form_7` settings key (via
+   `lumn_ut_tracking_default_settings()`, automatically) and a row in the
+   Form Tracking Providers UI (automatically, since that UI loops the
+   registry).
+2. In `register/form-tracking.php`: a `lumn_ut_form_tracking_contact_form_7_detected()`
+   check, registered the same `add_action('plugins_loaded', ...)` way as
+   the existing two adapters.
+3. Hook that provider's own success-only action/filter (check its docs for
+   the equivalent of `gform_after_submission`/`frm_after_create_entry` -
+   never a generic "form submitted" hook that also fires on validation
+   failure, and never a purely client-side "submit clicked" signal).
+4. In that handler, call
+   `lumn_ut_form_tracking_submit('contact_form_7', $form_id, $form_name)`
+   - nothing else. You do not need to understand
+   `lumn_ut_tracking_relay_event()`, the settings option shape, or the
+   front-end relay/debugger to add a provider; `lumn_ut_form_tracking_submit()`
+   is the entire surface a new adapter needs.
+5. Add a `lumn_ut_form_tracking_get_contact_form_7_list()` (best-effort,
+   defensively guarded like the two existing ones) so the Tracked Forms
+   table can list that provider's forms, and wire it into
+   `lumn_ut_form_tracking_forms_table_callback()`.
+6. Leave every new toggle's default at `false`.
 
 ## Adding a new event (for future steps)
 
@@ -517,3 +809,40 @@ variable name).
 10. Uncheck the master switch and confirm no further clicks push anything
     (and, after a fresh page load, that no `lumn-ut-tracking*` script tag
     is present in the page source at all).
+
+### Form tracking (Step 3)
+
+Requires a test form on a Gravity Forms or Formidable Forms install.
+
+1. Re-enable the master switch, then check **Form Tracking**, then (under
+   Form Tracking Providers) check tracking for whichever plugin you have -
+   confirm it shows **Detected** first. Save Changes.
+2. Scroll to **Tracked Forms**, find your test form, set **Type** (e.g.
+   `contact`), check **Tracking: Enabled** for that one form only, leave a
+   second form unchecked. Save Changes.
+3. On the front end, open the console and run `window.dataLayer` - confirm
+   it's `undefined`/empty.
+4. Submit the tracked test form with valid data.
+5. Run `window.dataLayer` again - the last entry should look like:
+   ```json
+   { "event": "lumn_form_submit", "lumn_event_category": "lead", "lumn_event_action": "form_submit", "lumn_form_id": "3", "lumn_form_name": "...", "lumn_form_type": "contact", "lumn_form_provider": "gravity_forms" }
+   ```
+6. Confirm there is **no** field you typed into the form (name, email,
+   message, etc.) anywhere in that object.
+7. Submit the form again but trigger a validation error (leave a required
+   field blank) - confirm `window.dataLayer` does not grow.
+8. Submit the *second*, untracked form - confirm `window.dataLayer` does
+   not grow.
+9. If your form's confirmation is a redirect to a different page/thank-you
+   URL: after submitting, check `window.dataLayer` **on that destination
+   page** - the event should appear there (it's relayed via a short-lived
+   cookie, not the original request).
+10. Enable **Debugger** and resubmit - the console should show
+    `[LUMN Tracking] Event detected: lumn_form_submit` with Provider/Form
+    Type/Form ID/Form Name (and Location, if you assigned one) - never
+    field values.
+11. Uncheck Form Tracking (or the specific form) and confirm submissions
+    stop producing events.
+12. Confirm nothing else changed: any existing GTM/GA4 tags on this site
+    still behave exactly as before - LUMN only added a new dataLayer
+    event for GTM to optionally react to.

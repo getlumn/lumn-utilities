@@ -68,8 +68,8 @@ function lumn_ut_tracking_feature_registry() {
         ),
         'form_tracking' => array(
             'label' => __('Form Tracking', 'lumn-utilities'),
-            'description' => __('lumn_form_submit - form metadata only (form ID/type/name), never submitted field values.', 'lumn-utilities'),
-            'implemented' => false,
+            'description' => __('Sends a standardized lumn_form_submit event when a supported form plugin (Gravity Forms, Formidable Forms) successfully submits. Also requires enabling the specific provider, and the specific form, below - form metadata only (form ID/type/name/provider), never submitted field values.', 'lumn-utilities'),
+            'implemented' => true,
         ),
         'download_tracking' => array(
             'label' => __('Download Tracking', 'lumn-utilities'),
@@ -94,14 +94,64 @@ function lumn_ut_tracking_feature_registry() {
     );
 }
 
+/**
+ * Canonical list of supported form-plugin providers for LUMN Form
+ * Tracking, keyed by the provider identifier used as the
+ * 'lumn_form_provider' event param and as the second half of a
+ * 'form_tracking_{provider}' settings key. Single source of truth for:
+ * - which provider keys lumn_ut_tracking_form_provider_enabled()
+ *   recognizes (see register/tracking.php)
+ * - the settings UI's provider toggles (register/form-tracking.php)
+ * - the per-form config key prefix ('{provider}:{form_id}', see
+ *   register/form-tracking.php)
+ *
+ * Adding a new provider here (plus a `form_tracking_{provider}` toggle it
+ * implies) is step 1 of adding a new form-plugin adapter - see
+ * docs/TRACKING.md "Adding a new form provider".
+ */
+function lumn_ut_tracking_form_provider_registry() {
+    return array(
+        'gravity_forms' => array(
+            'label' => __('Gravity Forms', 'lumn-utilities'),
+        ),
+        'formidable_forms' => array(
+            'label' => __('Formidable Forms', 'lumn-utilities'),
+        ),
+    );
+}
+
+/**
+ * Standardized 'lumn_form_type' values an administrator can assign to a
+ * form (register/form-tracking.php's per-form configuration UI). Purely
+ * safe, admin-chosen metadata describing what a form is *for* - never
+ * inferred from submitted field content. An unrecognized/legacy value
+ * saved by an older version of this list falls back to 'other' wherever
+ * it's read (fail-safe, same pattern as every other registry here).
+ */
+function lumn_ut_tracking_form_type_registry() {
+    return array(
+        'appointment' => __('Appointment', 'lumn-utilities'),
+        'contact' => __('Contact', 'lumn-utilities'),
+        'consultation' => __('Consultation', 'lumn-utilities'),
+        'newsletter' => __('Newsletter', 'lumn-utilities'),
+        'insurance' => __('Insurance', 'lumn-utilities'),
+        'employment' => __('Employment', 'lumn-utilities'),
+        'other' => __('Other', 'lumn-utilities'),
+    );
+}
+
 // All-false defaults for every recognized key, including the master
-// switch. This is the fail-closed baseline lumn_ut_get_tracking_settings()
+// switch and one 'form_tracking_{provider}' key per registered form
+// provider. This is the fail-closed baseline lumn_ut_get_tracking_settings()
 // merges stored values onto, so a missing or unrecognized key can never
 // resolve to "on".
 function lumn_ut_tracking_default_settings() {
     $defaults = array('master' => false);
     foreach (lumn_ut_tracking_feature_registry() as $key => $meta) {
         $defaults[$key] = false;
+    }
+    foreach (lumn_ut_tracking_form_provider_registry() as $key => $meta) {
+        $defaults['form_tracking_' . $key] = false;
     }
     return $defaults;
 }
@@ -137,8 +187,11 @@ function lumn_ut_tracking_event_registry() {
             'feature' => 'form_tracking',
             'category' => 'lead',
             'action' => 'form_submit',
-            'description' => __('A form was successfully submitted. Metadata about the submission only - never field values.', 'lumn-utilities'),
-            'params' => array('lumn_form_type', 'lumn_form_id', 'lumn_form_name'),
+            'description' => __('A supported form was successfully submitted. Metadata about the submission only - never field values.', 'lumn-utilities'),
+            'params' => array(
+                'lumn_form_type', 'lumn_form_id', 'lumn_form_name', 'lumn_form_provider',
+                'lumn_location_id', 'lumn_location_name',
+            ),
         ),
         'LUMN_PHONE_CLICK' => array(
             'name' => 'lumn_phone_click',

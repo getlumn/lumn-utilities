@@ -410,3 +410,19 @@
 	font-weight: 600;
 	margin-left: 6px;
 }
+.lumn-ut-tracking-page .lumn-ut-tracking-badge-ok {
+	background-color: var(--lumn-blue-tint);
+	color: var(--lumn-blue);
+}
+.lumn-ut-tracking-page .lumn-ut-form-tracking-table {
+	margin-top: 10px;
+	margin-bottom: 20px;
+	border: 1px solid var(--lumn-border);
+}
+.lumn-ut-tracking-page .lumn-ut-form-tracking-table thead th {
+	background: var(--lumn-navy-tint);
+	color: var(--lumn-navy);
+}
+.lumn-ut-tracking-page .lumn-ut-form-tracking-table td {
+	vertical-align: middle;
+}

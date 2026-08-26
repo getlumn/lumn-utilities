@@ -92,6 +92,32 @@ function lumn_ut_tracking_feature_enabled($feature) {
     return !empty($settings[$feature]);
 }
 
+/**
+ * Whether one form provider (e.g. 'gravity_forms') may track submissions
+ * right now. Layers a third gate on top of lumn_ut_tracking_feature_enabled():
+ * master -> 'form_tracking' feature -> this specific provider's own
+ * toggle. Fails closed the same way on every axis - master off, Form
+ * Tracking off, an unrecognized provider name, or that provider's own
+ * toggle off all resolve to false. Provider adapters (register/form-tracking.php)
+ * must check this before ever calling lumn_ut_tracking_relay_event() -
+ * per-form eligibility (register/form-tracking.php's
+ * lumn_ut_form_tracking_get_form_config()) is checked on top of this, not
+ * instead of it.
+ */
+function lumn_ut_tracking_form_provider_enabled($provider) {
+    if (!lumn_ut_tracking_feature_enabled('form_tracking')) {
+        return false;
+    }
+
+    $providers = lumn_ut_tracking_form_provider_registry();
+    if (!isset($providers[$provider])) {
+        return false;
+    }
+
+    $settings = lumn_ut_get_tracking_settings();
+    return !empty($settings['form_tracking_' . $provider]);
+}
+
 // ---------------------------------------------------------------------
 // Safe data-layer abstraction (PHP side)
 // ---------------------------------------------------------------------
@@ -190,6 +216,98 @@ function lumn_ut_tracking_build_payload($event, $params) {
 }
 
 // ---------------------------------------------------------------------
+// Cross-request event relay (PHP side)
+// ---------------------------------------------------------------------
+//
+// Some server-side hooks that know a LUMN event should fire (e.g. a form
+// plugin's "submission was saved successfully" hook) run at a point where
+// lumn_ut_tracking_push_event() can't reliably reach the browser that
+// needs to see it - most notably when the confirmation is a redirect to a
+// different page/URL, where anything queued via wp_add_inline_script() on
+// this request is never actually output (the response is just a redirect
+// header). It can also matter for some AJAX submission flows, where the
+// response the hook fires within isn't the document the visible page's
+// window.dataLayer lives in (e.g. a hidden iframe).
+//
+// The relay below is a safe, generic alternative for exactly that case:
+// queue the (already-filtered, already-safe) event in a short-lived,
+// non-sensitive cookie, and let the front end
+// (LumnTracking.consumeRelay() in public/js/lumn-tracking.js) pick it up
+// and push it at the right moment - either automatically on the next page
+// load, or immediately once a provider-specific JS signal confirms the
+// confirmation is actually visible (see public/js/lumn-tracking-forms.js).
+// Nothing PII-bearing is ever eligible to enter this cookie - see the
+// allowlist/denylist filtering below, identical to a direct push.
+
+const LUMN_UT_TRACKING_RELAY_COOKIE = 'lumn_ut_pending_form_event';
+const LUMN_UT_TRACKING_RELAY_MAX_QUEUED = 5;
+const LUMN_UT_TRACKING_RELAY_TTL = 300; // 5 minutes - long enough for a redirect + page load, short enough to never linger
+
+/**
+ * Queues one standardized LUMN event for the front end to pick up and
+ * push on its own, rather than pushing it directly on this request. Same
+ * fail-closed gating and same param allowlist/denylist/scalar filtering
+ * as lumn_ut_tracking_push_event() - the only difference is *where* the
+ * event actually reaches window.dataLayer.
+ *
+ * Returns true if the event was queued, false if it was suppressed
+ * (tracking disabled, unrecognized event key, or headers already sent so
+ * the cookie couldn't be set).
+ */
+function lumn_ut_tracking_relay_event($event_key, $params = array()) {
+    if (!lumn_ut_tracking_is_enabled()) {
+        return false;
+    }
+
+    $registry = lumn_ut_tracking_event_registry();
+    if (!isset($registry[$event_key])) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log(sprintf('[LUMN Tracking] lumn_ut_tracking_relay_event() called with unrecognized event key "%s" - ignored.', $event_key));
+        }
+        return false;
+    }
+
+    if (headers_sent()) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[LUMN Tracking] Could not queue a relay event - headers were already sent.');
+        }
+        return false;
+    }
+
+    $payload = lumn_ut_tracking_build_payload($registry[$event_key], $params);
+    unset($payload['event'], $payload['lumn_event_category'], $payload['lumn_event_action']); // recomputed client-side from eventKey, not carried in the cookie
+
+    $queue = lumn_ut_tracking_read_relay_queue();
+    $queue[] = array('eventKey' => $event_key, 'params' => $payload);
+    if (count($queue) > LUMN_UT_TRACKING_RELAY_MAX_QUEUED) {
+        $queue = array_slice($queue, -LUMN_UT_TRACKING_RELAY_MAX_QUEUED);
+    }
+
+    // Not httponly: the front end (not PHP) is what actually consumes and
+    // clears this. Not a security concern - the cookie can only ever hold
+    // the same PII-free, allowlisted shape any other LUMN event does, and
+    // pushEvent() re-validates it again anyway (see
+    // LumnTracking.consumeRelay()) before anything reaches the data layer.
+    setcookie(LUMN_UT_TRACKING_RELAY_COOKIE, wp_json_encode($queue), array(
+        'expires' => time() + LUMN_UT_TRACKING_RELAY_TTL,
+        'path' => '/',
+        'secure' => is_ssl(),
+        'httponly' => false,
+        'samesite' => 'Lax',
+    ));
+
+    return true;
+}
+
+function lumn_ut_tracking_read_relay_queue() {
+    if (!isset($_COOKIE[LUMN_UT_TRACKING_RELAY_COOKIE])) {
+        return array();
+    }
+    $decoded = json_decode(wp_unslash($_COOKIE[LUMN_UT_TRACKING_RELAY_COOKIE]), true);
+    return is_array($decoded) ? $decoded : array();
+}
+
+// ---------------------------------------------------------------------
 // Front-end script - only enqueued when tracking is enabled. When
 // disabled (the default on every existing install), this hook does
 // nothing at all: no script tag, no localized config, no dataLayer
@@ -203,6 +321,7 @@ function lumn_ut_tracking_public_scripts() {
 
     $script_path = LUMN_UTILITIES_PLUGIN_PATH . 'public/js/lumn-tracking.js';
     $events_script_path = LUMN_UTILITIES_PLUGIN_PATH . 'public/js/lumn-tracking-events.js';
+    $forms_script_path = LUMN_UTILITIES_PLUGIN_PATH . 'public/js/lumn-tracking-forms.js';
     if (!file_exists($script_path)) {
         return;
     }
@@ -231,12 +350,18 @@ function lumn_ut_tracking_public_scripts() {
         );
     }
 
+    $form_providers = array();
+    foreach (lumn_ut_tracking_form_provider_registry() as $key => $meta) {
+        $form_providers[$key] = lumn_ut_tracking_form_provider_enabled($key);
+    }
+
     wp_localize_script(LUMN_UT_TRACKING_SCRIPT_HANDLE, 'lumnTrackingConfig', array(
         'enabled' => true,
         'features' => $features,
         'events' => $events,
         'forbiddenParamKeys' => lumn_ut_tracking_forbidden_param_keys(),
         'appointmentUrls' => lumn_ut_tracking_known_appointment_urls(),
+        'formProviders' => $form_providers,
         'debug' => lumn_ut_tracking_feature_enabled('debugger'),
     ));
 
@@ -252,6 +377,19 @@ function lumn_ut_tracking_public_scripts() {
             plugins_url('public/js/lumn-tracking-events.js', LUMN_UTILITIES_PLUGIN_PATH . 'index.php'),
             array(LUMN_UT_TRACKING_SCRIPT_HANDLE),
             filemtime($events_script_path),
+            true
+        );
+    }
+
+    // Form-submission relay consumption (gform_confirmation_loaded /
+    // frmFormComplete listeners). See public/js/lumn-tracking-forms.js -
+    // it self-bails if Form Tracking / every provider is off.
+    if (file_exists($forms_script_path)) {
+        wp_enqueue_script(
+            LUMN_UT_TRACKING_SCRIPT_HANDLE . '-forms',
+            plugins_url('public/js/lumn-tracking-forms.js', LUMN_UTILITIES_PLUGIN_PATH . 'index.php'),
+            array(LUMN_UT_TRACKING_SCRIPT_HANDLE),
+            filemtime($forms_script_path),
             true
         );
     }

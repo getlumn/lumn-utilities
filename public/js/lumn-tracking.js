@@ -69,6 +69,34 @@
         return payload;
     }
 
+    // ---- cross-request event relay (Step 3) ----------------------------
+    //
+    // Reads/clears the short-lived, non-sensitive cookie a server-side
+    // hook may have queued via lumn_ut_tracking_relay_event() (PHP, see
+    // register/tracking.php) when it couldn't reach this page directly -
+    // most notably a form plugin's "submission saved" hook firing on a
+    // request that then redirects to a different confirmation page/URL.
+    // See docs/TRACKING.md "Form tracking" for the full explanation of
+    // when/why this is needed instead of a direct pushEvent() call.
+
+    var RELAY_COOKIE_NAME = 'lumn_ut_pending_form_event';
+
+    function readRelayCookie() {
+        var match = document.cookie.match(new RegExp('(?:^|; )' + RELAY_COOKIE_NAME + '=([^;]*)'));
+        if (!match) {
+            return null;
+        }
+        try {
+            return decodeURIComponent(match[1]);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function clearRelayCookie() {
+        document.cookie = RELAY_COOKIE_NAME + '=; Max-Age=0; path=/';
+    }
+
     // ---- debugger (Step 1 architecture, expanded in Step 2) -----------
     //
     // Every call is a no-op unless the "Debugger" feature toggle is on
@@ -195,8 +223,65 @@
         reportSuppressed: function (eventKeyOrRaw, reason) {
             var eventDef = config.events ? config.events[eventKeyOrRaw] : null;
             debugLog('suppressed', eventKeyOrRaw, eventDef, { Reason: reason });
+        },
+
+        /**
+         * Reads and clears the relay cookie (if any) and pushes every
+         * queued event through the normal pushEvent() - so a relayed
+         * event is subject to the exact same fail-closed feature check
+         * and param filtering as any other event, never a bypass.
+         *
+         * Called automatically once, at script load, from the top-level
+         * document only (see the guard below) - covers a full page
+         * navigation (a plain form postback, or a redirect to a
+         * confirmation/thank-you page). Also safe to call again any time
+         * (e.g. public/js/lumn-tracking-forms.js calls it in response to
+         * a provider's own "confirmation shown" event, for the AJAX
+         * case) - a second call is a no-op once the cookie has already
+         * been cleared by the first.
+         *
+         * Returns how many events were actually pushed.
+         */
+        consumeRelay: function () {
+            var raw = readRelayCookie();
+            if (!raw) {
+                return 0;
+            }
+
+            clearRelayCookie(); // clear before processing - never re-process the same queue twice
+
+            var queue;
+            try {
+                queue = JSON.parse(raw);
+            } catch (e) {
+                return 0;
+            }
+            if (!Array.isArray(queue)) {
+                return 0;
+            }
+
+            var fired = 0;
+            for (var i = 0; i < queue.length; i++) {
+                var item = queue[i];
+                if (item && typeof item.eventKey === 'string' && this.pushEvent(item.eventKey, item.params || {})) {
+                    fired++;
+                }
+            }
+            return fired;
         }
     };
 
     window.LumnTracking = LumnTracking;
+
+    // Only auto-consume from the top-level document. A provider's AJAX
+    // submission mechanism (e.g. Gravity Forms' hidden confirmation
+    // iframe) re-renders this entire script inside its own throwaway
+    // document; consuming the relay cookie there would clear it before
+    // the *visible* parent page ever gets a chance to see the event - see
+    // docs/TRACKING.md "Form tracking" for the full explanation. The
+    // parent page still gets the event promptly via
+    // public/js/lumn-tracking-forms.js's provider-specific listeners.
+    if (window.self === window.top) {
+        LumnTracking.consumeRelay();
+    }
 })(window);
