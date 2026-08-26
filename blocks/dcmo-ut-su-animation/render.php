@@ -12,10 +12,10 @@ $duration = isset($attributes['duration']) ? (int) $attributes['duration'] : 1;
 $delay = isset($attributes['delay']) ? (int) $attributes['delay'] : 0;
 $inline = isset($attributes['inline']) ? $attributes['inline'] : 'no';
 $class = isset($attributes['class']) ? $attributes['class'] : '';
-$inner_content = isset($attributes['inner-content']) ? $attributes['inner-content'] : '';
+$inner_content = lumn_ut_legacy_inner_content($content, isset($attributes['inner-content']) ? $attributes['inner-content'] : '');
 
 $shortcode = '[su_animate type="' . esc_attr($animation) . '" duration="' . esc_attr($duration) . '" delay="' . esc_attr($delay) . '" inline="' . esc_attr($inline) . '" class="dcmo-ut-su-animation dcmo-ut-block ' . esc_attr($class) . '"]'
-    . lumn_ut_render_legacy_block_content($inner_content)
+    . $inner_content
     . '[/su_animate]';
 
 echo do_shortcode($shortcode);

@@ -18,7 +18,7 @@ $background_image = isset($attributes['background-image']) ? (int) $attributes['
 $service_text_overlay = isset($attributes['service-text-overlay']) ? $attributes['service-text-overlay'] : '';
 $service_text_overlay_hover = isset($attributes['service-text-overlay-hover']) ? $attributes['service-text-overlay-hover'] : '';
 $service_heading = isset($attributes['service-heading']) ? $attributes['service-heading'] : '';
-$service_hover_content = isset($attributes['service-hover-content']) ? $attributes['service-hover-content'] : '';
+$service_hover_content = lumn_ut_legacy_inner_content($content, isset($attributes['service-hover-content']) ? $attributes['service-hover-content'] : '');
 ?>
 <div id="<?php echo esc_attr($block_id); ?>" class="dcmo-ut-block <?php echo esc_attr($block_name . ' ' . $block_id . ' ' . $custom_class); ?>" style="
 <?php echo $service_highlight_height ? 'min-height: ' . $service_highlight_height . 'px;' : ''; ?>
@@ -30,7 +30,7 @@ $service_hover_content = isset($attributes['service-hover-content']) ? $attribut
         <div class="dcmo-service-text-expand" style="
             <?php echo $text_color ? 'color: ' . esc_html($text_color) . ';' : ''; ?>
         ">
-            <?php echo lumn_ut_render_legacy_block_content($service_hover_content); ?>
+            <?php echo $service_hover_content; ?>
         </div>
     </div>
 </div>

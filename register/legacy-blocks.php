@@ -20,16 +20,27 @@ namespace Lumn\Utilities;
  * working silently, not to be a documented feature of this plugin.
  */
 
-// Genesis Custom Blocks stored "inner_blocks" control fields as a plain
-// string attribute (raw block-comment markup, not real nested WP blocks -
-// GCB blocks that have such a field are always self-closing/empty in
-// post_content, with everything in the JSON attributes). This renders that
-// string through do_blocks() so it works whether the stored string is
-// already-rendered HTML (a no-op passthrough) or raw "<!-- wp:... -->"
-// block markup (rendered properly) - either way, both possibilities that
-// GCB could have produced are handled correctly.
-function lumn_ut_render_legacy_block_content($value) {
-    return is_string($value) ? do_blocks($value) : '';
+// Genesis Custom Blocks' "inner_blocks" control fields (inner-content,
+// service-hover-content, slick-slide, etc.) are NOT stored as a JSON
+// attribute at all, despite each having an attribute entry in block.json -
+// GCB's InnerBlocks control (php/Blocks/Controls/InnerBlocks.php in that
+// plugin) overrides block_field()/block_value() for that field to return
+// genesis_custom_blocks()->loader->get_data('content') instead, i.e. the
+// block's real nested child blocks, exactly like any other WP block using
+// <InnerBlocks />. So existing content has this field's real value between
+// the block's opening/closing comments - available here as WordPress's own
+// $content render parameter - not in $attributes[$field_key].
+//
+// New content saved by this plugin's own editor (admin/legacy-blocks-editor.js)
+// uses real <InnerBlocks /> too, so it also arrives via $content. The
+// $attribute_value fallback only matters for a narrow transitional case:
+// content saved by an earlier version of this plugin's editor, which stored
+// this field as a plain HTML string attribute instead.
+function lumn_ut_legacy_inner_content($content, $attribute_value = '') {
+    if (!empty($content)) {
+        return $content;
+    }
+    return is_string($attribute_value) ? do_blocks($attribute_value) : '';
 }
 
 add_action('init', 'Lumn\Utilities\lumn_ut_register_legacy_blocks');
