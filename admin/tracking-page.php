@@ -45,7 +45,9 @@ function lumn_ut_render_tracking_intro() {
 
     echo '<p><strong>' . esc_html__('Patient data safety:', 'lumn-utilities') . '</strong> ' . esc_html__('LUMN events only ever carry metadata (which form, which button, which page section) - never a submitted field value. A name, email, phone number, address, message, or medical/insurance detail can never be sent through this system, even by a future developer mistake - the restriction is enforced in code, not left to convention.', 'lumn-utilities') . '</p>';
 
-    echo '<p>' . esc_html__('See docs/TRACKING.md in the plugin for the full developer specification: event naming convention, standard parameters, the feature-flag API, and how future tracking features (forms, phone/appointment/directions/email clicks, downloads, video, external links) should be built on this foundation.', 'lumn-utilities') . '</p>';
+    echo '<p>' . esc_html__('Phone, email, appointment, and directions click tracking, plus the explicit data-lumn-event markup mechanism, are implemented and available below. Form tracking (Gravity Forms, Formidable, etc.) and the remaining features are not implemented yet - their toggles exist now so no further setup will be needed once they ship.', 'lumn-utilities') . '</p>';
+
+    echo '<p>' . esc_html__('See docs/TRACKING.md in the plugin for the full developer specification: automatic vs. explicit detection, supported data-lumn-* attributes, event naming convention, standard parameters, the feature-flag API, and recommended GTM triggers for each event.', 'lumn-utilities') . '</p>';
 
     echo '</div>';
     echo '</div>';

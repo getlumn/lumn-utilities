@@ -1,11 +1,16 @@
 # LUMN Tracking / SEO Tools
 
 Developer documentation for the LUMN Tracking / SEO Tools system: what it
-is, why it exists, and how to build on it safely. This document covers
-**Step 1 (the architectural foundation)**. No individual tracking event is
-implemented yet - this step only establishes the pieces later steps build
-on: settings, feature flags, the event specification, the data-layer API,
-and the hooks a future debugger will use.
+is, why it exists, and how to build on it safely.
+
+- **Step 1** built the architectural foundation: settings, the
+  feature-flag API, the event specification, the data-layer API, and the
+  hooks a debugger uses. No tracking event actually fired yet.
+- **Step 2** (this revision) implements the first usable layer of events on
+  top of that foundation: phone clicks, email clicks, appointment clicks,
+  directions clicks, and the explicit `data-lumn-event` markup mechanism.
+  Form-plugin tracking (Gravity Forms, Formidable, etc.) is a later step
+  and is intentionally not covered here.
 
 ## What this is, and why it exists
 
@@ -76,9 +81,10 @@ inherits the opt-in guarantees automatically.
 | Piece | File |
 | --- | --- |
 | Feature registry, event registry, PII denylist | `register/tracking-registry.php` |
-| Settings storage, feature-flag API, PHP push API, script enqueue, Settings API registration | `register/tracking.php` |
+| Settings storage, feature-flag API, PHP push API, script enqueue, Settings API registration, known-appointment-URL lookup | `register/tracking.php` |
 | Admin page rendering ("SEO & Tracking") | `admin/tracking-page.php` |
-| Front-end data-layer abstraction | `public/js/lumn-tracking.js` |
+| Front-end data-layer abstraction (`LumnTracking.pushEvent()`, debugger) | `public/js/lumn-tracking.js` |
+| Automatic + explicit click detection (phone/email/appointment/directions, `data-lumn-event`) | `public/js/lumn-tracking-events.js` |
 
 ## Settings
 
@@ -97,10 +103,18 @@ $settings = Lumn\Utilities\lumn_ut_get_tracking_settings();
 ```
 
 Recognized keys: `master`, plus every key in
-`lumn_ut_tracking_feature_registry()` (`event_tracking`, `form_tracking`,
-`phone_click_tracking`, `appointment_click_tracking`,
-`directions_click_tracking`, `email_click_tracking`, `download_tracking`,
-`video_tracking`, `external_link_tracking`, `debugger`).
+`lumn_ut_tracking_feature_registry()`, in the order shown on the settings
+screen: `phone_click_tracking`, `email_click_tracking`,
+`appointment_click_tracking`, `directions_click_tracking`,
+`event_tracking` (labeled **Explicit Event Tracking** - see below),
+`form_tracking`, `download_tracking`, `video_tracking`,
+`external_link_tracking`, `debugger`.
+
+`event_tracking`/"Explicit Event Tracking" is a second, additional gate
+specifically for the `data-lumn-event` markup mechanism (see "Explicit
+detection" below) - it does not replace the resolved event's own feature
+toggle. An explicitly-tagged phone link still requires **both** Explicit
+Event Tracking **and** Phone Click Tracking to be on.
 
 The settings screen (`LUMN Utilities -> SEO & Tracking`) shows every one of
 these as its own checkbox, even the ones with no tracking code behind them
@@ -239,6 +253,18 @@ When adding a new event to the registry, only add parameter keys that
 describe **metadata about the interaction**, never the content a visitor
 typed. If you are unsure whether a field is safe to include, leave it out.
 
+This also means: never add the phone number itself to
+`LUMN_PHONE_CLICK`'s params, never the email address to
+`LUMN_EMAIL_CLICK`'s, and never the full destination URL to
+`LUMN_APPOINTMENT_CLICK` or `LUMN_DIRECTIONS_CLICK` - a destination URL is
+an easy way to accidentally smuggle a query string containing a patient's
+identifying information into analytics. None of `LUMN_PHONE_CLICK`,
+`LUMN_EMAIL_CLICK`, `LUMN_APPOINTMENT_CLICK`, or `LUMN_DIRECTIONS_CLICK`
+declare any event-specific params in the registry for exactly this reason
+- only the base params (`lumn_location`, `lumn_component`, `lumn_page_type`)
+are available to them, and `lumn-tracking-events.js` never reads an
+element's `href` into the payload.
+
 ## The data-layer API
 
 ### PHP (`register/tracking.php`)
@@ -283,39 +309,164 @@ all when tracking is enabled). `window.dataLayer` is created lazily, only
 inside `pushEvent()`, only when an event actually gets pushed - never on
 script load.
 
-## Explicitly tracked elements (future)
+## Click tracking (Step 2)
 
-The spec for future markup-driven tracking is:
+`public/js/lumn-tracking-events.js` attaches exactly one delegated click
+listener to `document` (capture phase), the first time it runs, and
+classifies every click either **explicitly** (via a `data-lumn-event`
+attribute) or **automatically** (from the clicked link's `href`). Both
+paths ultimately call `LumnTracking.pushEvent()`, so every safety rule
+described above (feature gating, the param allowlist/denylist, scalar-only
+values) applies identically no matter how the event was detected.
+
+The script is only enqueued when tracking is enabled overall (same
+condition as `lumn-tracking.js`), and self-bails - attaching no listener
+at all - if every click-related feature (`phone_click_tracking`,
+`email_click_tracking`, `appointment_click_tracking`,
+`directions_click_tracking`, `event_tracking`) is off.
+
+### Automatic detection
+
+Only plain `<a href="...">` elements are considered, and only when no
+ancestor carries `data-lumn-event` (see precedence below). Checked in this
+fixed order - the first match wins:
+
+| href pattern | Event | Feature toggle |
+| --- | --- | --- |
+| `tel:...` | `lumn_phone_click` | Phone Click Tracking |
+| `mailto:...` | `lumn_email_click` | Email Click Tracking |
+| Matches this site's configured Appointments link (site-wide `[lumn_social_url name="appointments"]`, or any Practice Location's per-location override) | `lumn_appointment_click` | Appointment Click Tracking |
+| `maps.google.com`, `google.com/maps` or `www.google.com/maps`, `goo.gl/maps`, `maps.apple.com`, `bing.com/maps` or `www.bing.com/maps`, `waze.com` | `lumn_directions_click` | Directions Click Tracking |
+
+A link matching none of these produces no event. Appointment detection is
+deliberately **not** based on button text or a hardcoded third-party
+booking domain - it only ever matches a URL an administrator has actually
+configured on this site (via `lumn_ut_tracking_known_appointment_urls()`
+in `register/tracking.php`), compared host+path, ignoring a trailing-slash
+difference. If this site has no Practice Locations and no site-wide
+Appointments link configured, automatic appointment detection simply never
+matches anything - use explicit tracking (below) for appointment CTAs on
+such a site.
+
+### Explicit detection
+
+Any element - not just links - can be explicitly marked:
 
 ```html
-<a href="tel:5555555555"
-   data-lumn-event="LUMN_PHONE_CLICK"
-   data-lumn-location="header"
-   data-lumn-component="primary_cta">Call us</a>
+<a href="/request-appointment/"
+   data-lumn-event="appointment_click"
+   data-lumn-location="hero"
+   data-lumn-component="primary_cta">
+    Request Appointment
+</a>
 ```
 
-This step does **not** implement DOM scanning for `data-lumn-*`
-attributes. The intended design for when it is built: a small module reads
-`data-lumn-event` (and any other `data-lumn-*` attribute as a param) and
-calls `LumnTracking.pushEvent(eventKey, params)` with them - the exact
-same entry point and validation path any other caller uses, so markup-
-driven tracking is never a second, incompatible system.
+`data-lumn-event` is resolved against the server-localized event registry,
+accepting any of (case-insensitive):
 
-## Debugger (future)
+- a registry key - `LUMN_APPOINTMENT_CLICK`
+- the dataLayer event name - `lumn_appointment_click`
+- the short action form - `appointment_click`
 
-The `debugger` toggle (under its own feature flag, gated by the master
-switch like everything else) is wired up in this step to:
+An unrecognized value **fails safe**: no `dataLayer.push()` happens, and
+(with Debug Mode on) it is logged as suppressed with the reason
+"Unrecognized data-lumn-event value."
 
-- have `LumnTracking.pushEvent()` also call `console.debug()` with the
-  event key and payload, and
-- dispatch a `lumn:tracking:event` `CustomEvent` on `window`, with
-  `detail: { key, payload }`, for every event actually pushed (PHP-pushed
-  events dispatch the same `CustomEvent` via their inline script).
+#### Supported `data-lumn-*` attributes
 
-This is the hook a future visual debugger UI can listen to
+Only these three are ever read. Nothing else - including arbitrary
+`data-*` attributes a theme or other plugin might add to the same element
+- is copied into the event payload:
+
+| Attribute | Maps to |
+| --- | --- |
+| `data-lumn-event` | which LUMN event to fire (required) |
+| `data-lumn-location` | `lumn_location` param |
+| `data-lumn-component` | `lumn_component` param |
+
+Explicit tracking requires **two** toggles to be on: **Explicit Event
+Tracking** (the markup mechanism itself) and the resolved event's own
+feature toggle (e.g. Phone Click Tracking for a `data-lumn-event="phone_click"`
+element). This lets an administrator turn off `data-lumn-event` scanning
+site-wide (e.g. if it conflicts with another plugin's markup) without
+touching automatic detection, while still keeping every event's own
+per-type toggle authoritative.
+
+### Detection precedence
+
+```
+Explicit data-lumn-event (nearest ancestor)
+        |
+        v
+   Automatic classification (tel: / mailto: / appointment URL / maps URL)
+```
+
+If the clicked element or any ancestor carries `data-lumn-event`, that
+resolution is used and automatic classification is **never** attempted for
+that click - so a link that is simultaneously a `tel:` link and explicitly
+tagged `data-lumn-event="appointment_click"` fires exactly one event (the
+explicit one), never two.
+
+### Duplicate-event prevention
+
+- Exactly one `click` listener is attached to `document`, once, guarded by
+  a `window.__lumnTrackingEventsBound` flag so an accidental double-enqueue
+  of the script (or a future re-run of its init code) cannot attach a
+  second listener and double-fire events.
+- Because detection is delegated (matched against `event.target` at click
+  time via `Element.closest()`), it requires no per-element setup, so
+  **dynamically inserted content** (a link a JS widget inserts after page
+  load, a lightbox, an AJAX-loaded block) is covered automatically with no
+  `MutationObserver` and no re-initialization step.
+- Explicit-vs-automatic precedence (above) is what prevents one physical
+  link from producing two events when it would otherwise qualify for both.
+
+### Debugging
+
+The `debugger` feature toggle (gated by the master switch, like every
+other feature) makes `LumnTracking.pushEvent()` and
+`LumnTracking.reportSuppressed()` clearly distinguish, in the browser
+console:
+
+- **`[LUMN Tracking] Event detected: lumn_phone_click`** - a collapsed
+  console group showing `Category`, `Action`, and every included param
+  (e.g. `lumn_location`, `lumn_component`), for an event that actually
+  reached `dataLayer.push()`.
+- **`[LUMN Tracking] Event suppressed: lumn_email_click`** - the same
+  format, with a `Reason` line (e.g. `Feature "email_click_tracking" is
+  disabled.`, `Unrecognized LUMN event key.`, `Explicit Event Tracking is
+  disabled.`, `Unrecognized data-lumn-event value - no event was sent.`),
+  for a click that was detected but did not fire.
+
+Every fired event also dispatches a `lumn:tracking:event` `CustomEvent` on
+`window` with `detail: { key, event, detail }`; every suppressed one
+dispatches `lumn:tracking:suppressed` the same way. This is the hook a
+future visual debugger UI can listen to
 (`window.addEventListener('lumn:tracking:event', ...)`) without
-duplicating any event-generation logic. Building that UI is out of scope
-for this step.
+duplicating any event-generation logic - building that UI is still out of
+scope for this step.
+
+**None of this produces any console output or dispatches any browser
+event when the Debugger toggle is off** - there is no production logging
+cost to leaving it disabled (the default).
+
+### Recommended GTM triggers (documentation only)
+
+LUMN Utilities never creates these - set them up in GTM yourself if you
+want an existing container to react to a LUMN event. Every event below
+uses a GTM **Custom Event** trigger matching the `event` name:
+
+| LUMN Event | Recommended GTM Trigger | Custom Event Name |
+| --- | --- | --- |
+| `lumn_phone_click` | Custom Event | `lumn_phone_click` |
+| `lumn_email_click` | Custom Event | `lumn_email_click` |
+| `lumn_appointment_click` | Custom Event | `lumn_appointment_click` |
+| `lumn_directions_click` | Custom Event | `lumn_directions_click` |
+
+`lumn_event_category`, `lumn_event_action`, `lumn_location`, and
+`lumn_component` are all available as Data Layer Variables inside GTM once
+you create them there (Variable type: **Data Layer Variable**, matching
+variable name).
 
 ## Adding a new event (for future steps)
 
@@ -333,3 +484,36 @@ for this step.
    exists and already defaults to off).
 4. Do not flip any toggle's default to "on" - every feature must remain
    opt-in.
+
+## Manual testing (staging/test site)
+
+1. `LUMN Utilities -> SEO & Tracking` -> check **Enable LUMN SEO &
+   Tracking** (master) -> Save Changes.
+2. Check one event's toggle, e.g. **Phone Click Tracking** -> Save
+   Changes.
+3. Open the site's front end (a page with a `tel:` link) in a new tab.
+4. Open the browser console and run `window.dataLayer` once before
+   clicking anything - confirm it is `undefined` (nothing has pushed to it
+   yet, even though tracking is enabled - it's only created lazily on the
+   first actual push).
+5. Click the phone link.
+6. Run `window.dataLayer` again - the last entry should look like:
+   ```json
+   { "event": "lumn_phone_click", "lumn_event_category": "lead", "lumn_event_action": "phone_click" }
+   ```
+7. Click a `mailto:` link on the same page (Email Click Tracking is still
+   off) - confirm `window.dataLayer.length` did not change.
+8. To see the debugger: also check **Debugger** under SEO & Tracking ->
+   Save Changes -> reload the page -> click a tracked link again. The
+   console should show a collapsed `[LUMN Tracking] Event detected: ...`
+   group; clicking something that's detected but disabled (e.g. that same
+   mailto: link) should show `[LUMN Tracking] Event suppressed: ...` with
+   a `Reason`.
+9. To test explicit tracking: add
+   `data-lumn-event="appointment_click" data-lumn-location="test"` to any
+   element's markup, enable both **Explicit Event Tracking** and
+   **Appointment Click Tracking**, reload, and click it - confirm
+   `lumn_appointment_click` with `lumn_location: "test"` appears.
+10. Uncheck the master switch and confirm no further clicks push anything
+    (and, after a fresh page load, that no `lumn-ut-tracking*` script tag
+    is present in the page source at all).

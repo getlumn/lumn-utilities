@@ -202,6 +202,7 @@ function lumn_ut_tracking_public_scripts() {
     }
 
     $script_path = LUMN_UTILITIES_PLUGIN_PATH . 'public/js/lumn-tracking.js';
+    $events_script_path = LUMN_UTILITIES_PLUGIN_PATH . 'public/js/lumn-tracking-events.js';
     if (!file_exists($script_path)) {
         return;
     }
@@ -235,10 +236,56 @@ function lumn_ut_tracking_public_scripts() {
         'features' => $features,
         'events' => $events,
         'forbiddenParamKeys' => lumn_ut_tracking_forbidden_param_keys(),
+        'appointmentUrls' => lumn_ut_tracking_known_appointment_urls(),
         'debug' => lumn_ut_tracking_feature_enabled('debugger'),
     ));
+
+    // Automatic + explicit click detection (phone/email/appointment/
+    // directions links and data-lumn-event markup). Depends on the core
+    // script above for LumnTracking.pushEvent() / config. Loaded whenever
+    // tracking is enabled overall - it self-checks the relevant feature
+    // toggles at runtime and does nothing (no listener attached) if none
+    // of them are on. See public/js/lumn-tracking-events.js.
+    if (file_exists($events_script_path)) {
+        wp_enqueue_script(
+            LUMN_UT_TRACKING_SCRIPT_HANDLE . '-events',
+            plugins_url('public/js/lumn-tracking-events.js', LUMN_UTILITIES_PLUGIN_PATH . 'index.php'),
+            array(LUMN_UT_TRACKING_SCRIPT_HANDLE),
+            filemtime($events_script_path),
+            true
+        );
+    }
 }
 add_action('wp_enqueue_scripts', 'Lumn\Utilities\lumn_ut_tracking_public_scripts');
+
+/**
+ * Every "known appointment link" this site has configured: the site-wide
+ * Appointments URL (lumn_social_url_appointments, from
+ * register/field-registry.php) plus each Practice Location's per-location
+ * appointments_url override (register/locations.php), when set. Used
+ * client-side to automatically classify a plain <a href="..."> as an
+ * appointment click without relying on button text - see
+ * public/js/lumn-tracking-events.js. Empty/missing values are omitted;
+ * never invents a URL that isn't actually configured on this site.
+ */
+function lumn_ut_tracking_known_appointment_urls() {
+    $urls = array();
+
+    $site_wide = get_option('lumn_social_url_appointments');
+    if (is_string($site_wide) && $site_wide !== '') {
+        $urls[] = $site_wide;
+    }
+
+    if (function_exists('Lumn\Utilities\lumn_ut_get_locations')) {
+        foreach (lumn_ut_get_locations() as $location) {
+            if (!empty($location['appointments_url'])) {
+                $urls[] = $location['appointments_url'];
+            }
+        }
+    }
+
+    return array_values(array_unique(array_filter($urls, 'is_string')));
+}
 
 // ---------------------------------------------------------------------
 // Settings registration (WordPress Settings API - same pattern used by
@@ -298,6 +345,7 @@ function lumn_ut_tracking_master_field_callback() {
 
 function lumn_ut_tracking_features_section_callback() {
     echo '<p>' . esc_html__('Each feature below also requires the master switch above. A feature marked "Coming soon" has no tracking code wired up to it yet in this version of the plugin - turning it on now is safe (it still does nothing) and means it will start working automatically, with no further setup, once that feature ships.', 'lumn-utilities') . '</p>';
+    echo '<p><strong>' . esc_html__('Before enabling any of these:', 'lumn-utilities') . '</strong> ' . esc_html__('turning one on exposes the matching event to this site\'s existing window.dataLayer. If this site already has a Google Tag Manager container configured, that container - not LUMN Utilities - decides what (if anything) happens when it sees the event. LUMN Utilities never creates or modifies a GTM trigger/tag, a GA4 property, or sends anything to Google directly.', 'lumn-utilities') . '</p>';
 }
 
 function lumn_ut_tracking_feature_field_callback($args) {

@@ -29,8 +29,10 @@ const LUMN_UT_TRACKING_SCRIPT_HANDLE = 'lumn-ut-tracking';
  * - which feature keys lumn_ut_tracking_feature_enabled() recognizes
  *   (anything not listed here always resolves to disabled - see
  *   register/tracking.php)
- * - the settings UI (register/tracking.php builds one checkbox per entry)
- * - which events (below) each toggle gates
+ * - the settings UI (register/tracking.php builds one checkbox per entry,
+ *   in this array's order)
+ * - which events (below) each toggle gates - see each event's 'feature'
+ *   key in lumn_ut_tracking_event_registry()
  *
  * 'implemented' is purely informational for the admin UI ("Coming soon"
  * badge) - it does not affect enforcement. A feature with no events wired
@@ -39,34 +41,34 @@ const LUMN_UT_TRACKING_SCRIPT_HANDLE = 'lumn-ut-tracking';
  */
 function lumn_ut_tracking_feature_registry() {
     return array(
+        'phone_click_tracking' => array(
+            'label' => __('Phone Click Tracking', 'lumn-utilities'),
+            'description' => __('Sends a standardized lumn_phone_click event when a visitor clicks a telephone (tel:) link. Never includes the phone number itself.', 'lumn-utilities'),
+            'implemented' => true,
+        ),
+        'email_click_tracking' => array(
+            'label' => __('Email Click Tracking', 'lumn-utilities'),
+            'description' => __('Sends a standardized lumn_email_click event when a visitor clicks a mailto: link. Never includes the email address itself.', 'lumn-utilities'),
+            'implemented' => true,
+        ),
+        'appointment_click_tracking' => array(
+            'label' => __('Appointment Click Tracking', 'lumn-utilities'),
+            'description' => __('Sends a standardized lumn_appointment_click event for appointment/booking links - either explicitly tagged with data-lumn-event, or automatically recognized from this site\'s configured Appointments link(s).', 'lumn-utilities'),
+            'implemented' => true,
+        ),
+        'directions_click_tracking' => array(
+            'label' => __('Directions Click Tracking', 'lumn-utilities'),
+            'description' => __('Sends a standardized lumn_directions_click event when a visitor clicks a Google Maps, Apple Maps, Bing Maps, Waze, or other recognized directions link. Never includes the full destination URL.', 'lumn-utilities'),
+            'implemented' => true,
+        ),
         'event_tracking' => array(
-            'label' => __('Event Tracking', 'lumn-utilities'),
-            'description' => __('Umbrella switch for the generic LUMN event layer (the data-layer abstraction and lumn-* event registry) that every other feature below is built on.', 'lumn-utilities'),
+            'label' => __('Explicit Event Tracking', 'lumn-utilities'),
+            'description' => __('Enables the data-lumn-event / data-lumn-location / data-lumn-component markup mechanism, so any element can be explicitly marked for tracking. Each element still also requires its resolved event\'s own feature toggle above (e.g. an explicit phone_click element still requires Phone Click Tracking).', 'lumn-utilities'),
             'implemented' => true,
         ),
         'form_tracking' => array(
             'label' => __('Form Tracking', 'lumn-utilities'),
             'description' => __('lumn_form_submit - form metadata only (form ID/type/name), never submitted field values.', 'lumn-utilities'),
-            'implemented' => false,
-        ),
-        'phone_click_tracking' => array(
-            'label' => __('Phone Click Tracking', 'lumn-utilities'),
-            'description' => __('lumn_phone_click - clicks on tel: links.', 'lumn-utilities'),
-            'implemented' => false,
-        ),
-        'appointment_click_tracking' => array(
-            'label' => __('Appointment Click Tracking', 'lumn-utilities'),
-            'description' => __('lumn_appointment_click - clicks on appointment/booking links.', 'lumn-utilities'),
-            'implemented' => false,
-        ),
-        'directions_click_tracking' => array(
-            'label' => __('Directions Click Tracking', 'lumn-utilities'),
-            'description' => __('lumn_directions_click - clicks on map/directions links.', 'lumn-utilities'),
-            'implemented' => false,
-        ),
-        'email_click_tracking' => array(
-            'label' => __('Email Click Tracking', 'lumn-utilities'),
-            'description' => __('lumn_email_click - clicks on mailto: links.', 'lumn-utilities'),
             'implemented' => false,
         ),
         'download_tracking' => array(
@@ -86,7 +88,7 @@ function lumn_ut_tracking_feature_registry() {
         ),
         'debugger' => array(
             'label' => __('Debugger', 'lumn-utilities'),
-            'description' => __('Dispatches a lumn:tracking:event browser event (and enables verbose console output) for every LUMN event pushed, for a future on-page debugger to observe. Never affects the data layer itself.', 'lumn-utilities'),
+            'description' => __('Logs every LUMN event to the browser console - both fired and suppressed (e.g. "detected but feature disabled") - and dispatches lumn:tracking:event / lumn:tracking:suppressed browser events for a future on-page debugger to observe. Never affects the data layer itself, and produces no console output when off.', 'lumn-utilities'),
             'implemented' => true,
         ),
     );
