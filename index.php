@@ -3,7 +3,7 @@
 Plugin Name: LUMN Utilites
 Plugin URI: https://getlumn.com
 Description: A set of custom shortcodes and tools for LUMN sites.
-Version: 4.0.3
+Version: 4.1.0
 Author: LUMN
 Author URI: https://getlumn.com
 License: GPL2
@@ -46,6 +46,15 @@ require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/settings.php');
 // Register Practice Locations
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'admin/locations-page.php');
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/locations.php');
+
+// Register the LUMN Tracking / SEO Tools foundation - a feature-flag API
+// and safe data-layer abstraction that is entirely opt-in (master switch
+// defaults to OFF; see docs/TRACKING.md). Individual tracking events are
+// not implemented yet; this only establishes the architecture they will
+// build on.
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/tracking-registry.php');
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'admin/tracking-page.php');
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/tracking.php');
 
 // Register the lumn/v1 REST API
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/rest.php');

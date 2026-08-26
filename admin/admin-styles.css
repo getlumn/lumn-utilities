@@ -5,7 +5,8 @@
    ========================================================================== */
 
 .toplevel_page_lumn-ut-shortcode-settings,
-.lumn-ut-locations-page {
+.lumn-ut-locations-page,
+.lumn-ut-tracking-page {
 	--lumn-blue: #00a0e3;
 	--lumn-navy: #045a7b;
 	--lumn-blue-tint: #e6f6fd;
@@ -385,4 +386,27 @@
 .lumn-ut-locations-page .description {
 	color: #5f6b72;
 	font-size: 13px;
+}
+
+/* -------------------------------------------------------------------- */
+/* SEO & Tracking page                                                  */
+/* -------------------------------------------------------------------- */
+
+.lumn-ut-tracking-page .lumn-ut-admin-settings-form h2 {
+	font-size: 1.3em;
+	color: var(--lumn-navy);
+}
+.lumn-ut-tracking-page .lumn-ut-admin-settings-form .description {
+	color: #5f6b72;
+	font-size: 13px;
+}
+.lumn-ut-tracking-page .lumn-ut-tracking-badge {
+	display: inline-block;
+	padding: 2px 10px;
+	background-color: var(--lumn-navy-tint);
+	color: var(--lumn-navy);
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 600;
+	margin-left: 6px;
 }
