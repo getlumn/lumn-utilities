@@ -545,3 +545,24 @@
 .lumn-ut-copy-btn {
 	margin-left: 6px;
 }
+
+/* Shortcode/link "hint" line under a Shortcode Settings or Practice
+   Locations field (lumn_ut_shortcode_hint() in register/functions.php) -
+   the exact text plus a Copy button (.lumn-ut-copy-btn above), on Shortcode
+   Settings and Practice Locations pages alike. */
+.lumn-shortcode-hint {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-top: 4px;
+	font-size: 12px;
+	color: #6b7880;
+}
+.lumn-shortcode-hint-text {
+	font-family: Consolas, Monaco, "Andale Mono", monospace;
+	word-break: break-all;
+}
+.lumn-shortcode-hint .lumn-ut-copy-btn {
+	flex-shrink: 0;
+	margin-left: 0;
+}

@@ -193,10 +193,6 @@ function lumn_ut_render_gtm_recipe($event_key) {
     echo '</div>';
 }
 
-function lumn_ut_render_copy_button($value) {
-    return '<button type="button" class="button button-small lumn-ut-copy-btn" data-copy-value="' . esc_attr($value) . '">' . esc_html__('Copy', 'lumn-utilities') . '</button>';
-}
-
 // ---------------------------------------------------------------------
 // GTM Guide tab
 // ---------------------------------------------------------------------
