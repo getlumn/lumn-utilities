@@ -11,13 +11,21 @@
  * every other LUMN event. See docs/TRACKING.md "Debugger, catalog,
  * health checker, and GTM guide".
  *
- * Entirely client-side and in-memory: the Recent Events feed is a plain
- * JS array, reset on every page load - nothing is written to
- * localStorage, a cookie, or any server-side store to build it. It
- * simply listens for the lumn:tracking:event / lumn:tracking:suppressed
- * browser events the tracking core (public/js/lumn-tracking.js) already
- * dispatches whenever the Debugger *feature* toggle is on - this overlay
- * doesn't change what gets dispatched, it only visualizes it.
+ * Entirely client-side: the Recent Events feed simply listens for the
+ * lumn:tracking:event / lumn:tracking:suppressed browser events the
+ * tracking core (public/js/lumn-tracking.js) already dispatches whenever
+ * the Debugger *feature* toggle is on - this overlay doesn't change what
+ * gets dispatched, it only visualizes it.
+ *
+ * The feed persists across a page reload or navigation to another page
+ * on this site (e.g. clicking a link that fires an event and then
+ * navigates, or a form whose confirmation is a different page), via
+ * sessionStorage - see "Recent Events persistence" below. Nothing is
+ * ever written to localStorage, a cookie, or any server-side store: this
+ * stays exactly as tab-scoped and ephemeral as an in-memory array would
+ * have been, just surviving the specific action of navigating within
+ * that tab. It clears automatically when the tab/window is closed, or
+ * manually via the "Clear" button next to Recent Events.
  */
 (function (window, document) {
     'use strict';
@@ -34,6 +42,60 @@
 
     var events = [];
     var MAX_EVENTS = 50;
+
+    // ---- Recent Events persistence ---------------------------------------
+    //
+    // sessionStorage (not localStorage) - tab-scoped and cleared when the
+    // tab/window closes, matching how ephemeral this data already was as
+    // a plain in-memory array; it just now also survives a page reload
+    // or a same-tab navigation, which is exactly the case that made the
+    // feed hard to use for testing a link/form that reloads or redirects.
+    // Every value that ends up here already passed through the same
+    // allowlist/denylist/scalar filtering as any other LUMN event before
+    // it was dispatched (see docs/TRACKING.md "Debugger safety") - this
+    // is a read/write cache of that already-safe data, not a new place
+    // PII could enter.
+    var RECENT_EVENTS_STORAGE_KEY = 'lumn_ut_debug_recent_events';
+
+    function loadPersistedEvents() {
+        try {
+            var raw = window.sessionStorage.getItem(RECENT_EVENTS_STORAGE_KEY);
+            if (!raw) {
+                return;
+            }
+            var parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                events = parsed.slice(-MAX_EVENTS);
+            }
+        } catch (e) {
+            // Storage disabled/unavailable (e.g. private browsing) or
+            // corrupt JSON - fall back to an empty feed, same as before
+            // this feature existed, rather than breaking the panel.
+        }
+    }
+
+    function persistEvents() {
+        try {
+            window.sessionStorage.setItem(RECENT_EVENTS_STORAGE_KEY, JSON.stringify(events));
+        } catch (e) {
+            // Storage disabled/unavailable/full - the feed still works
+            // for the rest of this page view via the in-memory array,
+            // it just won't survive the next navigation.
+        }
+    }
+
+    function clearEvents() {
+        events = [];
+        try {
+            window.sessionStorage.removeItem(RECENT_EVENTS_STORAGE_KEY);
+        } catch (e) {
+            // Nothing to do if storage isn't available - events is
+            // already cleared in memory.
+        }
+        renderEvents();
+    }
+
+    loadPersistedEvents();
 
     // ---- shared safe-value helpers (mirrors the server-side denylist
     // idea, but this is display-only - the real enforcement already
@@ -98,6 +160,9 @@
         '.lumn-ut-dbg-btn { background: #00a0e3; color: #fff; border: 0; border-radius: 4px; padding: 5px 10px; font-size: 11px; cursor: pointer; }' +
         '.lumn-ut-dbg-btn:hover { background: #0087c1; }' +
         '.lumn-ut-dbg-btn-danger { background: #b3423d; }' +
+        '.lumn-ut-dbg-btn-small { padding: 2px 8px; font-size: 10px; }' +
+        '.lumn-ut-dbg-events-header { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }' +
+        '.lumn-ut-dbg-events-header h4 { margin: 0; }' +
         '.lumn-ut-dbg select, .lumn-ut-dbg-body a { color: #e8f0f4; font-size: 11px; }' +
         '.lumn-ut-dbg select { width: 100%; margin-bottom: 6px; background: #1c2f38; border: 1px solid #345; color: #e8f0f4; padding: 4px; border-radius: 4px; }' +
         '.lumn-ut-dbg-body a { color: #7fd0f5; }' +
@@ -251,6 +316,7 @@
         if (events.length > MAX_EVENTS) {
             events.shift();
         }
+        persistEvents();
         renderEvents();
     }
 
@@ -602,7 +668,12 @@
     // ---- assemble -------------------------------------------------------
 
     body.appendChild(renderStatus());
-    body.appendChild(el('h4', {}, ['Recent Events']));
+    var eventsHeader = el('div', { class: 'lumn-ut-dbg-events-header' }, [el('h4', {}, ['Recent Events'])]);
+    var clearButton = el('button', { type: 'button', class: 'lumn-ut-dbg-btn lumn-ut-dbg-btn-small' }, ['Clear']);
+    clearButton.addEventListener('click', clearEvents);
+    eventsHeader.appendChild(clearButton);
+    body.appendChild(eventsHeader);
+    body.appendChild(el('p', { class: 'lumn-ut-dbg-muted' }, ['Persists across a page reload or navigation within this tab, so you can test a link/form that redirects. Clears when this tab closes, or via Clear above.']));
     body.appendChild(eventsListEl);
     renderEvents();
     body.appendChild(renderTestTool());

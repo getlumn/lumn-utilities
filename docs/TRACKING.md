@@ -1093,9 +1093,21 @@ never leak out. It listens for the exact same `lumn:tracking:event` /
 `lumn:tracking:suppressed` browser events the tracking core already
 dispatches (Steps 1-2) - it doesn't change what gets dispatched or add any
 new server-side event storage, it only visualizes what's already
-happening. The Recent Events feed is a plain in-memory JS array, reset on
-every page load; nothing is written to localStorage, a cookie, or any
-server-side store to build it.
+happening. The Recent Events feed persists across a page reload or a
+same-tab navigation via `sessionStorage` (`lumn_ut_debug_recent_events`,
+capped at the same 50-event limit as the in-memory array) - specifically
+so testing a link or form that reloads or redirects to a different page
+doesn't lose the events you just fired. It's still exactly as
+tab-scoped/ephemeral as a plain in-memory array would have been: nothing
+is written to `localStorage`, a cookie, or any server-side store, and the
+feed clears automatically when the tab/window closes, or on demand via
+the **Clear** button next to "Recent Events." Every value cached here
+already passed through the same allowlist/denylist/scalar filtering as
+any other LUMN event before it was dispatched - this is a read/write
+cache of that already-safe data, not a new place PII could enter.
+Corrupted or unparseable persisted data (e.g. from manual editing) is
+never treated as a fatal error - it falls back to an empty feed, the
+same as if nothing had ever been persisted.
 
 **Authorization** (`lumn_ut_debug_overlay_should_render()`,
 `register/tracking-debugger.php`) is independent of the master/feature
@@ -1979,30 +1991,36 @@ Requires a test form on a Gravity Forms or Formidable Forms install.
 5. Click an appointment CTA and submit a tracked test form - both should
    appear the same way, the form entry showing Provider/Form ID/Form
    Name/Form Type.
-6. In the panel, use **Scan This Page** - confirm it lists the elements
+6. Click a link that navigates to a different page on the site (or
+   reload the current page) - confirm the events from step 4/5 are still
+   in Recent Events after the navigation/reload, not reset to empty.
+   Click **Clear** - confirm the feed empties immediately. Close the tab
+   and open the site fresh in a new tab - confirm Recent Events starts
+   empty again (this is tab-scoped, not permanent).
+7. In the panel, use **Scan This Page** - confirm it lists the elements
    you just interacted with, each with an Event and a Source (Automatic
    or Explicit).
-7. Temporarily add `data-lumn-event="not_a_real_event"` to any element's
+8. Temporarily add `data-lumn-event="not_a_real_event"` to any element's
    markup, reload, scan again - confirm it's reported as an unrecognized
    event rather than silently ignored (and that nothing fired for it).
-8. Use the **Test Event** dropdown to pick an event, click **Send Test
+9. Use the **Test Event** dropdown to pick an event, click **Send Test
    Event** - confirm the browser `confirm()` warning appears, that
    declining sends nothing, and that confirming adds an entry to
    `window.dataLayer` with `lumn_debug: true`.
-9. Back in wp-admin, open the **Event Catalog** tab - confirm every
-   implemented event appears, expand one, and click a **Copy** button;
-   paste somewhere to confirm the exact event name was copied.
-10. Open the **GTM Guide** tab - confirm the architecture explanation and
+10. Back in wp-admin, open the **Event Catalog** tab - confirm every
+    implemented event appears, expand one, and click a **Copy** button;
+    paste somewhere to confirm the exact event name was copied.
+11. Open the **GTM Guide** tab - confirm the architecture explanation and
     a recipe per event, including the `lumn_form_type equals ...`
     condition under the form submission recipe.
-11. Open the **Health Check** tab, click **Run Health Check** - confirm
+12. Open the **Health Check** tab, click **Run Health Check** - confirm
     results appear only after clicking (not automatically), that
     everything you've enabled shows "Good", and that GTM detection is
     labeled with what LUMN can/cannot verify.
-12. Disable one enabled form's tracking (or leave a detected form
+13. Disable one enabled form's tracking (or leave a detected form
     unconfigured) - re-run the Health Check and confirm it's flagged as a
     warning ("detected but not configured"), not an error.
-13. Click **Disable Debugging** - confirm the front-end panel no longer
+14. Click **Disable Debugging** - confirm the front-end panel no longer
     appears on reload, and that this alone didn't change any Master
     Tracking / feature toggle settings.
 
