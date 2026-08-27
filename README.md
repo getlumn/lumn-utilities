@@ -7,6 +7,34 @@ A set of custom shortcodes and tools for LUMN sites.
 > into `main`, which remains the production source tracked by the plugin's
 > update checker.
 
+## Features
+
+- **Shortcodes & practice data** — site name, address, phone, hours, social
+  links, and related shortcodes for a dental/medical practice site, backed by
+  a single-practice options set or, when configured, multiple **Practice
+  Locations** (`register/locations.php`, `LUMN Utilities -> Practice
+  Locations`).
+- **LUMN Tracking / SEO Tools** — an opt-in, standardized event-tracking layer
+  (`LUMN Utilities -> SEO & Tracking` and `-> Tracking Debugger`). Every
+  feature defaults to off on install/update; nothing is ever sent anywhere
+  outside a `window.dataLayer` push already on the site, and LUMN never
+  creates or modifies a GTM container/tag or a GA4 property itself. Currently
+  covers:
+  - Phone, email, SMS, appointment, and directions click tracking, plus an
+    explicit `data-lumn-event` markup mechanism.
+  - Form submission tracking (Gravity Forms, Formidable Forms) with optional
+    Practice Location association.
+  - Download, external-link, and native-`<video>` engagement tracking, and
+    conservative automatic CTA (appointment) classification.
+  - A front-end Tracking Debugger overlay, Event Catalog, and Health Checker.
+  - A central configuration Dashboard with a plain-language summary of what's
+    currently tracked, per-event overrides, global URL exclusions, safe
+    reset, and JSON config export/import between LUMN sites.
+
+  See **`docs/TRACKING.md`** for the full developer guide (architecture,
+  event spec, PII/PHI rules, GTM setup guidance) and an administrator's
+  guide for someone who doesn't know GTM.
+
 ## Test deployment pipeline
 
 Pushing to `test` automatically deploys this repository's `test` branch to a
