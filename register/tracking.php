@@ -408,6 +408,15 @@ function lumn_ut_tracking_public_scripts() {
         'globalUrlExclusions' => function_exists('Lumn\Utilities\lumn_ut_tracking_get_url_exclusions') ? lumn_ut_tracking_get_url_exclusions() : array(),
         'eventOverrides' => function_exists('Lumn\Utilities\lumn_ut_tracking_get_event_overrides') ? lumn_ut_tracking_get_event_overrides() : array(),
         'debug' => lumn_ut_tracking_feature_enabled('debugger'),
+        // Whether the front-end Tracking Debugger overlay is active for
+        // THIS viewer right now (register/tracking-debugger.php) - deliberately
+        // independent of the "debug" feature-toggle flag above, so the
+        // overlay can show events for an admin who has turned it on for
+        // themselves without needing the site-wide Debugger feature toggle
+        // also on (and vice versa: the toggle still drives console logging
+        // for anyone, overlay on or not). See debugLog() in this file's
+        // companion public/js/lumn-tracking.js.
+        'overlayActive' => function_exists('Lumn\Utilities\lumn_ut_debug_overlay_should_render') ? lumn_ut_debug_overlay_should_render() : false,
     ));
 
     // Automatic + explicit click detection (phone/email/appointment/

@@ -522,8 +522,15 @@ duplicating any event-generation logic - building that UI is still out of
 scope for this step.
 
 **None of this produces any console output or dispatches any browser
-event when the Debugger toggle is off** - there is no production logging
-cost to leaving it disabled (the default).
+event unless the Debugger feature toggle is on OR the front-end Tracking
+Debugger overlay is active for the current viewer** - there is no
+production logging cost when both are off (the default). These two are
+independent of each other (they were not always - see "Front-end Tracking
+Debugger overlay" below for the history): the toggle drives console
+output regardless of whether any admin has the overlay open, and the
+overlay - once an authorized admin has turned it on for themselves via
+`lumn_ut_debug_overlay_should_render()` - shows Recent Events regardless
+of whether the site-wide toggle is on, with no console noise if it isn't.
 
 ### Recommended GTM triggers (documentation only)
 
@@ -1201,9 +1208,9 @@ showed `Event detected: lumn_form_submit` (logged unconditionally by the
 core script itself, independent of whether this overlay is loaded at
 all), but the overlay's Recent Events feed stayed empty. `LumnTracking.getDebugHistory()`
 (`public/js/lumn-tracking.js`) closes this gap: a short, in-memory,
-per-page-load backlog (last 50, cleared on navigation, populated
-whenever `config.debug` is true - no new footprint when the Debugger
-feature is off) that this overlay's `mergeMissedHistory()` reads once at
+per-page-load backlog (last 50, cleared on navigation, populated whenever
+`config.debug` or `config.overlayActive` is true - no new footprint when
+both are off) that this overlay's `mergeMissedHistory()` reads once at
 init, before its first render, to catch up on anything already
 dispatched. Safe to simply append, no deduplication needed: this backlog
 only ever contains entries from the *current* page's execution, while
@@ -1229,9 +1236,23 @@ The overlay script is only enqueued at all when
 `lumn_ut_debug_overlay_should_render()` is true - a normal visitor's page
 load never loads this file, attaches no listener, and renders no UI. This
 is separate from, and does not require, the `debugger` *feature* toggle
-(Step 1) being on - if it's off, the panel still renders (so an admin can
-see that it's off) but its Recent Events feed stays empty, since nothing
-is being dispatched for it to observe.
+(Step 1) being on: an activated overlay's Recent Events feed populates
+regardless of whether that toggle is on, and the toggle drives console
+logging regardless of whether any admin has the overlay active. The two
+used to be coupled - `debugLog()` (`public/js/lumn-tracking.js`) gated
+*all* of its output, including the `lumn:tracking:event`/
+`lumn:tracking:suppressed` CustomEvents this overlay depends on, behind
+the feature toggle alone, so an admin who activated only the overlay (a
+common case - it's a per-user activation specifically so a developer can
+turn it on for themselves without flipping a site-wide setting) saw an
+empty Recent Events feed until the toggle was *also* turned on. Fixed by
+localizing a second flag, `overlayActive` (`lumn_ut_debug_overlay_should_render()`'s
+own result, computed alongside `debug` in
+`lumn_ut_tracking_public_scripts()`), and gating `debugLog()`'s output on
+`config.debug || config.overlayActive` - only the `console.*` calls inside
+it stay gated to `config.debug` specifically, so an overlay-only admin
+gets the modal with no console noise, and a toggle-only site gets console
+logging with no overlay.
 
 **Debugger event sources** (spec item 6): `pushEvent()` and
 `consumeRelay()` both accept an optional `source` argument - a
@@ -1627,8 +1648,9 @@ constructs or fires an event on its own; they only ever prevent
 Already fully implemented before this step, verified still correct: an
 unrecognized `data-lumn-event` value never fires (`resolveExplicitEventKey()`
 returns nothing to push), is logged as suppressed
-(`"Unrecognized data-lumn-event value - no event was sent."`) when the
-Debugger feature is on, is flagged distinctly (not silently dropped) by
+(`"Unrecognized data-lumn-event value - no event was sent."`) whenever the
+Debugger feature toggle or the front-end overlay is active, is flagged
+distinctly (not silently dropped) by
 both the front-end page scanner (`⚠ Unknown LUMN event: "..."`) and the
 Health Checker's "Explicitly Tracked Elements" check. Nothing in this
 step changes this - it's re-verified by this step's test suite as part

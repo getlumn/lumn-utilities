@@ -261,7 +261,7 @@
         var wrap = el('div', {}, []);
         wrap.appendChild(el('h4', {}, ['Status']));
         wrap.appendChild(statusRow('Master Tracking', !!config.masterEnabled));
-        wrap.appendChild(statusRow('Debugger feature', !!config.debuggerFeatureEnabled));
+        wrap.appendChild(statusRow('Debugger feature (console logging)', !!config.debuggerFeatureEnabled));
         wrap.appendChild(statusRow('Data Layer available', Array.isArray(window.dataLayer) || !!config.masterEnabled));
         wrap.appendChild(statusRow('GTM detected', detectGTM()));
         for (var key in config.features) {
@@ -269,8 +269,13 @@
                 wrap.appendChild(statusRow(config.features[key].label, true));
             }
         }
-        if (!config.masterEnabled || !config.debuggerFeatureEnabled) {
-            wrap.appendChild(el('p', { class: 'lumn-ut-dbg-muted' }, ['Recent Events will stay empty until both Master Tracking and the Debugger feature toggle are on.']));
+        // Recent Events no longer needs the Debugger feature toggle - this
+        // overlay being active is itself enough (see config.overlayActive
+        // in public/js/lumn-tracking.js's debugLog()). The toggle above
+        // only still controls whether console logging also happens
+        // elsewhere on the site.
+        if (!config.masterEnabled) {
+            wrap.appendChild(el('p', { class: 'lumn-ut-dbg-muted' }, ['Recent Events will stay empty until Master Tracking is on.']));
         }
         return wrap;
     }

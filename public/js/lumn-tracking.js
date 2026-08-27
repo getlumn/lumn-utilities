@@ -23,7 +23,8 @@
         forbiddenParamKeys: [],
         appointmentUrls: [],
         eventOverrides: {},
-        debug: false
+        debug: false,
+        overlayActive: false
     };
 
     function isScalar(value) {
@@ -100,10 +101,19 @@
 
     // ---- debugger (Step 1 architecture, expanded in Step 2) -----------
     //
-    // Every call is a no-op unless the "Debugger" feature toggle is on
-    // (config.debug) - no console output and no browser events are ever
-    // produced otherwise, so there is no noisy production logging when
-    // Debug Mode is disabled.
+    // Two independent reasons this function does anything at all:
+    // config.debug (the site-wide "Debugger" feature toggle - drives
+    // console output) and config.overlayActive (this viewer specifically
+    // has the front-end Tracking Debugger overlay turned on for
+    // themselves - drives the lumn:tracking:* CustomEvents and
+    // debugHistory the overlay reads). Neither depends on the other being
+    // on: an admin can enable the overlay for themselves without flipping
+    // the site-wide toggle (and see events in the modal with no console
+    // noise), or leave the overlay off while the toggle is on (and get
+    // console logging with no modal). If both are off, this is a
+    // complete no-op - no console output and no browser events are ever
+    // produced, so there is no footprint on a production site with
+    // neither turned on.
 
     function label(key, eventDef) {
         return eventDef ? eventDef.name : key;
@@ -123,9 +133,10 @@
     // isn't persisted anywhere) - only meant to bridge that one
     // same-page startup race; cross-page-load history is the overlay's
     // own job via sessionStorage (see docs/TRACKING.md "Recent Events
-    // persistence"). Only populated when config.debug is true, exactly
-    // like every other debugLog() side effect - no new footprint for a
-    // production site with the Debugger feature off.
+    // persistence"). Only populated when config.debug or
+    // config.overlayActive is true, exactly like every other debugLog()
+    // side effect - no new footprint for a production site with neither
+    // turned on.
     var debugHistory = [];
     var MAX_DEBUG_HISTORY = 50;
 
@@ -138,7 +149,7 @@
     // feed (see docs/TRACKING.md "Debugger event sources"). It is
     // debug-only: never part of the dataLayer payload itself.
     function debugLog(status, key, eventDef, detail, source) {
-        if (!config.debug) {
+        if (!config.debug && !config.overlayActive) {
             return;
         }
 
@@ -156,7 +167,10 @@
 
         var title = '[LUMN Tracking] ' + (status === 'fired' ? 'Event detected' : 'Event suppressed') + ': ' + label(key, eventDef);
 
-        if (window.console) {
+        // Console output is gated to the "Debugger" feature toggle only -
+        // an admin with just the overlay on (toggle off) gets the modal
+        // with no console noise; see the function-level comment above.
+        if (config.debug && window.console) {
             var useGroup = typeof console.groupCollapsed === 'function' && typeof console.groupEnd === 'function';
             if (useGroup) {
                 console.groupCollapsed(title);
@@ -197,8 +211,9 @@
         // above - see its own comment for why this exists (a same-page
         // startup race between this script's synchronous consumeRelay()
         // call and the Tracking Debugger overlay script attaching its
-        // listener). Always [] when the Debugger feature is off, exactly
-        // like every other debugLog() side effect.
+        // listener). Always [] when both the Debugger feature toggle and
+        // the overlay are off, exactly like every other debugLog() side
+        // effect.
         getDebugHistory: function () {
             return debugHistory.slice();
         },
@@ -285,8 +300,8 @@
         // pushEvent() itself has no way to know (e.g. a gate specific to
         // how the event was detected, rather than to the event itself) -
         // lets the debugger still show why nothing happened. No-ops
-        // unless the Debugger feature is on, same as every debug path
-        // above.
+        // unless the Debugger feature toggle or the overlay is on, same
+        // as every debug path above.
         reportSuppressed: function (eventKeyOrRaw, reason) {
             var eventDef = config.events ? config.events[eventKeyOrRaw] : null;
             debugLog('suppressed', eventKeyOrRaw, eventDef, { Reason: reason });
