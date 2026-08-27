@@ -26,6 +26,17 @@
  * have been, just surviving the specific action of navigating within
  * that tab. It clears automatically when the tab/window is closed, or
  * manually via the "Clear" button next to Recent Events.
+ *
+ * This script is a dependent of, and therefore always starts executing
+ * strictly AFTER, public/js/lumn-tracking.js has already fully run -
+ * including that script's own synchronous consumeRelay() call, which is
+ * how every lumn_form_submit event reaches the browser. That means an
+ * event relayed on THIS page load can already have fired - and dispatched
+ * its CustomEvent to no listeners - before this script's own listener
+ * (below) is even attached. mergeMissedHistory() closes that gap by
+ * pulling anything already dispatched from LumnTracking.getDebugHistory()
+ * (a short same-page backlog the core script keeps for exactly this
+ * reason) the moment this script initializes, before rendering anything.
  */
 (function (window, document) {
     'use strict';
@@ -95,7 +106,32 @@
         renderEvents();
     }
 
+    // Catches up on anything the core tracking script (public/js/lumn-tracking.js)
+    // already dispatched on THIS page load before this script's own
+    // lumn:tracking:event listener (below) was attached - most notably
+    // consumeRelay()'s synchronous auto-run, which is how every
+    // lumn_form_submit reaches the browser, and which executes the
+    // instant the core script parses, before this dependent script has
+    // even started running. See LumnTracking.getDebugHistory()'s own
+    // comment for the full explanation. Safe to simply append (no
+    // dedup needed): getDebugHistory() only ever contains entries from
+    // this page's own execution, and loadPersistedEvents() above only
+    // ever contains entries from a PRIOR page load, so the two lists
+    // never overlap.
+    function mergeMissedHistory() {
+        if (!window.LumnTracking || typeof window.LumnTracking.getDebugHistory !== 'function') {
+            return;
+        }
+        var missed = window.LumnTracking.getDebugHistory();
+        if (!missed.length) {
+            return;
+        }
+        events = events.concat(missed).slice(-MAX_EVENTS);
+        persistEvents();
+    }
+
     loadPersistedEvents();
+    mergeMissedHistory();
 
     // ---- shared safe-value helpers (mirrors the server-side denylist
     // idea, but this is display-only - the real enforcement already
@@ -139,7 +175,11 @@
     var STYLE = '' +
         ':host, .lumn-ut-dbg { all: initial; }' +
         '.lumn-ut-dbg * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }' +
-        '.lumn-ut-dbg { position: fixed; z-index: 2147483000; bottom: 16px; right: 16px; width: 360px; max-height: 70vh; ' +
+        // Bottom-left, not bottom-right: many LUMN sites have their own
+        // floating elements (a "book now"/chat widget, etc.) anchored to
+        // the bottom-right corner - this panel deliberately avoids that
+        // side, even though it can also be minimized.
+        '.lumn-ut-dbg { position: fixed; z-index: 2147483000; bottom: 16px; left: 16px; width: 360px; max-height: 70vh; ' +
         'background: #12232b; color: #e8f0f4; border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,0.35); font-size: 12px; ' +
         'display: flex; flex-direction: column; overflow: hidden; border: 1px solid #045a7b; }' +
         '.lumn-ut-dbg.lumn-ut-dbg-collapsed { max-height: none; }' +

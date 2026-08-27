@@ -1109,6 +1109,29 @@ Corrupted or unparseable persisted data (e.g. from manual editing) is
 never treated as a fatal error - it falls back to an empty feed, the
 same as if nothing had ever been persisted.
 
+**Same-page startup race.** `lumn-tracking-debugger.js` is enqueued as a
+dependent of `public/js/lumn-tracking.js`, so it always starts executing
+strictly after that script has already run - including its synchronous
+`consumeRelay()` call, which is how every `lumn_form_submit` reaches the
+browser (form tracking always relays, never pushes directly - see "Why a
+relay, not a direct push"). A relayed event can therefore already have
+fired, and dispatched its `lumn:tracking:event` CustomEvent to no
+listeners, before this overlay script's own listener is even attached -
+most visibly on a form whose submission reloads the page or redirects,
+which is exactly the case this broke in practice: the browser console
+showed `Event detected: lumn_form_submit` (logged unconditionally by the
+core script itself, independent of whether this overlay is loaded at
+all), but the overlay's Recent Events feed stayed empty. `LumnTracking.getDebugHistory()`
+(`public/js/lumn-tracking.js`) closes this gap: a short, in-memory,
+per-page-load backlog (last 50, cleared on navigation, populated
+whenever `config.debug` is true - no new footprint when the Debugger
+feature is off) that this overlay's `mergeMissedHistory()` reads once at
+init, before its first render, to catch up on anything already
+dispatched. Safe to simply append, no deduplication needed: this backlog
+only ever contains entries from the *current* page's execution, while
+`sessionStorage` only ever contains entries from a *prior* page load, so
+the two can never overlap.
+
 **Authorization** (`lumn_ut_debug_overlay_should_render()`,
 `register/tracking-debugger.php`) is independent of the master/feature
 toggles - it requires an authenticated user with the
@@ -1982,7 +2005,8 @@ Requires a test form on a Gravity Forms or Formidable Forms install.
 2. Log back in as an administrator. `LUMN Utilities -> Tracking Debugger`
    - confirm Status shows **● Debugging OFF**.
 3. Click **Enable Debugging**, then visit any front-end page - a small
-   panel should appear in the bottom-right corner.
+   panel should appear in the bottom-left corner (deliberately not
+   bottom-right, where a site's own floating elements often sit).
 4. With Master Tracking + Debugger + Phone Click Tracking all on (see the
    earlier click-tracking procedure), click a `tel:` link - it should
    appear in the panel's Recent Events within a moment, and clicking that
@@ -1990,7 +2014,11 @@ Requires a test form on a Gravity Forms or Formidable Forms install.
    number.
 5. Click an appointment CTA and submit a tracked test form - both should
    appear the same way, the form entry showing Provider/Form ID/Form
-   Name/Form Type.
+   Name/Form Type. This must work even when the form's own confirmation
+   reloads the page or redirects to a different one (the common case,
+   and the one this specifically had to be fixed for) - the form-submit
+   entry should already be sitting in Recent Events on the destination
+   page, with no need to trigger a second event first.
 6. Click a link that navigates to a different page on the site (or
    reload the current page) - confirm the events from step 4/5 are still
    in Recent Events after the navigation/reload, not reset to empty.

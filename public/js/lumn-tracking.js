@@ -109,6 +109,26 @@
         return eventDef ? eventDef.name : key;
     }
 
+    // A short in-memory backlog of recent debugLog() calls, so the
+    // Tracking Debugger overlay (public/js/lumn-tracking-debugger.js) -
+    // a separate script loaded as a dependent of this one, so it always
+    // starts executing after this file has already run - can catch up
+    // on anything dispatched before its own lumn:tracking:event listener
+    // was attached. This matters most for consumeRelay() below: it runs
+    // synchronously the instant this script parses, so a relayed
+    // lumn_form_submit (the common case - every form submission goes
+    // through the relay, never a direct push) dispatches its
+    // CustomEvent, and is gone, before the debugger overlay's <script>
+    // tag has even started running. Cleared on every page load (this
+    // isn't persisted anywhere) - only meant to bridge that one
+    // same-page startup race; cross-page-load history is the overlay's
+    // own job via sessionStorage (see docs/TRACKING.md "Recent Events
+    // persistence"). Only populated when config.debug is true, exactly
+    // like every other debugLog() side effect - no new footprint for a
+    // production site with the Debugger feature off.
+    var debugHistory = [];
+    var MAX_DEBUG_HISTORY = 50;
+
     // status is 'fired' or 'suppressed'. detail is a plain object of
     // extra fields to log (payload params for 'fired', a human-readable
     // reason for 'suppressed'). source (Step 4) is an optional
@@ -120,6 +140,18 @@
     function debugLog(status, key, eventDef, detail, source) {
         if (!config.debug) {
             return;
+        }
+
+        debugHistory.push({
+            at: Date.now(),
+            status: status,
+            key: key,
+            eventName: eventDef ? eventDef.name : null,
+            source: source || null,
+            detail: detail || {}
+        });
+        if (debugHistory.length > MAX_DEBUG_HISTORY) {
+            debugHistory.shift();
         }
 
         var title = '[LUMN Tracking] ' + (status === 'fired' ? 'Event detected' : 'Event suppressed') + ': ' + label(key, eventDef);
@@ -161,6 +193,16 @@
     }
 
     var LumnTracking = {
+        // Read-only, defensively-copied snapshot of the debug backlog
+        // above - see its own comment for why this exists (a same-page
+        // startup race between this script's synchronous consumeRelay()
+        // call and the Tracking Debugger overlay script attaching its
+        // listener). Always [] when the Debugger feature is off, exactly
+        // like every other debugLog() side effect.
+        getDebugHistory: function () {
+            return debugHistory.slice();
+        },
+
         // Mirrors lumn_ut_tracking_feature_enabled() server-side: true only
         // when the master switch AND the named feature toggle are both on.
         isFeatureEnabled: function (feature) {
