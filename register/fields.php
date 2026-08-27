@@ -46,10 +46,34 @@ function lumn_ut_register_utilities_fields() {
     register_setting('lumn_ut_shortcode_settings', 'lumn_email', lumn_ut_registered_setting_args('lumn_email'));
     add_settings_field('lumn_email_field', 'Email', 'Lumn\Utilities\lumn_ut_email_field_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_practice_info_section');
     // Callback function for the [lumn_email] field
+    //
+    // Once any Practice Location exists, [lumn_email] resolves through
+    // that location's own 'email' field (register/locations.php,
+    // lumn_ut_get_location_field()) instead of this option - with NO
+    // fallback to this option if that field happens to be blank (only a
+    // site with zero Practice Locations falls back here at all). So
+    // editing this field would have no visible effect and could confuse
+    // an admin into thinking their change didn't save, or mask a blank
+    // per-location field. Grayed out (readonly, not disabled - a disabled
+    // input is never submitted with the form, which would silently blank
+    // this option out on every save) with an explanatory note pointing at
+    // Practice Locations instead. This option's own value is left
+    // untouched either way - it's exactly what a NEW site with no
+    // locations yet still falls back to.
     function lumn_ut_email_field_callback() {
         $lumn_email = get_option('lumn_email');
-        echo '<input type="email" id="lumn_email" name="lumn_email" value="' . esc_attr($lumn_email) . '" placeholder="mail@example.com" />';
+        $has_locations = function_exists('Lumn\Utilities\lumn_ut_get_locations') && !empty(lumn_ut_get_locations());
+        $readonly_attr = $has_locations ? ' readonly="readonly" class="lumn-ut-field-shadowed"' : '';
+        echo '<input type="email" id="lumn_email" name="lumn_email" value="' . esc_attr($lumn_email) . '" placeholder="mail@example.com"' . $readonly_attr . ' />';
         echo '<div class="lumn-shortcode-hint">[lumn_email]</div>';
+        if ($has_locations) {
+            $locations_url = admin_url('admin.php?page=lumn-ut-locations');
+            echo '<p class="description">' . sprintf(
+                /* translators: %s: URL to the Practice Locations admin page */
+                esc_html__('Practice Locations are set up on this site, so this site-wide email is no longer used by [lumn_email]. Set each location\'s own Email field instead, under %s.', 'lumn-utilities'),
+                '<a href="' . esc_url($locations_url) . '">' . esc_html__('Practice Locations', 'lumn-utilities') . '</a>'
+            ) . '</p>';
+        }
     }
 
     register_setting('lumn_ut_shortcode_settings', 'lumn_address_street', lumn_ut_registered_setting_args('lumn_address_street'));

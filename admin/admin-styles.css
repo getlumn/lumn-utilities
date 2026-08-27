@@ -130,6 +130,23 @@
 	height: 100px;
 }
 
+/* A field whose value is shadowed by a per-location override once
+   Practice Locations exist (currently just [lumn_email] - see
+   lumn_ut_email_field_callback() in register/fields.php) - readonly, not
+   disabled, so its stored value still submits with the form unchanged. */
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form input.lumn-ut-field-shadowed {
+	background: #f0f2f4;
+	color: #6b7880;
+	cursor: not-allowed;
+}
+/* #lumn_email (an ID selector) rather than repeating the class - needs to
+   outrank the base :focus rule above by specificity, not just source
+   order, since a single .lumn-ut-field-shadowed class alone doesn't. */
+.toplevel_page_lumn-ut-shortcode-settings #lumn_email.lumn-ut-field-shadowed:focus {
+	border-color: var(--lumn-border);
+	box-shadow: none;
+}
+
 /* Belt-and-suspenders: the Automatic Classification Settings textareas
    (Step 5) live on the same settings form as the rules above, but scoped
    directly to the page wrapper too, so their box styling isn't solely

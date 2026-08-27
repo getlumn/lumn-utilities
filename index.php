@@ -3,7 +3,7 @@
 Plugin Name: LUMN Utilities
 Plugin URI: https://getlumn.com
 Description: A set of custom shortcodes and tools for LUMN sites.
-Version: 4.6.8
+Version: 4.6.9
 Author: LUMN
 Author URI: https://getlumn.com
 License: GPL2
