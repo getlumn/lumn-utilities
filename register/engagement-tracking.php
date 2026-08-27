@@ -189,3 +189,15 @@ function lumn_ut_external_link_excluded_domains_field_callback() {
     echo '<textarea name="' . esc_attr(LUMN_UT_CLASSIFICATION_CONFIG_OPTION) . '[external_link_excluded_domains]" rows="4" placeholder="patientportal.example.com">' . esc_textarea(implode("\n", $config['external_link_excluded_domains'])) . '</textarea>';
     echo '<p class="description">' . esc_html__('Domains that should never generate a generic lumn_external_link event - e.g. a patient portal or sister site you consider part of this site\'s own flow. Excluding a domain here does not remove it from other tracking (an appointment/directions match still fires normally) - it only suppresses the generic external-link event for it.', 'lumn-utilities') . '</p>';
 }
+
+// Its own top-level option (LUMN_UT_TRACKING_URL_EXCLUSIONS_OPTION,
+// defined/sanitized in register/tracking-config.php), not nested under
+// LUMN_UT_CLASSIFICATION_CONFIG_OPTION like the three fields above - so
+// the textarea's name is the option name itself, not an array key under
+// it, and its value comes from lumn_ut_tracking_get_url_exclusions()
+// rather than $config.
+function lumn_ut_global_url_exclusions_field_callback() {
+    $exclusions = lumn_ut_tracking_get_url_exclusions();
+    echo '<textarea name="' . esc_attr(LUMN_UT_TRACKING_URL_EXCLUSIONS_OPTION) . '" rows="4" placeholder="/staff/&#10;/internal/">' . esc_textarea(implode("\n", $exclusions)) . '</textarea>';
+    echo '<p class="description">' . esc_html__('Path prefixes on THIS site where NO automatic LUMN event should ever fire - downloads, external links, and pattern/domain-based appointment matches alike. An explicit data-lumn-event still always wins, the same as data-lumn-track="false".', 'lumn-utilities') . '</p>';
+}
