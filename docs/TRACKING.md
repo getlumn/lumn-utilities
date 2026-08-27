@@ -956,30 +956,32 @@ Kadence).** Kadence's Row Layout background-video option renders a real
 `<video class="kb-blocks-bg-video">` inside a
 `<div class="kb-blocks-bg-video-container">` - but the block editor has
 no field to add a custom `data-*` attribute to that auto-generated markup
-directly (its "Additional CSS Class(es)" field only adds classes to the
-row's outer wrapper). The practical path, since editing that generated
-HTML isn't otherwise possible from the block editor: use a code snippet
-(WPCode, "Insert Headers and Footers," or similar) to add the attribute
-via a small script:
+directly. What the block editor *does* expose is an "Additional CSS
+Class(es)" field on the row's Advanced panel - give the specific row a
+class like `no-video-tracking`, then use a code snippet (WPCode,
+"Insert Headers and Footers," or similar) to set the attribute via a
+small script targeting that class:
 
-```html
-<script>
-document.querySelectorAll('.kb-blocks-bg-video-container').forEach(function (el) {
+```javascript
+document.querySelectorAll('.no-video-tracking .kb-blocks-bg-video-container').forEach(function (el) {
     el.setAttribute('data-lumn-track', 'false');
 });
-</script>
 ```
 
-`.kb-blocks-bg-video-container` is a Kadence-generated class present on
-every background video Kadence renders that way, so this excludes all of
-them site-wide with no per-page maintenance; to exclude only one
-particular row's background video, give that row its own custom CSS
-class in the block editor (e.g. `no-video-tracking`) and target
-`.no-video-tracking .kb-blocks-bg-video-container` instead. Either way,
-this only ever needs to run once per page load, before the video starts
-playing - a `<video autoplay>` background typically starts immediately,
-so place the snippet high enough (e.g. in the site header) that it runs
-before the video element's own `play` event fires.
+(To exclude every Kadence background video site-wide instead of one
+particular row, drop the `.no-video-tracking` prefix and target
+`.kb-blocks-bg-video-container` directly - it's a Kadence-generated class
+present on all of them, no per-page maintenance needed.)
+
+**Placement matters.** This script needs the video markup to already
+exist in the DOM when it runs - a **header**/`<head>` placement runs
+*before* the page body is parsed, so `querySelectorAll` would find
+nothing yet and the attribute would never get set. Use a **footer**
+placement (e.g. WPCode's "Insert Footer" / `site_wide_footer` location,
+or "Insert Headers and Footers"' Footer field) instead, which runs after
+the body's HTML - including the video element - is already in the DOM,
+comfortably before an autoplaying background video's own `play` event
+actually fires.
 
 ### Video tracking
 
