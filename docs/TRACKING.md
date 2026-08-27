@@ -939,6 +939,48 @@ directory link a practice doesn't consider a meaningful conversion signal:
 </div>
 ```
 
+This applies to native `<video>` tracking too (`public/js/lumn-tracking-video.js`
+checks the same attribute, on the `<video>` element itself or any
+ancestor, the first time it starts playing) - useful for a purely
+decorative/ambient background video (e.g. a page builder's hero-row
+background video) that autoplays and shouldn't count as engagement:
+
+```html
+<div data-lumn-track="false">
+    <video autoplay muted loop src="hero-background.mp4"></video>
+</div>
+```
+
+**Excluding a page builder's own auto-generated background video (e.g.
+Kadence).** Kadence's Row Layout background-video option renders a real
+`<video class="kb-blocks-bg-video">` inside a
+`<div class="kb-blocks-bg-video-container">` - but the block editor has
+no field to add a custom `data-*` attribute to that auto-generated markup
+directly (its "Additional CSS Class(es)" field only adds classes to the
+row's outer wrapper). The practical path, since editing that generated
+HTML isn't otherwise possible from the block editor: use a code snippet
+(WPCode, "Insert Headers and Footers," or similar) to add the attribute
+via a small script:
+
+```html
+<script>
+document.querySelectorAll('.kb-blocks-bg-video-container').forEach(function (el) {
+    el.setAttribute('data-lumn-track', 'false');
+});
+</script>
+```
+
+`.kb-blocks-bg-video-container` is a Kadence-generated class present on
+every background video Kadence renders that way, so this excludes all of
+them site-wide with no per-page maintenance; to exclude only one
+particular row's background video, give that row its own custom CSS
+class in the block editor (e.g. `no-video-tracking`) and target
+`.no-video-tracking .kb-blocks-bg-video-container` instead. Either way,
+this only ever needs to run once per page load, before the video starts
+playing - a `<video autoplay>` background typically starts immediately,
+so place the snippet high enough (e.g. in the site header) that it runs
+before the video element's own `play` event fires.
+
 ### Video tracking
 
 **Provider support: native HTML5 `<video>` only, in this step.** Before
@@ -989,6 +1031,12 @@ element is removed.
   `NaN`, or `Infinity` (a live stream or a video whose metadata hasn't
   loaded) - no progress events are ever generated in that case, rather
   than spamming milestones.
+
+`data-lumn-track="false"`, on the `<video>` element or any ancestor,
+suppresses all three events for it (checked once, on `play` - see
+"Tracking overrides and precedence" below for the general mechanism and
+exactly how to apply this to a page builder's own auto-generated
+background video, e.g. Kadence's Row Layout background-video option).
 
 **Payload** (`lumn_video_start` / `LUMN_VIDEO_START`, same shape for
 `lumn_video_progress` and `lumn_video_complete` with `lumn_video_percent`

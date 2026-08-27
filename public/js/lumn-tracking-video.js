@@ -123,6 +123,19 @@
             return;
         }
 
+        // data-lumn-track="false" on the <video> itself or any ancestor
+        // (e.g. a page builder's row/section wrapper around a decorative
+        // background video) suppresses automatic tracking for it - same
+        // attribute and same rule as automatic click classification (see
+        // docs/TRACKING.md "Tracking overrides and precedence"). Checked
+        // once here, on the first play: videoState.started is never set
+        // true for a suppressed video, so handleTimeUpdate()/handleEnded()
+        // - which both bail out unless started is true - naturally never
+        // fire for it either, without needing their own separate check.
+        if (el.closest && el.closest('[data-lumn-track="false"]')) {
+            return;
+        }
+
         var videoState = getState(el);
 
         if (videoState.started && !videoState.ended) {
