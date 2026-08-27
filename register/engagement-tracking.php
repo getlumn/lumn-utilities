@@ -94,6 +94,10 @@ function lumn_ut_tracking_sanitize_classification_config($input) {
         'domain'
     );
 
+    if (function_exists('Lumn\Utilities\lumn_ut_tracking_touch_last_modified')) {
+        lumn_ut_tracking_touch_last_modified();
+    }
+
     return $clean;
 }
 
@@ -139,6 +143,26 @@ add_action('admin_init', function () {
         'lumn_ut_external_link_excluded_domains_field',
         __('External Link Tracking: Excluded Domains', 'lumn-utilities'),
         'Lumn\Utilities\lumn_ut_external_link_excluded_domains_field_callback',
+        LUMN_UT_TRACKING_SETTINGS_GROUP,
+        'lumn_ut_classification_config_section'
+    );
+
+    // Registered here (not register/tracking-config.php) because it's a
+    // field on this same "Automatic Classification Settings" section,
+    // even though the option and its sanitize callback live in
+    // tracking-config.php (Step 6) alongside the other new
+    // configuration-management pieces - see docs/TRACKING.md "Central
+    // configuration model".
+    register_setting(LUMN_UT_TRACKING_SETTINGS_GROUP, LUMN_UT_TRACKING_URL_EXCLUSIONS_OPTION, array(
+        'type' => 'array',
+        'sanitize_callback' => 'Lumn\Utilities\lumn_ut_tracking_sanitize_url_exclusions',
+        'default' => array(),
+    ));
+
+    add_settings_field(
+        'lumn_ut_global_url_exclusions_field',
+        __('Global URL Exclusions', 'lumn-utilities'),
+        'Lumn\Utilities\lumn_ut_global_url_exclusions_field_callback',
         LUMN_UT_TRACKING_SETTINGS_GROUP,
         'lumn_ut_classification_config_section'
     );

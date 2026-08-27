@@ -90,7 +90,6 @@ inherits the opt-in guarantees automatically.
 | --- | --- |
 | Feature registry, event registry, form provider/type registries, PII denylist | `register/tracking-registry.php` |
 | Settings storage, feature-flag API, PHP push API, cross-request relay, script enqueue, Settings API registration, known-appointment-URL lookup | `register/tracking.php` |
-| Admin page rendering ("SEO & Tracking") | `admin/tracking-page.php` |
 | Provider-agnostic Form Tracking API, per-form config, Gravity Forms + Formidable Forms adapters, "Form Tracking Providers"/"Tracked Forms" settings UI | `register/form-tracking.php` |
 | Front-end data-layer abstraction (`LumnTracking.pushEvent()`, `consumeRelay()`, debugger) | `public/js/lumn-tracking.js` |
 | Automatic + explicit click detection (phone/email/appointment/directions, `data-lumn-event`) | `public/js/lumn-tracking-events.js` |
@@ -101,6 +100,8 @@ inherits the opt-in guarantees automatically.
 | Automatic CTA classification config (URL patterns/domains/excluded domains), its Settings API registration, download-extensions registry | `register/engagement-tracking.php` |
 | Download/external-link classification + `data-lumn-track="false"` suppression (extends the Step 2 click engine) | `public/js/lumn-tracking-events.js` |
 | Native HTML5 `<video>` engagement tracking (start/progress/complete) | `public/js/lumn-tracking-video.js` |
+| Central configuration model (`lumn_ut_tracking_get_full_config()`), per-event overrides, Global URL Exclusions, reset, export/import, presets, last-modified tracking | `register/tracking-config.php` |
+| Dashboard / Configure Tracking / Import-Export tab rendering ("SEO & Tracking" page) | `admin/tracking-page.php` |
 
 ## Settings
 
@@ -1077,7 +1078,7 @@ is tracked automatically the moment it's clicked, with no re-initialization
 step; the same is true of a `<video>` element added later, since the
 `play`/`timeupdate`/`ended` listeners are already attached to `document`.
 
-
+## Debugger, catalog, health checker, and GTM guide (Step 4)
 
 Four read-only/diagnostic tools under `LUMN Utilities -> Tracking
 Debugger`, none of which enable tracking, inject GTM/GA4, or talk to
@@ -1266,6 +1267,613 @@ installed. It cannot determine whether a specific GTM trigger or tag is
 actually configured to consume LUMN events** - that lives entirely inside
 GTM's own configuration, which this plugin has no access to and does not
 attempt to inspect.
+
+## Central configuration model, dashboard, and management (Step 6)
+
+Everything below is about making the tracking system practical to manage
+across many sites - reading, summarizing, overriding, and reproducing its
+configuration - not new tracking behavior. Nothing in this step adds a
+new event, changes what an existing event captures, or changes any
+default (every new option here still defaults to off/empty).
+
+### The central configuration model
+
+Steps 1-5 already established a clean settings architecture -
+`lumn_ut_tracking_settings` (feature toggles), `lumn_ut_form_tracking_config`
+(per-form mappings), `lumn_ut_tracking_classification_config` (CTA/
+external-link classification) - each merged onto an all-false/empty
+baseline, each behind its own `register_setting()` sanitize callback.
+Step 6 does **not** merge these into one option: that would be a
+storage-format migration with real risk to every site already running
+this plugin, for a purely cosmetic win. Per its own instruction not to
+blindly restructure working code, this step instead adds one new,
+**computed, read-only** view over all of them:
+
+```php
+Lumn\Utilities\lumn_ut_tracking_get_full_config();
+```
+
+(`register/tracking-config.php`) - a single nested array matching the
+shape sketched in the Step 6 spec (`enabled`, `phone`, `email`,
+`appointment`, `directions`, `forms.{enabled,providers,mappings}`,
+`downloads.{enabled,extensions}`, `external_links.{enabled,exclusions}`,
+`videos.enabled`, `automatic_cta.{enabled,appointment_patterns,appointment_domains}`,
+`exclusions.{external_link_domains,global_url_paths}`, `debugger.enabled`,
+`event_overrides`, `last_modified`, `schema_version`). This is what the
+Dashboard, the Configuration Summary, export, and
+`lumn_ut_tracking_configuration_summary()` all read from - so none of
+them can ever drift from what the actual settings options say, and a
+future feature that needs "the current configuration" has exactly one
+function to call rather than needing to know which of several options a
+given setting lives in.
+
+Memoized with a `static` variable for the lifetime of one request (see
+"Performance" below) - it re-reads nothing on a second call within the
+same page load, but (like any `static`-memoized function) a change made
+mid-request by other code won't be reflected in an already-cached
+result. This matters only for code that both changes tracking settings
+and re-reads the aggregate within the same request, which nothing in
+this plugin does today.
+
+Two genuinely new pieces of configuration back onto this model, neither
+duplicating anything that existed before:
+
+- **Per-event overrides** (`lumn_ut_tracking_event_overrides`,
+  `register/tracking-config.php`) - see "Per-event controls" below.
+- **Global URL Exclusions** (`lumn_ut_tracking_url_exclusions`,
+  registered in `register/engagement-tracking.php` alongside the other
+  classification-settings fields it's grouped with in the UI, but
+  defined/sanitized in `register/tracking-config.php`) - see "Tracking
+  overrides and precedence" below.
+
+### The Dashboard
+
+`LUMN Utilities -> SEO & Tracking` is now three tabs
+(`admin/tracking-page.php`): **Dashboard** (default), **Configure
+Tracking** (the full settings form from Steps 1-5, unchanged), and
+**Import / Export**. The Dashboard answers, at a glance, the questions
+this step's spec opens with:
+
+- **Status** - one line, ✓/✗ LUMN Tracking Enabled, sourced from
+  `$config['enabled']`.
+- **Features** - one row per implemented feature, ON/OFF, plus a
+  "Recommended" annotation (see "Recommended vs enabled" below) - never
+  a second copy of the toggle itself, just a read of
+  `lumn_ut_tracking_feature_enabled()`.
+- **Configuration Summary** - see below.
+- **Last modified** - see "Configuration change tracking" below.
+- The "LUMN Utilities does not modify your GTM/GA4 configuration"
+  disclaimer (see "Existing analytics protection" below), shown
+  unconditionally.
+- Action buttons: **Configure Tracking** (this page's other tab),
+  **Debug Tracking** / **View Event Catalog** / **Run Health Check**
+  (link straight to the matching Tracking Debugger tab).
+- **Presets** and **Reset** - see below.
+
+### Configuration Summary
+
+`lumn_ut_tracking_configuration_summary()` (`register/tracking-config.php`)
+answers "what will LUMN actually do on this site" in plain language -
+exactly the troubleshooting aid the spec asks for, for an administrator
+who isn't deeply familiar with GTM:
+
+```
+Tracking is enabled.
+
+LUMN will currently track:
+✓ Phone clicks
+✓ Email clicks
+✓ Appointment clicks
+✓ Gravity Forms submissions
+
+LUMN will NOT currently track:
+○ Directions clicks
+○ Downloads
+○ External links
+○ Videos
+○ Automatic CTA classification
+```
+
+One row per simple feature (Phone/Email/Appointment/Directions/
+Download/External Link/Video/Automatic CTA), reflecting
+`lumn_ut_tracking_feature_enabled()` exactly. Form Tracking is
+deliberately **not** a single "Form Tracking: on/off" row: it's reported
+per actually-enabled, actually-tracked form (e.g. "Gravity Forms
+submissions"), since "Form Tracking is on" by itself doesn't tell an
+administrator whether any real form will ever send an event - a form
+plugin can be on with every individual form still unconfigured (see
+"Form discovery must not equal activation" below), in which case no
+"submissions" row appears at all.
+
+### Per-event controls
+
+Most events don't need their own toggle - their feature toggle already
+is the per-event control, since the feature has exactly one event
+(Phone, Email, SMS, Appointment, Directions, Download, External Link).
+**Per-Event Controls** (a new section on the Configure Tracking tab,
+registered in `register/tracking-config.php`) only ever shows a checkbox
+for an event belonging to a feature with *more than one* event - today
+that's Video Tracking's three events (`lumn_video_start`/`_progress`/
+`_complete`) and, matching the spec's own example, Form Tracking's one
+event (`lumn_form_submit`), included even though it's currently the only
+event under its feature.
+
+```
+Video Tracking: ON
+
+lumn_video_start      Tracking: ON
+lumn_video_progress   Tracking: OFF
+lumn_video_complete   Tracking: ON
+```
+
+Storage (`lumn_ut_tracking_event_overrides`) is deliberately minimal: a
+map of `EVENT_KEY => false` for an event an administrator has explicitly
+turned off; an event's simple *absence* from this option means
+"inherits its feature toggle," which is also the entire option's default
+(empty array) - so upgrading to this step never silently disables
+anything on an existing site. `lumn_ut_tracking_event_enabled($event_key)`
+is the one function that checks both layers (feature toggle AND this
+override) - `lumn_ut_tracking_push_event()`/`relay_event()` (PHP) and
+`LumnTracking.pushEvent()` (JS, via a localized `eventOverrides` map)
+both gate on it, never on `lumn_ut_tracking_feature_enabled()` alone, so
+an override can never be silently bypassed by a call site that predates
+this step.
+
+`lumn_ut_tracking_overridable_events()` is the fixed list of which
+events ever get a checkbox - not "every registered event." This matters
+for correctness, not just UI tidiness: the checkbox sanitizer
+(`lumn_ut_tracking_sanitize_event_overrides()`) only ever infers
+"unchecked" from an event's *absence* in the submitted form for keys on
+this list, so an event that was never offered a checkbox in the first
+place can never be accidentally toggled off just because it wasn't
+present in `$_POST`.
+
+### Explicit vs automatic tracking
+
+Every event's registry entry (`register/tracking-registry.php`) now
+declares which detection mode(s) it supports:
+
+| Event | Modes |
+| --- | --- |
+| `lumn_phone_click`, `lumn_email_click`, `lumn_sms_click`, `lumn_appointment_click`, `lumn_directions_click`, `lumn_file_download`, `lumn_external_link` | Automatic + Explicit |
+| `lumn_form_submit` | Automatic only (a provider's own PHP hook - there's no click to explicitly tag) |
+| `lumn_video_start`, `lumn_video_progress`, `lumn_video_complete` | Automatic only (native `<video>` media events aren't explicitly taggable today) |
+
+Every click-based event supports both, since `data-lumn-event` can tag
+*any* element - not just the ones automatic detection would already
+classify - so there's no such thing as an "explicit only" click event in
+this codebase yet (a future one could be, if it were never given
+automatic classification rules). `lumn_ut_tracking_event_mode_label($event_key)`
+computes the human-readable label ("Automatic + Explicit", "Automatic",
+or "Explicit only") from this - shown in the Event Catalog (both the
+accordion header badge and inside each event's detail table) so a
+developer can immediately see why an event they're investigating could
+be appearing at all.
+
+### Tracking overrides and precedence
+
+The full, current precedence chain, updating "Detection precedence"
+above with the two exclusion mechanisms:
+
+```
+1. Explicit data-lumn-event (nearest ancestor)      - always wins
+        |
+        v
+2. data-lumn-track="false" (nearest ancestor)       - blocks automatic only
+        |
+        v
+3. Global URL Exclusion (matching path prefix)      - blocks automatic only
+        |
+        v
+4. Specialized automatic (tel:/mailto:/sms:/appointment/directions)
+        |
+        v
+5. Generic automatic (download/external link)
+        |
+        v
+6. No event
+```
+
+**A note on why this doesn't match the spec's suggested order verbatim.**
+The spec's own suggested precedence lists "Explicit suppression" above
+"Explicit LUMN event." This plugin keeps explicit detection as the
+single highest-precedence rule instead, per the spec's own permission to
+"adapt this to the existing architecture if necessary" while preserving
+the actual principle (administrators/developers must be able to
+intentionally override automatic behavior) - which this still fully
+satisfies, just via a different, already-shipped, already-tested design
+from Step 5: `data-lumn-track="false"` suppresses *automatic*
+classification only and is checked *after* the explicit check, so an
+explicitly-tagged element always fires regardless of whether it (or an
+ancestor) also carries `data-lumn-track="false"`. Reversing that now
+would be a breaking behavior change to code already relied upon, for no
+functional gain - an administrator who genuinely wants to suppress an
+explicitly-tagged element can simply remove or change its
+`data-lumn-event` attribute instead.
+
+**Global URL Exclusions** (`register/tracking-config.php`, a "Global URL
+Exclusions" textarea alongside the other Automatic Classification
+Settings fields) are the URL-pattern-based counterpart to
+`data-lumn-track="false"`: a path prefix (e.g. `/staff/`) that suppresses
+*every* automatic classification for a matching link, site-wide, without
+tagging each individual link. Same rule as element-level suppression:
+never blocks an explicit `data-lumn-event`, only automatic
+classification - checked in both `public/js/lumn-tracking-events.js`
+(`isGloballyExcludedUrl()`) and the debugger's page-scanner mirror
+(`public/js/lumn-tracking-debugger.js`).
+
+**No arbitrary event names can bypass the registry, at either
+suppression mechanism or anywhere else** - `data-lumn-event` is still
+always resolved through `lumn_ut_tracking_resolve_event_key()`
+(unchanged from Step 2), and neither exclusion mechanism above ever
+constructs or fires an event on its own; they only ever prevent
+*automatic* classification from running.
+
+### Validating explicit event names (carried over from Step 4)
+
+Already fully implemented before this step, verified still correct: an
+unrecognized `data-lumn-event` value never fires (`resolveExplicitEventKey()`
+returns nothing to push), is logged as suppressed
+(`"Unrecognized data-lumn-event value - no event was sent."`) when the
+Debugger feature is on, is flagged distinctly (not silently dropped) by
+both the front-end page scanner (`⚠ Unknown LUMN event: "..."`) and the
+Health Checker's "Explicitly Tracked Elements" check. Nothing in this
+step changes this - it's re-verified by this step's test suite as part
+of the overall regression pass.
+
+### Form configuration (extends Step 3)
+
+The Tracked Forms table already shows everything the spec asks for -
+Provider (the table's own heading), Form ID, Form Name, Type, Location
+(only shown when at least one Practice Location exists), and Tracking -
+and **form discovery never equals activation**: a form with no saved
+config resolves to `enabled: false` by default
+(`lumn_ut_form_tracking_get_form_config()`'s defaults), so a newly
+detected form always starts as "Detected: Yes, Tracking: OFF" until an
+administrator explicitly checks it.
+
+### Location-aware tracking configuration (extends Step 3)
+
+Also already fully implemented: each per-form config entry carries an
+optional `location_id`, rendered as a `<select>` of this site's Practice
+Locations in the Tracked Forms table, and
+`lumn_ut_form_tracking_submit()` includes `lumn_location_id`/
+`lumn_location_name` in the resulting `lumn_form_submit` event whenever
+a location is assigned. No parallel location system was created - this
+reuses `register/locations.php`'s existing `lumn_ut_get_location()`
+exactly as-is. A form pointing at a since-deleted location simply omits
+those two params (never invents one), the same fail-safe pattern used
+elsewhere in this plugin.
+
+**Global vs location-specific overrides.** The Step 6 spec's own example
+suggests a per-location ON/OFF override for a whole feature (e.g.
+"Appointment Tracking = OFF for North Office"). This plugin does not
+build that: automatic click-based events (phone/email/appointment/
+directions/download/external link) have no existing concept of "which
+page, and therefore which location, was this click on" to hang a
+per-location override off of - inventing one would be a genuinely new,
+fairly deep architectural piece for a need not concretely demonstrated
+anywhere else in this system, and the spec explicitly warns against
+making the configuration hierarchy unnecessarily complicated. The
+inheritance model that **does** already exist and is worth documenting
+precisely:
+
+- A feature's toggle (e.g. Appointment Click Tracking) is the single,
+  global, absolute gate - off there means off everywhere, full stop.
+- A Practice Location's own `appointments_url` (Step 2, unrelated to
+  this step) is *additive*, not an override: it adds one more URL
+  `lumn_ut_tracking_known_appointment_urls()` recognizes as an
+  appointment link, on top of the site-wide one - it does not
+  independently turn appointment tracking on or off for that location.
+- A form's `location_id` (above) only ever adds `lumn_location_id`/
+  `lumn_location_name` metadata to an event that was already going to
+  fire - it never gates whether the event fires at all.
+
+### Centralized exclusions
+
+Three exclusion types now exist, each solving a concretely demonstrated
+problem rather than completeness for its own sake:
+
+| Exclusion | Scope | Where configured |
+| --- | --- | --- |
+| `data-lumn-track="false"` | one element (+ its descendants) | in the page's own markup |
+| External Link Tracking: Excluded Domains | one domain (+ subdomains), `lumn_external_link` only | Automatic Classification Settings (Step 5) |
+| Global URL Exclusions | a URL path prefix, every automatic event | Automatic Classification Settings (Step 6) |
+
+**Deliberately not built**: a CSS-selector exclusion type (strictly
+redundant with `data-lumn-track="false"`, which is already more precise
+and requires no selector-matching engine on the front end), a Form ID
+exclusion (redundant with the existing per-form Tracking ON/OFF
+checkbox), and a Video ID exclusion (no demonstrated need - a specific
+`<video>` element that shouldn't be tracked can already be wrapped in
+`data-lumn-track="false"`). Per the spec's own instruction to prioritize
+exclusions that solve real tracking problems rather than implementing
+every conceivable type.
+
+### Configuration validation
+
+Every value that reaches storage goes through a `sanitize_callback`,
+same as every setting since Step 1 - Step 6 adds validation/normalization
+for its own new values without inventing a new validation approach:
+
+- **Event names**: `data-lumn-event` (client-side detection) and
+  per-event overrides (admin form) both only ever reference a
+  currently-registered event key - an unrecognized one is dropped, never
+  stored or fired (see "Validating explicit event names" above and
+  `lumn_ut_tracking_sanitize_event_overrides()`).
+- **URLs/paths**: Global URL Exclusions and Appointment URL Patterns
+  both go through `lumn_ut_tracking_sanitize_line_list($input, 'path')`
+  (Step 5) - a pasted full URL is normalized down to just its path
+  rather than rejected outright.
+- **Domains**: Appointment/Scheduling Domains and External Link
+  Tracking's excluded domains go through the same helper's `'domain'`
+  mode - lowercased, and a pasted full URL reduced to just its host.
+- **Form IDs**: `lumn_ut_form_tracking_sanitize_config()` (Step 3) keeps
+  a form's config even if that form ID doesn't currently exist in its
+  provider's live list (so a temporarily-deactivated form plugin never
+  loses its saved configuration), but drops any entry whose *provider*
+  isn't a recognized one.
+- **Location IDs**: never validated against "does this location still
+  exist" at save time - a stale reference simply produces no
+  `lumn_location_id`/`lumn_location_name` params at push time (see
+  above), which is normalization-by-omission rather than an outright
+  save-time rejection, consistent with this plugin's general fail-safe
+  philosophy.
+- **Provider identifiers**: `lumn_ut_tracking_form_provider_registry()`
+  is still the single source of truth an unrecognized provider key is
+  checked against, everywhere one is read (form config, form mappings on
+  import - see below).
+
+**None of this can ever break front-end JavaScript**: every value
+localized into `window.lumnTrackingConfig`/`window.lumnTrackingDebuggerConfig`
+has already passed through one of the sanitizers above before it's
+serialized - there is no path from "an administrator typed something
+unusual into a textarea" to a JS runtime error.
+
+### Safe reset
+
+**Reset LUMN Tracking Settings** (Dashboard tab, behind a `confirm()`
+dialog) deletes exactly the tracking-specific options
+(`lumn_ut_tracking_reset_options()`: settings, form config,
+classification config, event overrides, URL exclusions) via
+`delete_option()`, which restores every one of them to its documented
+all-off/empty default the next time it's read - it does not delete or
+touch any other LUMN Utilities option (Practice Locations, shortcode
+settings, etc.), and it obviously cannot touch GTM/GA4, which this
+plugin has no access to in the first place. The confirmation dialog and
+the resulting admin notice both state all of this explicitly, not just
+"are you sure."
+
+### Configuration import/export
+
+**Export** (`lumn_ut_tracking_build_export()`,
+`admin/tracking-page.php`'s Import/Export tab) downloads
+`lumn-tracking-config.json`: feature toggles, form mappings (provider,
+form ID, enabled, type, and the assigned location's *name* - not its ID,
+which is meaningless on a different site), classification settings,
+event overrides, and URL exclusions, plus `schema_version` and
+`exported_at`. Deliberately scoped to tracking configuration only -
+Practice Locations' own business data (addresses, phone numbers, hours)
+is a separate LUMN Utilities feature with its own structure and is never
+included, even though a form mapping references a location by name.
+**Never included, because none of it exists in these options in the
+first place**: passwords, API keys, nonces, submitted form data, PII/PHI,
+or any WordPress user information.
+
+**Import** is a two-step, explicit-confirmation flow, never a one-click
+apply:
+
+```
+Upload lumn-tracking-config.json
+        |
+        v
+Validate (lumn_ut_tracking_validate_import()) - schema_version check,
+        then every value re-sanitized through the SAME sanitize
+        callbacks a direct settings save uses
+        |
+        v
+Preview (lumn_ut_tracking_import_diff()) - one row per setting that
+        would actually change; a file that matches the current
+        configuration exactly previews as "no changes"
+        |
+        v
+[ Apply Configuration ]  <- separate, explicit admin-post submission
+```
+
+The validated/normalized result is held in a short-lived (10-minute)
+transient keyed to the reviewing admin's user ID - never trusted back
+from a hidden form field on the "Apply" submission, which an
+intermediary could tamper with. **Nothing from an imported file is ever
+executed as code**: CSS-selector-like strings, URLs, domains, and event
+names are all just data run through the exact same
+`sanitize_text_field()`/allowlist-checking sanitizers a hand-typed value
+would go through - there is no `eval()`, no dynamic `include`, and no
+path from imported JSON to PHP or JavaScript execution.
+
+### Configuration schema version and migrations
+
+`LUMN_UT_TRACKING_SCHEMA_VERSION` (`register/tracking-config.php`,
+currently `1`) describes the **shape** of the aggregated/exported
+configuration this file produces - completely independent of the plugin
+version in `index.php`'s header. The plugin can ship many releases
+without this number ever changing; it only needs to move when a future
+change to `lumn_ut_tracking_get_full_config()`'s shape or the export
+format would make an older export ambiguous to import.
+
+`lumn_ut_tracking_validate_import()` already refuses an import whose
+`schema_version` is *newer* than what this site's code understands,
+rather than guessing - the error message tells the administrator to
+update the plugin first. When a future version actually needs to
+**read** an older export, the pattern to follow is: bump
+`LUMN_UT_TRACKING_SCHEMA_VERSION`, then add an explicit
+`if ($decoded['schema_version'] < N) { $decoded = /* translate old shape to new */; }`
+step at the top of `lumn_ut_tracking_validate_import()`, before
+sanitization - never silently reinterpret an old field name/shape as if
+it already matched the new one.
+
+### Upgrade safety
+
+Every new option this step introduces (`lumn_ut_tracking_event_overrides`,
+`lumn_ut_tracking_url_exclusions`) follows the exact same pattern every
+tracking option has followed since Step 1: a missing option resolves to
+an empty/all-off default, never "on." An existing site upgrading to this
+version of the plugin therefore keeps behaving exactly as it did before
+- no new toggle silently inherits an "on" state, and every previously
+saved setting is read back unchanged (nothing in this step rewrites the
+shape of `lumn_ut_tracking_settings`, `lumn_ut_form_tracking_config`, or
+`lumn_ut_tracking_classification_config`). Verified directly by this
+step's test suite, which stores settings shaped like a pre-Step-6 site
+(missing every Step 6 key entirely) and confirms every read still
+resolves safely.
+
+### Existing analytics protection
+
+The exact sentence the spec asks for -
+*"LUMN Utilities does not modify your Google Tag Manager container or
+GA4 configuration. LUMN Utilities generates standardized browser events
+that your existing GTM configuration may choose to consume."* - now
+appears as a persistent notice on the Dashboard
+(`lumn_ut_render_analytics_disclaimer()`), in addition to the existing
+explanations already present in the Configure Tracking intro and the
+GTM Guide tab. No new mechanism reads or writes anything in GTM or GA4 -
+this step is documentation/UI clarity only.
+
+### Configuration change tracking
+
+Deliberately just a last-modified timestamp
+(`lumn_ut_tracking_last_modified`, updated by
+`lumn_ut_tracking_touch_last_modified()`, called from every tracking
+`sanitize_callback` - settings, form config, classification config,
+event overrides, URL exclusions), shown on the Dashboard. Per the spec's
+own explicit permission to skip a full audit-log system when
+per-change/per-user logging would add unnecessary complexity, this step
+does not record *what* changed, *who* changed it, or keep any history -
+only *when* the configuration was last saved. Submitted form data was
+never eligible to be logged here in the first place, since none of these
+options ever store it.
+
+### Presets
+
+Three named bundles of feature toggles (`lumn_ut_tracking_presets()`,
+`register/tracking-config.php`) - Basic (phone/email/appointment),
+Standard (Basic + directions + form tracking), Advanced (Standard +
+downloads + external links + video) - shown on the Dashboard with a
+**Preview** link per preset before anything can be applied:
+
+```
+Preview: Standard preset
+
+Setting               Current   After applying
+Directions Tracking   OFF       ON
+Form Tracking         OFF       ON
+
+[ Apply Preset ]  (behind a confirm() dialog)
+```
+
+`lumn_ut_tracking_preset_diff()` only ever lists settings that would
+actually change - a preset matching the current configuration exactly
+previews as "no changes." Applying a preset **only ever sets feature
+toggles** - it never touches Master Tracking itself, so applying one can
+never be the thing that turns tracking on for the first time on a site
+that had it off; an administrator must still separately enable Master
+Tracking. Presets are never applied automatically or on page load -
+`lumn_ut_handle_apply_preset()` only runs from an explicit,
+nonce-verified `admin-post.php` form submission.
+
+### Recommended vs enabled
+
+The Dashboard's feature grid marks Phone, Email, and Appointment
+Tracking as "Recommended" (`lumn_ut_tracking_recommended_features()`) -
+a fixed, hardcoded, purely advisory annotation shown next to whatever
+the feature's *actual* ON/OFF state already is. A recommendation is
+never rendered in a way that could be mistaken for the feature already
+being on, and choosing a recommended feature never happens
+automatically - an administrator still has to enable it via Configure
+Tracking or a preset.
+
+### Configuration search
+
+Not built. The Configure Tracking screen is still a handful of
+checkboxes, a small number of textareas, and one events table - well
+within what a person can visually scan or use the browser's own Ctrl+F
+for, per the spec's own instruction not to build a search UI while the
+configuration remains this small. Worth revisiting only if a future step
+meaningfully grows the number of individual settings.
+
+### Debugger integration (extends Step 4)
+
+The Tracking Debugger's Recent Events feed now explains *why* an event
+fired, not just that it did - for a fired event, each entry additionally
+shows the **Feature** it belongs to and its current enabled state (e.g.
+`Feature: Video Tracking (Enabled)`), pulled from the same
+`config.features` map already localized in Step 4, and a
+**Configuration: Enabled** line (a fired event, by construction, always
+had its configuration enabled - a suppressed one already shows its own
+specific `Reason` instead, including the new
+`"individually turned off in Per-Event Controls"` reason for a per-event
+override). The page scanner also now reports a link excluded by a Global
+URL Exclusion distinctly (`Source: Excluded (Global URL Exclusions)`),
+the same way it already reports `data-lumn-track="false"` suppression,
+rather than silently showing nothing for it.
+
+### Health Checker integration (extends Step 4/5)
+
+Two new checks, plus a running summary:
+
+- **CTA destinations missing**: when Automatic CTA Classification is
+  enabled but both Appointment URL Patterns and Appointment/Scheduling
+  Domains are empty, flagged as a `warning` -
+  *"Automatic CTA tracking is enabled but no appointment destinations
+  (URL patterns or scheduling domains) are configured - it currently
+  behaves the same as if it were off."* Distinct from the existing
+  malformed-value check (Step 5) - this one fires when the feature is on
+  but has nothing to do yet, not when something configured looks wrong.
+- **Configuration Consistency**: a final summary row -
+  *"Tracking configuration is internally consistent"* (`good`) when
+  nothing else on the list reported a `warning`/`error`, or a plain
+  pointer back up the list (`info`) when something did. Never claims
+  consistency while a real issue is still listed above it.
+
+Neither check - nor any existing one - ever reports a feature as broken
+merely because no qualifying elements exist on the current page; that
+distinction (Step 5) is unchanged.
+
+### Performance
+
+- `lumn_ut_tracking_get_full_config()` is memoized per-request (a
+  `static` variable) - assembling it does real work (iterating the
+  feature/event/provider registries, reading several options), so it's
+  computed at most once no matter how many places on one admin page
+  render (Dashboard's status grid + summary + last-modified all share
+  one call).
+- When tracking is disabled, nothing changes from Steps 1-5's existing
+  guarantee: no tracking script is enqueued, no debugger script is
+  enqueued, and none of this step's new admin-only code (the dashboard,
+  presets, import/export, per-event controls) ever runs on a front-end
+  request in the first place - it's all admin-page rendering and
+  `admin-post.php` handlers, none of it hooked into `wp_enqueue_scripts`.
+- Form discovery (`lumn_ut_form_tracking_get_gravity_forms_list()`/
+  `get_formidable_forms_list()`) is unchanged from Step 3: still only
+  ever called when rendering the Tracked Forms admin table, never on a
+  front-end request, and still best-effort/defensively guarded against a
+  provider API that isn't available.
+
+### Security
+
+Every new admin-post handler this step adds (Reset, Export, Validate
+Import, Apply Import, Apply Preset) follows the exact same pattern as
+every handler since Step 2: `current_user_can(LUMN_UT_TRACKING_CAPABILITY)`
+first, `check_admin_referer()` (a nonce) second, and every value read
+from `$_POST`/`$_FILES`/`$_GET` sanitized before use. Configuration
+imports are treated as fully untrusted input - see "Configuration
+import/export" above for exactly how far that goes (re-sanitized through
+the same callbacks a direct save uses, never trusted as already-clean
+just because it round-tripped through JSON). CSS selectors weren't
+implemented as an exclusion type at all (see "Centralized exclusions"
+above); URLs, domains, and event names are always treated as plain data
+compared against a fixed registry/pattern - never passed to `eval()`, a
+dynamic `include`, or anything else that could turn configuration data
+into executable code.
 
 ## Adding a new event (for future steps)
 
@@ -1460,3 +2068,132 @@ Requires a test form on a Gravity Forms or Formidable Forms install.
     links, video plays, or CTA clicks push anything, and that (after a
     fresh page load) no `lumn-tracking-video.js` script tag is present in
     the page source when Video Tracking is off.
+
+### Advanced tracking configuration & management (Step 6)
+
+1. Open `LUMN Utilities -> SEO & Tracking` - it should land on the
+   **Dashboard** tab. Confirm Status shows **✗ LUMN Tracking Disabled**
+   and every feature in the grid shows **OFF** (assuming a fresh/reset
+   install) - Phone, Email, and Appointment Tracking should each show a
+   **Recommended** note even while off.
+2. Go to **Configure Tracking**, enable Master Tracking + Phone + Email +
+   Form Tracking + Gravity Forms (or whichever provider you have), Save
+   Changes. Back on the **Dashboard**, confirm the feature grid now shows
+   Phone/Email as **ON**, and the **Configuration Summary** lists "Phone
+   clicks" and "Email clicks" under "LUMN will currently track" - but
+   **not** a form-submissions line yet (no individual form is configured
+   yet).
+3. On Configure Tracking, find your test form in **Tracked Forms**,
+   check **Tracking: Enabled**, set a **Type**, and - if you have a
+   Practice Location - assign a **Location**. Save Changes. Back on the
+   Dashboard, confirm the Summary now lists a "... submissions" line
+   under "currently track."
+4. Under **Automatic Classification Settings**, enable **Automatic CTA
+   Classification** with nothing entered in Appointment URL
+   Patterns/Domains, Save Changes. Open **Tracking Debugger -> Health
+   Check**, run it, and confirm a warning: *"Automatic CTA tracking is
+   enabled but no appointment destinations are configured."* Add a
+   pattern or domain and re-run - confirm the warning clears and
+   **Configuration Consistency** reports **Good**.
+5. Under **Global URL Exclusions**, add a path (e.g. `/staff/`), Save
+   Changes. On the front end, confirm a download or external link under
+   that path fires nothing, while the same kind of link elsewhere still
+   fires normally - and that an element under that same path but
+   explicitly tagged `data-lumn-event="phone_click"` still fires (global
+   exclusions never block an explicit event).
+6. Under **Per-Event Controls**, if Video Tracking is on, uncheck
+   `lumn_video_progress` only, Save Changes. On a page with a `<video>`,
+   confirm `lumn_video_start`/`lumn_video_complete` still fire normally
+   but no `lumn_video_progress` milestone ever does.
+7. Enable the **Debugger** feature and Tracking Debugger overlay, click a
+   tracked link - confirm its Recent Events entry now shows a **Feature:
+   ... (Enabled)** line in addition to Category/Action/Source.
+8. Open the **Event Catalog** tab - confirm each event shows a
+   **Detection** row (and a badge in its header) reading "Automatic +
+   Explicit", "Automatic", etc., matching docs/TRACKING.md "Explicit vs
+   automatic tracking."
+9. On the Dashboard, under **Presets**, click **Preview** on "Standard" -
+   confirm a before/after table appears and that nothing changed yet;
+   click **Apply Preset** (confirm the dialog) - confirm the feature grid
+   updates accordingly, and that Master Tracking itself was untouched.
+10. Go to **Import / Export**, click **Export Configuration** - confirm a
+    `lumn-tracking-config.json` downloads, and that opening it shows only
+    tracking settings/mappings/exclusions (never any field resembling a
+    password, API key, or submitted form data).
+11. Under **Import**, upload that same exported file, click **Validate** -
+    confirm the preview shows "no changes" (since it's this site's own
+    current config). Change a setting on Configure Tracking, Save
+    Changes, then re-upload and re-validate the same file - confirm the
+    preview now shows exactly that one setting reverting, and that
+    nothing is applied until you click **Apply Configuration**.
+12. On the Dashboard, click **Reset LUMN Tracking Settings**, confirm the
+    dialog, confirm afterward that Master Tracking and every feature show
+    OFF, that Practice Locations (a separate admin page) is completely
+    unaffected, and that any existing GTM/GA4 tags on this site still
+    behave exactly as they did before you started (LUMN never touches
+    them either way).
+13. Re-import the file exported in step 10 to restore your test
+    configuration, confirming the same validate -> preview -> apply flow
+    works for restoring, not just for a fresh site.
+14. Log out (or use a private window) and load a front-end page - confirm
+    none of this step's admin-only surfaces (Dashboard, presets,
+    import/export forms) are reachable, and that nothing about this step
+    changed what a normal visitor's page load loads or executes.
+
+## Administrator's guide (no GTM experience required)
+
+You don't need to understand Google Tag Manager to safely turn on and
+manage LUMN Tracking. Everything you actually control lives in one
+place: **LUMN Utilities -> SEO & Tracking**.
+
+**The three-step chain, every single time:**
+
+```
+LUMN creates the event.
+        |
+        v
+GTM listens for the event.
+        |
+        v
+GA4 receives the event only if GTM is configured to send it.
+```
+
+LUMN's job stops at step 1. If GTM/GA4 aren't already set up on this
+site (or aren't set up to listen for LUMN's events specifically), turning
+on a LUMN toggle is completely safe and simply does nothing visible yet -
+it never creates or changes anything in Google's tools on its own. If you
+need GTM configured to actually *use* what LUMN generates, see the **GTM
+Guide** tab under Tracking Debugger, or hand that page to whoever manages
+this site's analytics.
+
+**A safe way to turn things on:**
+
+1. Start on the **Dashboard** tab - it tells you, in plain language,
+   exactly what is and isn't currently being tracked.
+2. Turn on **Master Tracking** (Configure Tracking tab) - by itself, this
+   does nothing yet; think of it as the site's main power switch for this
+   whole system.
+3. Either pick a **Preset** (Dashboard tab) that matches what you want -
+   Basic, Standard, or Advanced - and Preview it before applying, or turn
+   on individual features one at a time on Configure Tracking.
+4. If you have forms (Gravity Forms/Formidable Forms), go to **Tracked
+   Forms** and explicitly turn on each form you want tracked - installing
+   the plugin, or even turning on Form Tracking generally, never tracks
+   any specific form until you say so.
+5. Check the **Dashboard**'s Configuration Summary again - it should now
+   describe exactly what you just turned on, in the same plain language.
+6. If anything looks wrong, or you want to see events happening live,
+   use the **Tracking Debugger** (its own menu item) - turn on debugging,
+   then click around your own site to watch events appear.
+7. Run **Health Check** any time you're unsure whether something is
+   configured correctly - it's designed to tell you the difference
+   between "this is off" (fine, not an error) and "this is on but
+   missing something it needs" (worth fixing).
+8. If you ever want to start over, **Reset LUMN Tracking Settings**
+   (Dashboard tab) safely returns everything to off - it never touches
+   your GTM/GA4 setup or any other part of this plugin.
+
+**Moving this setup to another LUMN site:** use **Export** (Import/Export
+tab) on the source site, then **Import** on the destination site - it
+will show you exactly what would change before anything is actually
+applied, so you can review it first.

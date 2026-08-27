@@ -3,7 +3,7 @@
 Plugin Name: LUMN Utilites
 Plugin URI: https://getlumn.com
 Description: A set of custom shortcodes and tools for LUMN sites.
-Version: 4.5.0
+Version: 4.6.0
 Author: LUMN
 Author URI: https://getlumn.com
 License: GPL2
@@ -65,6 +65,11 @@ require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/form-tracking.php');
 // generically by the Feature Toggles already registered above); see
 // register/engagement-tracking.php.
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/engagement-tracking.php');
+
+// Central tracking configuration model, dashboard support, and
+// administration tooling (per-event overrides, global URL exclusions,
+// reset, export/import, presets) - Step 6; see register/tracking-config.php.
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/tracking-config.php');
 
 // Tracking Debugger, Event Catalog, Health Checker, and GTM Guide - an
 // admin-only diagnostic layer on top of the tracking system above. The

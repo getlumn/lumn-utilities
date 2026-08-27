@@ -204,6 +204,7 @@ function lumn_ut_tracking_event_registry() {
                 'lumn_form_type', 'lumn_form_id', 'lumn_form_name', 'lumn_form_provider',
                 'lumn_location_id', 'lumn_location_name',
             ),
+            'modes' => array('automatic'),
         ),
         'LUMN_PHONE_CLICK' => array(
             'name' => 'lumn_phone_click',
@@ -212,6 +213,7 @@ function lumn_ut_tracking_event_registry() {
             'action' => 'phone_click',
             'description' => __('A tel: link was clicked.', 'lumn-utilities'),
             'params' => array(),
+            'modes' => array('automatic', 'explicit'),
         ),
         'LUMN_APPOINTMENT_CLICK' => array(
             'name' => 'lumn_appointment_click',
@@ -220,6 +222,7 @@ function lumn_ut_tracking_event_registry() {
             'action' => 'appointment_click',
             'description' => __('An appointment/booking link was clicked.', 'lumn-utilities'),
             'params' => array(),
+            'modes' => array('automatic', 'explicit'),
         ),
         'LUMN_DIRECTIONS_CLICK' => array(
             'name' => 'lumn_directions_click',
@@ -228,6 +231,7 @@ function lumn_ut_tracking_event_registry() {
             'action' => 'directions_click',
             'description' => __('A directions/map link was clicked.', 'lumn-utilities'),
             'params' => array(),
+            'modes' => array('automatic', 'explicit'),
         ),
         'LUMN_EMAIL_CLICK' => array(
             'name' => 'lumn_email_click',
@@ -236,6 +240,7 @@ function lumn_ut_tracking_event_registry() {
             'action' => 'email_click',
             'description' => __('A mailto: link was clicked.', 'lumn-utilities'),
             'params' => array(),
+            'modes' => array('automatic', 'explicit'),
         ),
         'LUMN_SMS_CLICK' => array(
             'name' => 'lumn_sms_click',
@@ -244,6 +249,7 @@ function lumn_ut_tracking_event_registry() {
             'action' => 'sms_click',
             'description' => __('An sms: (click-to-text) link was clicked.', 'lumn-utilities'),
             'params' => array(),
+            'modes' => array('automatic', 'explicit'),
         ),
         'LUMN_FILE_DOWNLOAD' => array(
             'name' => 'lumn_file_download',
@@ -252,6 +258,7 @@ function lumn_ut_tracking_event_registry() {
             'action' => 'file_download',
             'description' => __('A downloadable file link was clicked.', 'lumn-utilities'),
             'params' => array('lumn_file_name', 'lumn_file_type'),
+            'modes' => array('automatic', 'explicit'),
         ),
         'LUMN_VIDEO_START' => array(
             'name' => 'lumn_video_start',
@@ -260,6 +267,7 @@ function lumn_ut_tracking_event_registry() {
             'action' => 'video_start',
             'description' => __('A video began playing. Fires once per playback session - resuming after a pause never fires it again.', 'lumn-utilities'),
             'params' => array('lumn_video_title', 'lumn_video_provider', 'lumn_video_id'),
+            'modes' => array('automatic'),
         ),
         'LUMN_VIDEO_PROGRESS' => array(
             'name' => 'lumn_video_progress',
@@ -268,6 +276,7 @@ function lumn_ut_tracking_event_registry() {
             'action' => 'video_progress',
             'description' => __('A video reached a 25/50/75% playback milestone. Each milestone fires at most once per playback session.', 'lumn-utilities'),
             'params' => array('lumn_video_title', 'lumn_video_provider', 'lumn_video_id', 'lumn_video_percent'),
+            'modes' => array('automatic'),
         ),
         'LUMN_VIDEO_COMPLETE' => array(
             'name' => 'lumn_video_complete',
@@ -276,6 +285,7 @@ function lumn_ut_tracking_event_registry() {
             'action' => 'video_complete',
             'description' => __('A video reached its end. Fires once per playback session; watching the same video again from the start fires it again.', 'lumn-utilities'),
             'params' => array('lumn_video_title', 'lumn_video_provider', 'lumn_video_id', 'lumn_video_percent'),
+            'modes' => array('automatic'),
         ),
         'LUMN_EXTERNAL_LINK' => array(
             'name' => 'lumn_external_link',
@@ -284,8 +294,37 @@ function lumn_ut_tracking_event_registry() {
             'action' => 'external_link_click',
             'description' => __('A link to another domain was clicked, and wasn\'t already claimed by a more specific LUMN event or an excluded domain.', 'lumn-utilities'),
             'params' => array('lumn_external_domain'),
+            'modes' => array('automatic', 'explicit'),
         ),
     );
+}
+
+/**
+ * Human-readable "Automatic" / "Automatic + Explicit" / "Explicit only"
+ * label for one event, derived from its registry entry's 'modes' - see
+ * docs/TRACKING.md "Explicit vs automatic tracking" (Step 6). Every
+ * click-based event supports both, since any element - not just the ones
+ * automatic detection would classify - can be explicitly tagged with
+ * data-lumn-event; lumn_form_submit and the video events are
+ * automatic-only today (form submissions come from a provider's own PHP
+ * hook, and native <video> elements aren't explicitly taggable).
+ */
+function lumn_ut_tracking_event_mode_label($event_key) {
+    $registry = lumn_ut_tracking_event_registry();
+    if (!isset($registry[$event_key])) {
+        return '';
+    }
+    $modes = isset($registry[$event_key]['modes']) ? $registry[$event_key]['modes'] : array('automatic');
+    $has_auto = in_array('automatic', $modes, true);
+    $has_explicit = in_array('explicit', $modes, true);
+
+    if ($has_auto && $has_explicit) {
+        return __('Automatic + Explicit', 'lumn-utilities');
+    }
+    if ($has_explicit) {
+        return __('Explicit only', 'lumn-utilities');
+    }
+    return __('Automatic', 'lumn-utilities');
 }
 
 /**

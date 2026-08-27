@@ -19,10 +19,16 @@
  *    data-lumn-track="false". No automatic classification is attempted
  *    (explicit, above, still works even on a suppressed element - this
  *    only opts a link out of *automatic* classification).
- * 3. Automatic, for a plain <a href="..."> with no data-lumn-event and no
- *    data-lumn-track="false" anywhere in its ancestor chain, tried in
- *    this fixed order - the first match wins, and only one event is ever
- *    produced per click (see docs/TRACKING.md "Duplicate-event
+ * 3. Globally excluded (Step 6): the link's own URL path starts with an
+ *    admin-configured Global URL Exclusion (register/tracking-config.php)
+ *    - the URL-pattern-based counterpart to data-lumn-track="false",
+ *    for excluding a whole section of the site without tagging every
+ *    link in it. Same rule as suppression: never blocks an explicit
+ *    data-lumn-event, only automatic classification.
+ * 4. Automatic, for a plain <a href="..."> with no data-lumn-event, no
+ *    data-lumn-track="false", and no matching Global URL Exclusion, tried
+ *    in this fixed order - the first match wins, and only one event is
+ *    ever produced per click (see docs/TRACKING.md "Duplicate-event
  *    prevention (Step 5)"):
  *      a. tel:                                    -> LUMN_PHONE_CLICK
  *      b. mailto:                                  -> LUMN_EMAIL_CLICK
@@ -268,6 +274,36 @@
         return hostMatchesAny(url.hostname, config.externalLinkExcludedDomains);
     }
 
+    // Path-prefix match against admin-configured Global URL Exclusions
+    // (register/tracking-config.php) - e.g. a configured "/staff/"
+    // suppresses automatic classification for any link under
+    // "/staff/...", on this site only (an absolute link to a DIFFERENT
+    // site's "/staff/" path is unaffected). Only ever checked against
+    // internal-looking paths; a link that fails to parse is never
+    // excluded by this (classifyAnchor()'s own try/catch already
+    // handles that case downstream).
+    function isGloballyExcludedUrl(anchor) {
+        var exclusions = config.globalUrlExclusions || [];
+        if (!exclusions.length) {
+            return false;
+        }
+        var href = anchor.getAttribute('href') || '';
+        var absolute;
+        try {
+            absolute = new window.URL(href, window.location.href);
+        } catch (e) {
+            return false;
+        }
+        var path = absolute.pathname.toLowerCase();
+        for (var i = 0; i < exclusions.length; i++) {
+            var prefix = String(exclusions[i] || '').toLowerCase();
+            if (prefix && path.indexOf(prefix) === 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     function hostMatchesAny(hostname, domainList) {
         var domains = domainList || [];
         if (!domains.length) {
@@ -409,6 +445,16 @@
 
         var anchor = target.closest('a[href]');
         if (!anchor) {
+            return;
+        }
+
+        // Global URL Exclusions (Step 6) - a path-prefix list that
+        // suppresses ALL automatic classification for a matching link,
+        // site-wide, without tagging every link individually with
+        // data-lumn-track="false". Like that attribute, this never
+        // blocks an explicit data-lumn-event (already handled above,
+        // before this point is ever reached).
+        if (isGloballyExcludedUrl(anchor)) {
             return;
         }
 

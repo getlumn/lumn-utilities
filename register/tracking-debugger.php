@@ -152,6 +152,8 @@ function lumn_ut_tracking_debugger_public_scripts() {
         'appointmentUrlPatterns' => $classification_config['appointment_url_patterns'],
         'appointmentDomains' => $classification_config['appointment_domains'],
         'externalLinkExcludedDomains' => $classification_config['external_link_excluded_domains'],
+        'globalUrlExclusions' => function_exists('Lumn\Utilities\lumn_ut_tracking_get_url_exclusions') ? lumn_ut_tracking_get_url_exclusions() : array(),
+        'eventOverrides' => function_exists('Lumn\Utilities\lumn_ut_tracking_get_event_overrides') ? lumn_ut_tracking_get_event_overrides() : array(),
         'toggleOffUrl' => lumn_ut_debug_overlay_toggle_url(false),
         'settingsUrl' => admin_url('admin.php?page=' . LUMN_UT_TRACKING_PAGE_SLUG),
     ));
@@ -361,6 +363,23 @@ function lumn_ut_health_run_checks($run_remote_checks = false) {
         $checks[] = array('label' => __('Automatic CTA Classification', 'lumn-utilities'), 'status' => 'warning', 'message' => $issue, 'can_verify' => true);
     }
 
+    // Enabled-but-nothing-configured is worth flagging distinctly from a
+    // malformed value (above) - the feature is on, does nothing wrong,
+    // but also can't do anything useful yet.
+    if (lumn_ut_tracking_feature_enabled('cta_classification')) {
+        $classification_config = function_exists('Lumn\Utilities\lumn_ut_tracking_get_classification_config')
+            ? lumn_ut_tracking_get_classification_config()
+            : array('appointment_url_patterns' => array(), 'appointment_domains' => array());
+        if (empty($classification_config['appointment_url_patterns']) && empty($classification_config['appointment_domains'])) {
+            $checks[] = array(
+                'label' => __('Automatic CTA Classification', 'lumn-utilities'),
+                'status' => 'warning',
+                'message' => __('Automatic CTA tracking is enabled but no appointment destinations (URL patterns or scheduling domains) are configured - it currently behaves the same as if it were off.', 'lumn-utilities'),
+                'can_verify' => true,
+            );
+        }
+    }
+
     if ($run_remote_checks) {
         $html = lumn_ut_health_fetch_homepage_html();
 
@@ -452,6 +471,27 @@ function lumn_ut_health_run_checks($run_remote_checks = false) {
             }
         }
     }
+
+    // A single, final summary check (spec: "Tracking configuration is
+    // internally consistent.") - 'good' only when nothing above reported
+    // a warning or error, so an administrator scanning quickly can trust
+    // this one line rather than reading every row. Never claims
+    // consistency while something else on this list disagrees.
+    $has_issue = false;
+    foreach ($checks as $check) {
+        if ($check['status'] === 'warning' || $check['status'] === 'error') {
+            $has_issue = true;
+            break;
+        }
+    }
+    $checks[] = array(
+        'label' => __('Configuration Consistency', 'lumn-utilities'),
+        'status' => $has_issue ? 'info' : 'good',
+        'message' => $has_issue
+            ? __('One or more issues were found above - tracking configuration is not fully consistent yet.', 'lumn-utilities')
+            : __('Tracking configuration is internally consistent - no conflicting or incomplete settings were found.', 'lumn-utilities'),
+        'can_verify' => true,
+    );
 
     return $checks;
 }

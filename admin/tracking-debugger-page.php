@@ -130,6 +130,7 @@ function lumn_ut_render_catalog_tab() {
         echo '<div class="lumn-utilites-admin-accordion lumn-ut-catalog-item">';
         echo '<div class="lumn-utilites-admin-accordion-header"><span class="icon-title"><code>' . esc_html($event['name']) . '</code> ';
         echo '<span class="lumn-ut-tracking-badge">' . esc_html($event['category']) . '</span>';
+        echo ' <span class="lumn-ut-tracking-badge">' . esc_html(lumn_ut_tracking_event_mode_label($key)) . '</span>';
         if ($enabled) {
             echo ' <span class="lumn-ut-tracking-badge lumn-ut-tracking-badge-ok">' . esc_html__('Active', 'lumn-utilities') . '</span>';
         }
@@ -141,6 +142,7 @@ function lumn_ut_render_catalog_tab() {
         echo '<table class="lumn-utilites-table">';
         echo '<tr><th>' . esc_html__('Category', 'lumn-utilities') . '</th><td>' . esc_html($event['category']) . '</td></tr>';
         echo '<tr><th>' . esc_html__('Action', 'lumn-utilities') . '</th><td>' . esc_html($event['action']) . '</td></tr>';
+        echo '<tr><th>' . esc_html__('Detection', 'lumn-utilities') . '</th><td>' . esc_html(lumn_ut_tracking_event_mode_label($key)) . '</td></tr>';
         echo '<tr><th>' . esc_html__('Requires', 'lumn-utilities') . '</th><td>' . esc_html($feature_label) . ' - ' . ($enabled ? esc_html__('currently enabled', 'lumn-utilities') : esc_html__('currently off', 'lumn-utilities')) . '</td></tr>';
         $all_params = array_merge(lumn_ut_tracking_base_event_params(), $event['params']);
         echo '<tr><th>' . esc_html__('Parameters', 'lumn-utilities') . '</th><td>' . esc_html(implode(', ', $all_params)) . '</td></tr>';

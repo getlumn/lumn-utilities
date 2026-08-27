@@ -98,6 +98,10 @@ function lumn_ut_form_tracking_sanitize_config($input) {
         );
     }
 
+    if (function_exists('Lumn\Utilities\lumn_ut_tracking_touch_last_modified')) {
+        lumn_ut_tracking_touch_last_modified();
+    }
+
     return $clean;
 }
 

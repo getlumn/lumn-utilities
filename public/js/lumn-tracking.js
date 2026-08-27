@@ -22,6 +22,7 @@
         events: {},
         forbiddenParamKeys: [],
         appointmentUrls: [],
+        eventOverrides: {},
         debug: false
     };
 
@@ -209,6 +210,16 @@
 
             if (!this.isFeatureEnabled(eventDef.feature)) {
                 debugLog('suppressed', eventKey, eventDef, { Reason: 'Feature "' + eventDef.feature + '" is disabled.' }, source);
+                return false;
+            }
+
+            // Per-event override (Step 6) - independent of the feature
+            // toggle above, so e.g. lumn_video_progress can be turned
+            // off without touching lumn_video_start/lumn_video_complete
+            // under the same Video Tracking toggle. Mirrors
+            // lumn_ut_tracking_event_enabled() server-side.
+            if (config.eventOverrides && config.eventOverrides[eventKey] === false) {
+                debugLog('suppressed', eventKey, eventDef, { Reason: 'This event has been individually turned off in Per-Event Controls, even though its feature is on.' }, source);
                 return false;
             }
 

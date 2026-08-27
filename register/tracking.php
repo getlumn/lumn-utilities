@@ -41,11 +41,13 @@ function lumn_ut_get_tracking_settings() {
 // truthy-but-not-boolean value into the option.
 function lumn_ut_tracking_sanitize_settings($input) {
     $clean = lumn_ut_tracking_default_settings();
-    if (!is_array($input)) {
-        return $clean;
+    if (is_array($input)) {
+        foreach ($clean as $key => $default) {
+            $clean[$key] = !empty($input[$key]);
+        }
     }
-    foreach ($clean as $key => $default) {
-        $clean[$key] = !empty($input[$key]);
+    if (function_exists('Lumn\Utilities\lumn_ut_tracking_touch_last_modified')) {
+        lumn_ut_tracking_touch_last_modified();
     }
     return $clean;
 }
@@ -118,6 +120,22 @@ function lumn_ut_tracking_form_provider_enabled($provider) {
     return !empty($settings['form_tracking_' . $provider]);
 }
 
+/**
+ * Whether $event_key may actually fire right now - the feature-level
+ * check above PLUS, when register/tracking-config.php (Step 6) is
+ * loaded, that event's own per-event override
+ * (lumn_ut_tracking_event_enabled()). Falls back to the plain
+ * feature-level check if that file somehow isn't loaded (defensive only
+ * - the real plugin bootstrap in index.php always loads it), so this
+ * never becomes a hard dependency between the two files.
+ */
+function lumn_ut_tracking_event_may_fire($event_key, $feature) {
+    if (function_exists('Lumn\Utilities\lumn_ut_tracking_event_enabled')) {
+        return lumn_ut_tracking_event_enabled($event_key);
+    }
+    return lumn_ut_tracking_feature_enabled($feature);
+}
+
 // ---------------------------------------------------------------------
 // Safe data-layer abstraction (PHP side)
 // ---------------------------------------------------------------------
@@ -158,7 +176,7 @@ function lumn_ut_tracking_push_event($event_key, $params = array(), $source = nu
 
     $event = $registry[$event_key];
 
-    if (!lumn_ut_tracking_feature_enabled($event['feature'])) {
+    if (!lumn_ut_tracking_event_may_fire($event_key, $event['feature'])) {
         return false;
     }
 
@@ -265,6 +283,10 @@ function lumn_ut_tracking_relay_event($event_key, $params = array(), $source = n
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log(sprintf('[LUMN Tracking] lumn_ut_tracking_relay_event() called with unrecognized event key "%s" - ignored.', $event_key));
         }
+        return false;
+    }
+
+    if (!lumn_ut_tracking_event_may_fire($event_key, $registry[$event_key]['feature'])) {
         return false;
     }
 
@@ -382,6 +404,8 @@ function lumn_ut_tracking_public_scripts() {
         'appointmentUrlPatterns' => $classification_config['appointment_url_patterns'],
         'appointmentDomains' => $classification_config['appointment_domains'],
         'externalLinkExcludedDomains' => $classification_config['external_link_excluded_domains'],
+        'globalUrlExclusions' => function_exists('Lumn\Utilities\lumn_ut_tracking_get_url_exclusions') ? lumn_ut_tracking_get_url_exclusions() : array(),
+        'eventOverrides' => function_exists('Lumn\Utilities\lumn_ut_tracking_get_event_overrides') ? lumn_ut_tracking_get_event_overrides() : array(),
         'debug' => lumn_ut_tracking_feature_enabled('debugger'),
     ));
 

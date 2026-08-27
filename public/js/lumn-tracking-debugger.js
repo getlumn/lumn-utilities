@@ -200,6 +200,15 @@
         } else if (eventDef) {
             detail.appendChild(el('div', {}, ['Category: ' + eventDef.category]));
             detail.appendChild(el('div', {}, ['Action: ' + eventDef.action]));
+            // "Why did this fire" (Step 6, section 24): the feature this
+            // event belongs to, and its current on/off state - answers
+            // the most common troubleshooting question without having
+            // to cross-reference the Event Catalog separately.
+            var featureMeta = config.features ? config.features[eventDef.feature] : null;
+            if (featureMeta) {
+                detail.appendChild(el('div', {}, ['Feature: ' + featureMeta.label + ' (' + (featureMeta.enabled ? 'Enabled' : 'Disabled') + ')']));
+            }
+            detail.appendChild(el('div', {}, ['Configuration: Enabled']));
             // Only ever display keys the event registry actually declares
             // for this event - never arbitrary properties off the raw
             // browser event, per docs/TRACKING.md "Debugger safety".
@@ -362,6 +371,28 @@
         return false;
     }
 
+    // Mirrors isGloballyExcludedUrl() in lumn-tracking-events.js (Step 6).
+    function isGloballyExcludedUrl(href) {
+        var exclusions = config.globalUrlExclusions || [];
+        if (!exclusions.length) {
+            return false;
+        }
+        var absolute;
+        try {
+            absolute = new window.URL(href, window.location.href);
+        } catch (e) {
+            return false;
+        }
+        var path = absolute.pathname.toLowerCase();
+        for (var i = 0; i < exclusions.length; i++) {
+            var prefix = String(exclusions[i] || '').toLowerCase();
+            if (prefix && path.indexOf(prefix) === 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     var DOWNLOAD_EXCLUDED_PATH_FRAGMENTS = ['/wp-admin/', '/wp-json/', '/wp-cron.php', 'admin-ajax.php', '/feed/'];
 
     function isDownloadUrl(url) {
@@ -392,6 +423,9 @@
         var href = anchor.getAttribute('href') || '';
         if (!href) {
             return { key: null };
+        }
+        if (isGloballyExcludedUrl(href)) {
+            return { key: null, globallyExcluded: true };
         }
         if (/^tel:/i.test(href)) {
             return { key: 'LUMN_PHONE_CLICK' };
@@ -499,6 +533,17 @@
                     event: null,
                     raw: null,
                     source: 'Suppressed (data-lumn-track="false")',
+                    recognized: true,
+                    suppressed: true
+                });
+                return;
+            }
+            if (classification.globallyExcluded) {
+                results.push({
+                    label: elementLabel(anchor),
+                    event: null,
+                    raw: null,
+                    source: 'Excluded (Global URL Exclusions)',
                     recognized: true,
                     suppressed: true
                 });

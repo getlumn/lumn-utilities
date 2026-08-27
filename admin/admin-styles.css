@@ -462,9 +462,21 @@
 	margin-bottom: 16px;
 }
 .lumn-ut-tracking-debugger-page .lumn-ut-status-checks,
-.lumn-ut-tracking-debugger-page .lumn-ut-health-table {
+.lumn-ut-tracking-debugger-page .lumn-ut-health-table,
+.lumn-ut-tracking-page .lumn-ut-status-checks {
 	margin-top: 10px;
 	margin-bottom: 16px;
+}
+.lumn-ut-tracking-page .lumn-ut-dashboard-actions .button {
+	margin-right: 6px;
+	margin-bottom: 6px;
+}
+.lumn-ut-tracking-page .lumn-ut-summary-list {
+	margin: 0 0 16px 20px;
+	list-style: none;
+}
+.lumn-ut-tracking-page .lumn-ut-summary-list li {
+	margin-bottom: 4px;
 }
 .lumn-ut-tracking-debugger-page .lumn-ut-health-table thead th {
 	background: var(--lumn-navy-tint);
