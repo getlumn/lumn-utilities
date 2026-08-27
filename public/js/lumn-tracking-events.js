@@ -25,9 +25,16 @@
  *    for excluding a whole section of the site without tagging every
  *    link in it. Same rule as suppression: never blocks an explicit
  *    data-lumn-event, only automatic classification.
+ * 3b. Anchor/Fragment excluded: the link's href has a "#..." fragment
+ *    matching an admin-configured Anchor/Fragment Exclusion
+ *    (register/tracking-config.php) - e.g. a same-page "jump to section"
+ *    link like href="#contact-form" that would otherwise false-match
+ *    this page's own configured Appointments/Google Maps link once its
+ *    fragment is dropped for comparison (step 4d/4f below). Same rule as
+ *    the two exclusions above: never blocks an explicit data-lumn-event.
  * 4. Automatic, for a plain <a href="..."> with no data-lumn-event, no
- *    data-lumn-track="false", and no matching Global URL Exclusion, tried
- *    in this fixed order - the first match wins, and only one event is
+ *    data-lumn-track="false", and no matching exclusion above, tried in
+ *    this fixed order - the first match wins, and only one event is
  *    ever produced per click (see docs/TRACKING.md "Duplicate-event
  *    prevention (Step 5)"):
  *      a. tel:                                    -> LUMN_PHONE_CLICK
@@ -306,6 +313,35 @@
         return false;
     }
 
+    // Exact match against admin-configured Anchor/Fragment Exclusions
+    // (register/tracking-config.php) - e.g. a configured "#contact-form"
+    // suppresses automatic classification for any link whose href has
+    // that exact fragment, on ANY page of this site (matched by fragment
+    // name alone, not combined with the rest of the URL). Exists because
+    // a same-page "jump to section" link's fragment is dropped entirely
+    // by normalizeForCompare()'s origin+pathname comparison, so on a page
+    // that IS this site's configured Appointments or Google Maps link, a
+    // same-page anchor like href="#contact-form" false-matches that link
+    // - see isKnownAppointmentUrl()/isKnownDirectionsConfiguredUrl()
+    // above. A link with no fragment at all is never affected.
+    function isExcludedAnchorFragment(anchor) {
+        var exclusions = config.anchorExclusions || [];
+        if (!exclusions.length) {
+            return false;
+        }
+        var href = anchor.getAttribute('href') || '';
+        var absolute;
+        try {
+            absolute = new window.URL(href, window.location.href);
+        } catch (e) {
+            return false;
+        }
+        if (!absolute.hash) {
+            return false;
+        }
+        return exclusions.indexOf(absolute.hash) !== -1;
+    }
+
     function hostMatchesAny(hostname, domainList) {
         var domains = domainList || [];
         if (!domains.length) {
@@ -484,6 +520,14 @@
         // blocks an explicit data-lumn-event (already handled above,
         // before this point is ever reached).
         if (isGloballyExcludedUrl(anchor)) {
+            return;
+        }
+
+        // Anchor/Fragment Exclusions (e.g. "#contact-form") - see
+        // isExcludedAnchorFragment() above. Same precedence as Global URL
+        // Exclusions: never blocks an explicit data-lumn-event, only
+        // automatic classification.
+        if (isExcludedAnchorFragment(anchor)) {
             return;
         }
 

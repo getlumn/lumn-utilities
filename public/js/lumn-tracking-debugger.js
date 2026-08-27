@@ -517,6 +517,24 @@
         return false;
     }
 
+    // Mirrors isExcludedAnchorFragment() in lumn-tracking-events.js.
+    function isExcludedAnchorFragment(href) {
+        var exclusions = config.anchorExclusions || [];
+        if (!exclusions.length) {
+            return false;
+        }
+        var absolute;
+        try {
+            absolute = new window.URL(href, window.location.href);
+        } catch (e) {
+            return false;
+        }
+        if (!absolute.hash) {
+            return false;
+        }
+        return exclusions.indexOf(absolute.hash) !== -1;
+    }
+
     var DOWNLOAD_EXCLUDED_PATH_FRAGMENTS = ['/wp-admin/', '/wp-json/', '/wp-cron.php', 'admin-ajax.php', '/feed/'];
 
     function isDownloadUrl(url) {
@@ -550,6 +568,9 @@
         }
         if (isGloballyExcludedUrl(href)) {
             return { key: null, globallyExcluded: true };
+        }
+        if (isExcludedAnchorFragment(href)) {
+            return { key: null, anchorExcluded: true };
         }
         if (/^tel:/i.test(href)) {
             return { key: 'LUMN_PHONE_CLICK' };
@@ -668,6 +689,17 @@
                     event: null,
                     raw: null,
                     source: 'Excluded (Global URL Exclusions)',
+                    recognized: true,
+                    suppressed: true
+                });
+                return;
+            }
+            if (classification.anchorExcluded) {
+                results.push({
+                    label: elementLabel(anchor),
+                    event: null,
+                    raw: null,
+                    source: 'Excluded (Anchor/Fragment Exclusions)',
                     recognized: true,
                     suppressed: true
                 });

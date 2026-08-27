@@ -100,7 +100,7 @@ inherits the opt-in guarantees automatically.
 | Automatic CTA classification config (URL patterns/domains/excluded domains), its Settings API registration, download-extensions registry | `register/engagement-tracking.php` |
 | Download/external-link classification + `data-lumn-track="false"` suppression (extends the Step 2 click engine) | `public/js/lumn-tracking-events.js` |
 | Native HTML5 `<video>` engagement tracking (start/progress/complete) | `public/js/lumn-tracking-video.js` |
-| Central configuration model (`lumn_ut_tracking_get_full_config()`), per-event overrides, Global URL Exclusions, reset, export/import, presets, last-modified tracking | `register/tracking-config.php` |
+| Central configuration model (`lumn_ut_tracking_get_full_config()`), per-event overrides, Global URL Exclusions, Anchor/Fragment Exclusions, reset, export/import, presets, last-modified tracking | `register/tracking-config.php` |
 | Dashboard / Configure Tracking / Import-Export tab rendering ("SEO & Tracking" page) | `admin/tracking-page.php` |
 
 ## Settings
@@ -1710,7 +1710,7 @@ precisely:
 
 ### Centralized exclusions
 
-Three exclusion types now exist, each solving a concretely demonstrated
+Four exclusion types now exist, each solving a concretely demonstrated
 problem rather than completeness for its own sake:
 
 | Exclusion | Scope | Where configured |
@@ -1718,6 +1718,32 @@ problem rather than completeness for its own sake:
 | `data-lumn-track="false"` | one element (+ its descendants) | in the page's own markup |
 | External Link Tracking: Excluded Domains | one domain (+ subdomains), `lumn_external_link` only | Automatic Classification Settings (Step 5) |
 | Global URL Exclusions | a URL path prefix, every automatic event | Automatic Classification Settings (Step 6) |
+| Anchor/Fragment Exclusions | a link's `#fragment`, exact match, site-wide, every automatic event | Automatic Classification Settings |
+
+**Anchor/Fragment Exclusions** solve a different shape of problem than
+Global URL Exclusions: a same-page "jump to section" link (e.g.
+`href="#contact-form"`) has no destination of its own to compare against
+anything - `isKnownAppointmentUrl()`/`isKnownDirectionsConfiguredUrl()`
+(`public/js/lumn-tracking-events.js`) compare `origin+pathname` only,
+deliberately ignoring any hash so that a real cross-page link still
+matches regardless of a trailing `#section`. That's correct for a real
+link, but means a bare fragment jump on a page that itself IS this site's
+configured Appointments or Google Maps link normalizes to the exact same
+URL as that link and false-fires `lumn_appointment_click`/
+`lumn_directions_click` - the actual bug this exclusion type was added to
+fix (a `#contact-form` link at the bottom of `/request-an-appointment/`).
+Configured as one fragment per line (`lumn_ut_tracking_anchor_exclusions`,
+`lumn_ut_tracking_sanitize_anchor_exclusions()` in
+`register/tracking-config.php`, `'fragment'` mode of
+`lumn_ut_tracking_sanitize_line_list()`) - a bare id without its `#` gets
+one prepended, and a full URL pasted with a fragment on it is reduced to
+just the fragment. Matched by fragment name alone (`isExcludedAnchorFragment()`),
+regardless of path, so `#contact-form` is excluded on every page of the
+site, not just the one where the bug was reported - deliberately, since
+the same "jump to a section" pattern is usually reused sitewide. Same
+precedence as the other two exclusion types: never blocks an explicit
+`data-lumn-event`, only automatic classification, and a link with no
+fragment at all is never affected by it.
 
 **Deliberately not built**: a CSS-selector exclusion type (strictly
 redundant with `data-lumn-track="false"`, which is already more precise
@@ -1744,6 +1770,9 @@ for its own new values without inventing a new validation approach:
   both go through `lumn_ut_tracking_sanitize_line_list($input, 'path')`
   (Step 5) - a pasted full URL is normalized down to just its path
   rather than rejected outright.
+- **Fragments**: Anchor/Fragment Exclusions go through the same helper's
+  `'fragment'` mode - a bare id gets a `#` prepended, and a pasted full
+  URL with a fragment on it is reduced to just the `#fragment` part.
 - **Domains**: Appointment/Scheduling Domains and External Link
   Tracking's excluded domains go through the same helper's `'domain'`
   mode - lowercased, and a pasted full URL reduced to just its host.
@@ -1951,9 +1980,10 @@ had its configuration enabled - a suppressed one already shows its own
 specific `Reason` instead, including the new
 `"individually turned off in Per-Event Controls"` reason for a per-event
 override). The page scanner also now reports a link excluded by a Global
-URL Exclusion distinctly (`Source: Excluded (Global URL Exclusions)`),
-the same way it already reports `data-lumn-track="false"` suppression,
-rather than silently showing nothing for it.
+URL Exclusion or an Anchor/Fragment Exclusion distinctly (`Source:
+Excluded (Global URL Exclusions)` / `Source: Excluded (Anchor/Fragment
+Exclusions)`), the same way it already reports `data-lumn-track="false"`
+suppression, rather than silently showing nothing for it.
 
 ### Health Checker integration (extends Step 4/5)
 

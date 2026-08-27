@@ -67,6 +67,17 @@ function lumn_ut_tracking_sanitize_line_list($raw, $mode = 'text') {
                 $parsed = wp_parse_url($line);
                 $line = !empty($parsed['path']) ? $parsed['path'] : $line;
             }
+        } elseif ($mode === 'fragment') {
+            // Accept a bare id ("contact-form"), a "#id" fragment, or a
+            // full URL someone pasted with a fragment on it - always
+            // normalize down to just "#id", since matching is by fragment
+            // name alone (site-wide, regardless of path) - see
+            // lumn_ut_tracking_sanitize_anchor_exclusions().
+            $hashPos = strpos($line, '#');
+            $line = $hashPos !== false ? substr($line, $hashPos) : '#' . $line;
+            if ($line === '#') {
+                continue;
+            }
         }
 
         $clean[] = $line;
@@ -166,6 +177,23 @@ add_action('admin_init', function () {
         LUMN_UT_TRACKING_SETTINGS_GROUP,
         'lumn_ut_classification_config_section'
     );
+
+    // Registered here for the same reason as Global URL Exclusions above:
+    // same "Automatic Classification Settings" section, option/sanitize
+    // callback in tracking-config.php.
+    register_setting(LUMN_UT_TRACKING_SETTINGS_GROUP, LUMN_UT_TRACKING_ANCHOR_EXCLUSIONS_OPTION, array(
+        'type' => 'array',
+        'sanitize_callback' => 'Lumn\Utilities\lumn_ut_tracking_sanitize_anchor_exclusions',
+        'default' => array(),
+    ));
+
+    add_settings_field(
+        'lumn_ut_anchor_exclusions_field',
+        __('Anchor/Fragment Exclusions', 'lumn-utilities'),
+        'Lumn\Utilities\lumn_ut_anchor_exclusions_field_callback',
+        LUMN_UT_TRACKING_SETTINGS_GROUP,
+        'lumn_ut_classification_config_section'
+    );
 });
 
 function lumn_ut_classification_config_section_callback() {
@@ -200,4 +228,24 @@ function lumn_ut_global_url_exclusions_field_callback() {
     $exclusions = lumn_ut_tracking_get_url_exclusions();
     echo '<textarea name="' . esc_attr(LUMN_UT_TRACKING_URL_EXCLUSIONS_OPTION) . '" rows="4" placeholder="/staff/&#10;/internal/">' . esc_textarea(implode("\n", $exclusions)) . '</textarea>';
     echo '<p class="description">' . esc_html__('Path prefixes on THIS site where NO automatic LUMN event should ever fire - downloads, external links, and pattern/domain-based appointment matches alike. An explicit data-lumn-event still always wins, the same as data-lumn-track="false".', 'lumn-utilities') . '</p>';
+}
+
+// Its own top-level option (LUMN_UT_TRACKING_ANCHOR_EXCLUSIONS_OPTION,
+// defined/sanitized in register/tracking-config.php) - same shape as
+// Global URL Exclusions above, but matches by fragment (the "#..." part
+// of a link's href) instead of by path, and site-wide regardless of
+// which page the fragment appears on. Exists because a same-page anchor
+// link (e.g. href="#contact-form" jumping to a section further down the
+// SAME page) can otherwise be misread as navigating to whatever this
+// site's configured Appointments/Google Maps link happens to be, when
+// that link is this exact page - see isKnownAppointmentUrl()/
+// isKnownDirectionsConfiguredUrl() in public/js/lumn-tracking-events.js,
+// which compare origin+pathname and (correctly, for a real cross-page
+// link) ignore any hash, so a bare "#contact-form" jump on
+// /request-an-appointment/ normalizes to the exact same URL as that
+// page's own address and false-matches lumn_appointment_click.
+function lumn_ut_anchor_exclusions_field_callback() {
+    $exclusions = lumn_ut_tracking_get_anchor_exclusions();
+    echo '<textarea name="' . esc_attr(LUMN_UT_TRACKING_ANCHOR_EXCLUSIONS_OPTION) . '" rows="4" placeholder="#contact-form&#10;#contact-section">' . esc_textarea(implode("\n", $exclusions)) . '</textarea>';
+    echo '<p class="description">' . esc_html__('Anchor fragments (the "#..." part of a link) that should never generate an automatic LUMN event, on any page of this site - useful for a same-page "jump to section" link (e.g. #contact-form) that happens to share this page\'s address with a configured Appointments or Google Maps link. An explicit data-lumn-event still always wins, the same as data-lumn-track="false".', 'lumn-utilities') . '</p>';
 }

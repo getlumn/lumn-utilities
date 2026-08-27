@@ -170,6 +170,32 @@ function lumn_ut_tracking_sanitize_url_exclusions($input) {
 }
 
 // ---------------------------------------------------------------------
+// Anchor/fragment exclusions - a list of "#..." fragment names that
+// suppress automatic classification for a matching same-page anchor
+// link, site-wide (regardless of which page it appears on). See
+// lumn_ut_anchor_exclusions_field_callback() in
+// register/engagement-tracking.php for why this exists: a "jump to
+// section" link like href="#contact-form" resolves, once the hash is
+// stripped for comparison, to the exact same origin+pathname as the page
+// it's on - so on a page that IS this site's configured Appointments (or
+// Google Maps) link, every same-page anchor jump false-matches that
+// event. Like Global URL Exclusions and data-lumn-track="false", this
+// never affects an explicit data-lumn-event.
+// ---------------------------------------------------------------------
+
+const LUMN_UT_TRACKING_ANCHOR_EXCLUSIONS_OPTION = 'lumn_ut_tracking_anchor_exclusions';
+
+function lumn_ut_tracking_get_anchor_exclusions() {
+    $stored = get_option(LUMN_UT_TRACKING_ANCHOR_EXCLUSIONS_OPTION, array());
+    return is_array($stored) ? array_values(array_filter($stored, 'is_string')) : array();
+}
+
+function lumn_ut_tracking_sanitize_anchor_exclusions($input) {
+    lumn_ut_tracking_touch_last_modified();
+    return lumn_ut_tracking_sanitize_line_list($input, 'fragment');
+}
+
+// ---------------------------------------------------------------------
 // Last-modified tracking (Step 6, section 20) - deliberately just a
 // timestamp, not a change log, per the spec's own explicit permission
 // to skip a full audit-log system. Called from every sanitize_callback
@@ -259,6 +285,7 @@ function lumn_ut_tracking_get_full_config() {
         'exclusions' => array(
             'external_link_domains' => $classification['external_link_excluded_domains'],
             'global_url_paths' => lumn_ut_tracking_get_url_exclusions(),
+            'anchor_fragments' => lumn_ut_tracking_get_anchor_exclusions(),
         ),
         'debugger' => array('enabled' => !empty($settings['debugger'])),
         'event_overrides' => lumn_ut_tracking_get_event_overrides(),
@@ -441,6 +468,7 @@ function lumn_ut_tracking_reset_options() {
         LUMN_UT_CLASSIFICATION_CONFIG_OPTION,
         LUMN_UT_TRACKING_EVENT_OVERRIDES_OPTION,
         LUMN_UT_TRACKING_URL_EXCLUSIONS_OPTION,
+        LUMN_UT_TRACKING_ANCHOR_EXCLUSIONS_OPTION,
     );
 }
 
@@ -506,6 +534,7 @@ function lumn_ut_tracking_build_export() {
             : lumn_ut_tracking_classification_defaults(),
         'event_overrides' => lumn_ut_tracking_get_event_overrides(),
         'url_exclusions' => lumn_ut_tracking_get_url_exclusions(),
+        'anchor_exclusions' => lumn_ut_tracking_get_anchor_exclusions(),
     );
 }
 
@@ -582,6 +611,7 @@ function lumn_ut_tracking_validate_import($decoded) {
             : lumn_ut_tracking_classification_defaults(),
         'event_overrides' => lumn_ut_tracking_sanitize_event_overrides_stored(isset($decoded['event_overrides']) ? $decoded['event_overrides'] : array()),
         'url_exclusions' => lumn_ut_tracking_sanitize_url_exclusions(isset($decoded['url_exclusions']) ? $decoded['url_exclusions'] : array()),
+        'anchor_exclusions' => lumn_ut_tracking_sanitize_anchor_exclusions(isset($decoded['anchor_exclusions']) ? $decoded['anchor_exclusions'] : array()),
         'form_mappings' => array(),
     );
 
@@ -714,6 +744,7 @@ function lumn_ut_handle_apply_import() {
         }
         update_option(LUMN_UT_TRACKING_EVENT_OVERRIDES_OPTION, $clean['event_overrides']);
         update_option(LUMN_UT_TRACKING_URL_EXCLUSIONS_OPTION, $clean['url_exclusions']);
+        update_option(LUMN_UT_TRACKING_ANCHOR_EXCLUSIONS_OPTION, $clean['anchor_exclusions']);
 
         if (!empty($clean['form_mappings'])) {
             $all_forms = lumn_ut_form_tracking_get_all_config();
@@ -738,9 +769,9 @@ function lumn_ut_handle_apply_import() {
 // Tracking tab, and saved by the same options.php form/Save Changes
 // button as every other tracking setting, not a separate submission.
 //
-// The Global URL Exclusions option is registered in
-// register/engagement-tracking.php instead, alongside the other
-// classification-settings fields it's grouped with in the UI.
+// The Global URL Exclusions and Anchor/Fragment Exclusions options are
+// registered in register/engagement-tracking.php instead, alongside the
+// other classification-settings fields they're grouped with in the UI.
 // ---------------------------------------------------------------------
 
 add_action('admin_init', function () {

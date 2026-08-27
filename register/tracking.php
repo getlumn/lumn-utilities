@@ -406,6 +406,7 @@ function lumn_ut_tracking_public_scripts() {
         'appointmentDomains' => $classification_config['appointment_domains'],
         'externalLinkExcludedDomains' => $classification_config['external_link_excluded_domains'],
         'globalUrlExclusions' => function_exists('Lumn\Utilities\lumn_ut_tracking_get_url_exclusions') ? lumn_ut_tracking_get_url_exclusions() : array(),
+        'anchorExclusions' => function_exists('Lumn\Utilities\lumn_ut_tracking_get_anchor_exclusions') ? lumn_ut_tracking_get_anchor_exclusions() : array(),
         'eventOverrides' => function_exists('Lumn\Utilities\lumn_ut_tracking_get_event_overrides') ? lumn_ut_tracking_get_event_overrides() : array(),
         'debug' => lumn_ut_tracking_feature_enabled('debugger'),
         // Whether the front-end Tracking Debugger overlay is active for

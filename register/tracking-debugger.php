@@ -154,6 +154,7 @@ function lumn_ut_tracking_debugger_public_scripts() {
         'appointmentDomains' => $classification_config['appointment_domains'],
         'externalLinkExcludedDomains' => $classification_config['external_link_excluded_domains'],
         'globalUrlExclusions' => function_exists('Lumn\Utilities\lumn_ut_tracking_get_url_exclusions') ? lumn_ut_tracking_get_url_exclusions() : array(),
+        'anchorExclusions' => function_exists('Lumn\Utilities\lumn_ut_tracking_get_anchor_exclusions') ? lumn_ut_tracking_get_anchor_exclusions() : array(),
         'eventOverrides' => function_exists('Lumn\Utilities\lumn_ut_tracking_get_event_overrides') ? lumn_ut_tracking_get_event_overrides() : array(),
         'toggleOffUrl' => lumn_ut_debug_overlay_toggle_url(false),
         'settingsUrl' => admin_url('admin.php?page=' . LUMN_UT_TRACKING_PAGE_SLUG),
