@@ -395,12 +395,30 @@ Appointments link configured, automatic appointment detection simply never
 matches anything - use explicit tracking (below) for appointment CTAs on
 such a site.
 
+Both `lumn_ut_tracking_known_appointment_urls()` and
+`lumn_ut_tracking_known_directions_urls()` (below) recognize two forms of
+"the configured link": the actual destination URL an admin typed into
+Settings, *and* this site's own `/lumn-social-url-{name}/` redirect
+endpoint (`register/redirects.php`) - via the shared
+`lumn_ut_tracking_known_social_urls()` helper. Many sites point buttons at
+the redirect itself (so the destination can be changed in one place
+without editing page content) rather than at the destination URL - a click
+on such a button would otherwise never match, since the browser only ever
+sees the redirect's own same-site URL, never where it 301s to. The
+redirect form is only ever included when it would actually redirect
+somewhere (the site-wide `/lumn-social-url-{name}/` path only once the
+site-wide option is set; a location's `/lumn-social-url-{name}/{slug}/`
+path once either that location's own override or the site-wide option is
+set, matching the redirect handler's own override-else-site-wide-fallback
+logic) - never invents a URL for a link that would just 404.
+
 Directions detection works the same way, via
 `lumn_ut_tracking_known_directions_urls()` in `register/tracking.php`
 against the site-wide `[lumn_social_url name="googlemaps"]` link and/or any
-Practice Location's `googlemaps_url` override - checked *in addition to*
-(not instead of) the known-maps-domain heuristic above it in the table, so
-a configured Google Maps link on a domain the heuristic doesn't recognize
+Practice Location's `googlemaps_url` override (and their `/lumn-social-url-
+googlemaps/...` redirect forms, per above) - checked *in addition to* (not
+instead of) the known-maps-domain heuristic above it in the table, so a
+configured Google Maps link on a domain the heuristic doesn't recognize
 (e.g. a custom short-link service) still fires `lumn_directions_click`,
 while a plain maps link nobody bothered to configure in Settings still
 works too.

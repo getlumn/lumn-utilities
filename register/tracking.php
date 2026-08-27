@@ -456,27 +456,47 @@ function lumn_ut_tracking_public_scripts() {
 add_action('wp_enqueue_scripts', 'Lumn\Utilities\lumn_ut_tracking_public_scripts');
 
 /**
- * Every "known appointment link" this site has configured: the site-wide
- * Appointments URL (lumn_social_url_appointments, from
- * register/field-registry.php) plus each Practice Location's per-location
- * appointments_url override (register/locations.php), when set. Used
- * client-side to automatically classify a plain <a href="..."> as an
- * appointment click without relying on button text - see
- * public/js/lumn-tracking-events.js. Empty/missing values are omitted;
- * never invents a URL that isn't actually configured on this site.
+ * Every URL that should count as "this site's configured {$name} link" for
+ * automatic click detection: the site-wide lumn_social_url_{$name} option,
+ * each Practice Location's per-location {$name}_url override, AND this
+ * site's own /lumn-social-url-{$name}/ redirect endpoint(s)
+ * (register/redirects.php) - the site-wide redirect path, plus one per
+ * Practice Location that has a slug, e.g.
+ * /lumn-social-url-appointments/downtown/. Many sites link buttons
+ * directly at this redirect (so the destination can be changed in one
+ * place without editing page content) rather than at the destination URL
+ * itself - without including it here, a click on such a button would
+ * never match, since the browser only ever sees the redirect's own
+ * same-site URL as the link's href, never where it 301s to.
+ *
+ * A redirect URL is only included when it would actually redirect
+ * somewhere: the site-wide redirect path only when the site-wide option
+ * is set, and a location's redirect path only when that location has its
+ * own override OR the site-wide option is set (matching
+ * lumn_ut_social_url_redirects()'s own override-else-site-wide-fallback
+ * logic) - never invents a URL for a dead link nobody configured.
+ *
+ * Shared by lumn_ut_tracking_known_appointment_urls() and
+ * lumn_ut_tracking_known_directions_urls() below.
  */
-function lumn_ut_tracking_known_appointment_urls() {
+function lumn_ut_tracking_known_social_urls($name, $override_key) {
     $urls = array();
 
-    $site_wide = get_option('lumn_social_url_appointments');
-    if (is_string($site_wide) && $site_wide !== '') {
+    $site_wide = get_option('lumn_social_url_' . $name);
+    $site_wide_configured = is_string($site_wide) && $site_wide !== '';
+    if ($site_wide_configured) {
         $urls[] = $site_wide;
+        $urls[] = home_url('/lumn-social-url-' . $name . '/');
     }
 
     if (function_exists('Lumn\Utilities\lumn_ut_get_locations')) {
         foreach (lumn_ut_get_locations() as $location) {
-            if (!empty($location['appointments_url'])) {
-                $urls[] = $location['appointments_url'];
+            $has_override = !empty($location[$override_key]);
+            if ($has_override) {
+                $urls[] = $location[$override_key];
+            }
+            if (($has_override || $site_wide_configured) && !empty($location['slug'])) {
+                $urls[] = home_url('/lumn-social-url-' . $name . '/' . $location['slug'] . '/');
             }
         }
     }
@@ -485,35 +505,27 @@ function lumn_ut_tracking_known_appointment_urls() {
 }
 
 /**
- * Every "known directions/maps link" this site has configured: the
- * site-wide Google Maps URL (lumn_social_url_googlemaps, from
- * register/field-registry.php) plus each Practice Location's per-location
- * googlemaps_url override (register/locations.php), when set. Used
- * client-side to automatically classify a plain <a href="..."> as a
- * directions click without relying on link text - matched in addition to
- * (not instead of) the generic known-maps-domain heuristic in
- * public/js/lumn-tracking-events.js, so a configured link on a domain that
- * heuristic doesn't recognize (e.g. a custom short-link service) still
- * fires lumn_directions_click. Empty/missing values are omitted; never
- * invents a URL that isn't actually configured on this site.
+ * Every "known appointment link" this site has configured - see
+ * lumn_ut_tracking_known_social_urls() above. Used client-side to
+ * automatically classify a plain <a href="..."> as an appointment click
+ * without relying on button text - see public/js/lumn-tracking-events.js.
+ */
+function lumn_ut_tracking_known_appointment_urls() {
+    return lumn_ut_tracking_known_social_urls('appointments', 'appointments_url');
+}
+
+/**
+ * Every "known directions/maps link" this site has configured - see
+ * lumn_ut_tracking_known_social_urls() above. Used client-side to
+ * automatically classify a plain <a href="..."> as a directions click
+ * without relying on link text - matched in addition to (not instead of)
+ * the generic known-maps-domain heuristic in
+ * public/js/lumn-tracking-events.js, so a configured link on a domain
+ * that heuristic doesn't recognize (e.g. a custom short-link service)
+ * still fires lumn_directions_click.
  */
 function lumn_ut_tracking_known_directions_urls() {
-    $urls = array();
-
-    $site_wide = get_option('lumn_social_url_googlemaps');
-    if (is_string($site_wide) && $site_wide !== '') {
-        $urls[] = $site_wide;
-    }
-
-    if (function_exists('Lumn\Utilities\lumn_ut_get_locations')) {
-        foreach (lumn_ut_get_locations() as $location) {
-            if (!empty($location['googlemaps_url'])) {
-                $urls[] = $location['googlemaps_url'];
-            }
-        }
-    }
-
-    return array_values(array_unique(array_filter($urls, 'is_string')));
+    return lumn_ut_tracking_known_social_urls('googlemaps', 'googlemaps_url');
 }
 
 // ---------------------------------------------------------------------
