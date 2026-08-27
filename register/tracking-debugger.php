@@ -148,6 +148,7 @@ function lumn_ut_tracking_debugger_public_scripts() {
         'events' => $events_out,
         'features' => $features_out,
         'appointmentUrls' => lumn_ut_tracking_known_appointment_urls(),
+        'directionsUrls' => lumn_ut_tracking_known_directions_urls(),
         'downloadExtensions' => lumn_ut_tracking_download_extensions(),
         'appointmentUrlPatterns' => $classification_config['appointment_url_patterns'],
         'appointmentDomains' => $classification_config['appointment_domains'],

@@ -399,6 +399,7 @@ function lumn_ut_tracking_public_scripts() {
         'events' => $events,
         'forbiddenParamKeys' => lumn_ut_tracking_forbidden_param_keys(),
         'appointmentUrls' => lumn_ut_tracking_known_appointment_urls(),
+        'directionsUrls' => lumn_ut_tracking_known_directions_urls(),
         'formProviders' => $form_providers,
         'downloadExtensions' => lumn_ut_tracking_download_extensions(),
         'appointmentUrlPatterns' => $classification_config['appointment_url_patterns'],
@@ -476,6 +477,38 @@ function lumn_ut_tracking_known_appointment_urls() {
         foreach (lumn_ut_get_locations() as $location) {
             if (!empty($location['appointments_url'])) {
                 $urls[] = $location['appointments_url'];
+            }
+        }
+    }
+
+    return array_values(array_unique(array_filter($urls, 'is_string')));
+}
+
+/**
+ * Every "known directions/maps link" this site has configured: the
+ * site-wide Google Maps URL (lumn_social_url_googlemaps, from
+ * register/field-registry.php) plus each Practice Location's per-location
+ * googlemaps_url override (register/locations.php), when set. Used
+ * client-side to automatically classify a plain <a href="..."> as a
+ * directions click without relying on link text - matched in addition to
+ * (not instead of) the generic known-maps-domain heuristic in
+ * public/js/lumn-tracking-events.js, so a configured link on a domain that
+ * heuristic doesn't recognize (e.g. a custom short-link service) still
+ * fires lumn_directions_click. Empty/missing values are omitted; never
+ * invents a URL that isn't actually configured on this site.
+ */
+function lumn_ut_tracking_known_directions_urls() {
+    $urls = array();
+
+    $site_wide = get_option('lumn_social_url_googlemaps');
+    if (is_string($site_wide) && $site_wide !== '') {
+        $urls[] = $site_wide;
+    }
+
+    if (function_exists('Lumn\Utilities\lumn_ut_get_locations')) {
+        foreach (lumn_ut_get_locations() as $location) {
+            if (!empty($location['googlemaps_url'])) {
+                $urls[] = $location['googlemaps_url'];
             }
         }
     }

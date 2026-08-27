@@ -140,6 +140,22 @@ function lumn_ut_register_utilities_fields() {
     register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_google', lumn_ut_registered_setting_args('lumn_social_url_google'));
     add_settings_field('lumn_social_url_google', 'Google', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_google', 'item' => 'google', 'placeholder_url' => 'https://maps.app.goo.gl/example'));
 
+    // Dedicated Google Maps / Reviews / Write-a-Review fields (split out from
+    // the general-purpose "Google" field above so each has a clear single
+    // purpose). Google Maps is the one wired into automatic directions-click
+    // detection - see lumn_ut_tracking_known_directions_urls() in
+    // register/tracking.php. The general "Google" field above is left as-is
+    // for backward compatibility with any existing [lumn_social_url
+    // name="google"] usage or /lumn-social-url-google/ links.
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_googlemaps', lumn_ut_registered_setting_args('lumn_social_url_googlemaps'));
+    add_settings_field('lumn_social_url_googlemaps', 'Google Maps', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_googlemaps', 'item' => 'googlemaps', 'placeholder_url' => 'https://maps.app.goo.gl/example'));
+
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_googlereviews', lumn_ut_registered_setting_args('lumn_social_url_googlereviews'));
+    add_settings_field('lumn_social_url_googlereviews', 'Google Reviews', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_googlereviews', 'item' => 'googlereviews', 'placeholder_url' => 'https://g.page/r/example/reviews'));
+
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_googlewritereview', lumn_ut_registered_setting_args('lumn_social_url_googlewritereview'));
+    add_settings_field('lumn_social_url_googlewritereview', 'Write a Google Review', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_googlewritereview', 'item' => 'googlewritereview', 'placeholder_url' => 'https://g.page/r/example/review'));
+
     register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_instagram', lumn_ut_registered_setting_args('lumn_social_url_instagram'));
     add_settings_field('lumn_social_url_instagram', 'Instagram', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_instagram', 'item' => 'instagram', 'placeholder_url' => 'https://www.instagram.com/example/'));
 

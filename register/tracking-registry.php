@@ -58,7 +58,7 @@ function lumn_ut_tracking_feature_registry() {
         ),
         'directions_click_tracking' => array(
             'label' => __('Directions Click Tracking', 'lumn-utilities'),
-            'description' => __('Sends a standardized lumn_directions_click event when a visitor clicks a Google Maps, Apple Maps, Bing Maps, Waze, or other recognized directions link. Never includes the full destination URL.', 'lumn-utilities'),
+            'description' => __('Sends a standardized lumn_directions_click event when a visitor clicks this site\'s configured Google Maps link (site-wide or per-location), or any other recognized Google Maps, Apple Maps, Bing Maps, or Waze link. Never includes the full destination URL.', 'lumn-utilities'),
             'implemented' => true,
         ),
         'event_tracking' => array(

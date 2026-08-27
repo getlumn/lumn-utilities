@@ -89,7 +89,7 @@ inherits the opt-in guarantees automatically.
 | Piece | File |
 | --- | --- |
 | Feature registry, event registry, form provider/type registries, PII denylist | `register/tracking-registry.php` |
-| Settings storage, feature-flag API, PHP push API, cross-request relay, script enqueue, Settings API registration, known-appointment-URL lookup | `register/tracking.php` |
+| Settings storage, feature-flag API, PHP push API, cross-request relay, script enqueue, Settings API registration, known-appointment-URL/known-directions-URL lookup | `register/tracking.php` |
 | Provider-agnostic Form Tracking API, per-form config, Gravity Forms + Formidable Forms adapters, "Form Tracking Providers"/"Tracked Forms" settings UI | `register/form-tracking.php` |
 | Front-end data-layer abstraction (`LumnTracking.pushEvent()`, `consumeRelay()`, debugger) | `public/js/lumn-tracking.js` |
 | Automatic + explicit click detection (phone/email/appointment/directions, `data-lumn-event`) | `public/js/lumn-tracking-events.js` |
@@ -373,7 +373,7 @@ fixed order - the first match wins:
 | `mailto:...` | `lumn_email_click` | Email Click Tracking |
 | `sms:...` | `lumn_sms_click` | Phone Click Tracking |
 | Matches this site's configured Appointments link (site-wide `[lumn_social_url name="appointments"]`, or any Practice Location's per-location override) | `lumn_appointment_click` | Appointment Click Tracking |
-| `maps.google.com`, `google.com/maps` or `www.google.com/maps`, `goo.gl/maps`, `maps.apple.com`, `bing.com/maps` or `www.bing.com/maps`, `waze.com` | `lumn_directions_click` | Directions Click Tracking |
+| Matches this site's configured Google Maps link (site-wide `[lumn_social_url name="googlemaps"]`, or any Practice Location's per-location override), or a known maps domain: `maps.google.com`, `google.com/maps` or `www.google.com/maps`, `goo.gl/maps`, `maps.app.goo.gl`, `maps.apple.com`, `bing.com/maps` or `www.bing.com/maps`, `waze.com` | `lumn_directions_click` | Directions Click Tracking |
 
 `lumn_sms_click` (`LUMN_SMS_CLICK`) reuses the **Phone Click Tracking**
 toggle rather than getting its own - an `sms:` link is the same
@@ -394,6 +394,16 @@ difference. If this site has no Practice Locations and no site-wide
 Appointments link configured, automatic appointment detection simply never
 matches anything - use explicit tracking (below) for appointment CTAs on
 such a site.
+
+Directions detection works the same way, via
+`lumn_ut_tracking_known_directions_urls()` in `register/tracking.php`
+against the site-wide `[lumn_social_url name="googlemaps"]` link and/or any
+Practice Location's `googlemaps_url` override - checked *in addition to*
+(not instead of) the known-maps-domain heuristic above it in the table, so
+a configured Google Maps link on a domain the heuristic doesn't recognize
+(e.g. a custom short-link service) still fires `lumn_directions_click`,
+while a plain maps link nobody bothered to configure in Settings still
+works too.
 
 ### Explicit detection
 
@@ -1650,6 +1660,10 @@ precisely:
   `lumn_ut_tracking_known_appointment_urls()` recognizes as an
   appointment link, on top of the site-wide one - it does not
   independently turn appointment tracking on or off for that location.
+- A Practice Location's own `googlemaps_url` override works the same
+  way for directions: `lumn_ut_tracking_known_directions_urls()` adds it
+  on top of the site-wide `[lumn_social_url name="googlemaps"]` link -
+  it does not independently turn Directions Click Tracking on or off.
 - A form's `location_id` (above) only ever adds `lumn_location_id`/
   `lumn_location_name` metadata to an event that was already going to
   fire - it never gates whether the event fires at all.

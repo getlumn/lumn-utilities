@@ -453,6 +453,19 @@
         return false;
     }
 
+    function isKnownDirectionsConfiguredUrl(url) {
+        var known = config.directionsUrls || [];
+        var candidate = normalizeForCompare(url);
+        for (var i = 0; i < known.length; i++) {
+            try {
+                if (normalizeForCompare(new window.URL(known[i], window.location.href)) === candidate) {
+                    return true;
+                }
+            } catch (e) { /* skip malformed configured URL */ }
+        }
+        return false;
+    }
+
     function hostMatchesAny(hostname, domainList) {
         var domains = domainList || [];
         var host = String(hostname || '').toLowerCase();
@@ -560,7 +573,7 @@
                 return { key: 'LUMN_APPOINTMENT_CLICK' };
             }
         }
-        if (isKnownDirectionsUrl(absolute)) {
+        if (isKnownDirectionsConfiguredUrl(absolute) || isKnownDirectionsUrl(absolute)) {
             return { key: 'LUMN_DIRECTIONS_CLICK' };
         }
         if (isDownloadUrl(absolute)) {

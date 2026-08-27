@@ -39,7 +39,9 @@
  *         pattern or scheduling-provider domain
  *         (only attempted when Automatic CTA
  *         Classification is on)
- *      f. known maps/directions domain               -> LUMN_DIRECTIONS_CLICK
+ *      f. matches the configured Google Maps link     -> LUMN_DIRECTIONS_CLICK
+ *         (site-wide or per-location, exact match),
+ *         or a known maps/directions domain
  *      g. known download-file extension               -> LUMN_FILE_DOWNLOAD
  *      h. any other cross-origin link, unless its      -> LUMN_EXTERNAL_LINK
  *         domain is excluded
@@ -199,7 +201,7 @@
             }
         }
 
-        if (isKnownDirectionsUrl(absolute)) {
+        if (isKnownDirectionsConfiguredUrl(absolute) || isKnownDirectionsUrl(absolute)) {
             return 'LUMN_DIRECTIONS_CLICK';
         }
 
@@ -313,6 +315,33 @@
         for (var i = 0; i < domains.length; i++) {
             var domain = String(domains[i] || '').toLowerCase();
             if (domain && (host === domain || host.slice(-(domain.length + 1)) === '.' + domain)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Matches against this site's actually-configured Google Maps link(s)
+    // - the site-wide [lumn_social_url name="googlemaps"] URL and/or any
+    // Practice Location's per-location override (see
+    // lumn_ut_tracking_known_directions_urls() in register/tracking.php) -
+    // checked in addition to (not instead of) the known-maps-domain
+    // heuristic below, so a configured link on an unrecognized domain
+    // (e.g. a custom short-link service) still fires lumn_directions_click.
+    function isKnownDirectionsConfiguredUrl(url) {
+        var known = config.directionsUrls || [];
+        if (!known.length) {
+            return false;
+        }
+        var candidate = normalizeForCompare(url);
+        for (var i = 0; i < known.length; i++) {
+            var knownUrl;
+            try {
+                knownUrl = new window.URL(known[i], window.location.href);
+            } catch (e) {
+                continue; // skip a malformed configured URL rather than throwing
+            }
+            if (normalizeForCompare(knownUrl) === candidate) {
                 return true;
             }
         }
