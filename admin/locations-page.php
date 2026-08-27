@@ -254,7 +254,7 @@ function lumn_ut_render_location_form($location) {
         // /lumn-social-url-{name}/{slug}/ form).
         $hints = $loc_slug !== null ? array(
             '[lumn_social_url name="' . $name . '"' . $loc_attr . ']',
-            site_url() . '/lumn-social-url-' . $name . '/' . $loc_slug,
+            '/lumn-social-url-' . $name . '/' . $loc_slug,
         ) : array();
         lumn_ut_location_field_row($key, $label . ' ' . __('(override)', 'lumn-utilities'), isset($location[$key]) ? $location[$key] : '', 'text', __('Leave blank to use the site-wide link', 'lumn-utilities'), $hints);
     }

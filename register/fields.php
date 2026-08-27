@@ -213,7 +213,7 @@ function lumn_ut_register_utilities_fields() {
 
         echo '<input type="text" id="' . $option_name . '" name="' . $option_name . '" value="' . esc_attr($lumn_social_url) . '" placeholder="' . $placeholder_url . '"/>';
         lumn_ut_shortcode_hint('[lumn_social_url name="' . $item . '"]');
-        lumn_ut_shortcode_hint(site_url() . '/lumn-social-url-' . $item);
+        lumn_ut_shortcode_hint('/lumn-social-url-' . $item);
     }
 
     // Register other shortcodes fields (empty field to prevent errors when registering the section)
