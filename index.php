@@ -1,9 +1,9 @@
 <?php
 /*
-Plugin Name: LUMN Utilites
+Plugin Name: LUMN Utilities
 Plugin URI: https://getlumn.com
 Description: A set of custom shortcodes and tools for LUMN sites.
-Version: 4.0.3
+Version: 4.7.2
 Author: LUMN
 Author URI: https://getlumn.com
 License: GPL2
@@ -46,6 +46,37 @@ require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/settings.php');
 // Register Practice Locations
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'admin/locations-page.php');
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/locations.php');
+
+// Register the LUMN Tracking / SEO Tools foundation - a feature-flag API
+// and safe data-layer abstraction that is entirely opt-in (master switch
+// defaults to OFF; see docs/TRACKING.md).
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/tracking-registry.php');
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'admin/tracking-page.php');
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/tracking.php');
+
+// Provider-agnostic LUMN Form Tracking (Gravity Forms, Formidable Forms)
+// - loads only its own hooks for whichever provider is actually
+// installed/active; see register/form-tracking.php.
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/form-tracking.php');
+
+// LUMN Engagement Tracking - configuration for automatic download/
+// external-link/CTA classification (downloads, external links, video,
+// and automatic appointment-CTA classification are otherwise handled
+// generically by the Feature Toggles already registered above); see
+// register/engagement-tracking.php.
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/engagement-tracking.php');
+
+// Central tracking configuration model, dashboard support, and
+// administration tooling (per-event overrides, global URL exclusions,
+// reset, export/import, presets) - Step 6; see register/tracking-config.php.
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/tracking-config.php');
+
+// Tracking Debugger, Event Catalog, Health Checker, and GTM Guide - an
+// admin-only diagnostic layer on top of the tracking system above. The
+// front-end debug overlay only ever loads for an authorized, explicitly
+// activated administrator; see register/tracking-debugger.php.
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'admin/tracking-debugger-page.php');
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/tracking-debugger.php');
 
 // Register the lumn/v1 REST API
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/rest.php');

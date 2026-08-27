@@ -49,11 +49,11 @@ function lumn_ut_render_locations_list() {
 
     echo '<p>' . esc_html__('Manage one or more practice locations. Each location can store its own name, address, contact info, and hours.', 'lumn-utilities') . '</p>';
 
-    echo '<div class="lumn-utilites-admin-accordion">';
-    echo '<div class="lumn-utilites-admin-accordion-header"><span class="icon-title">' . esc_html__('How to Use', 'lumn-utilities') . '</span><span class="plus">+</span><span class="minus">-</span></div>';
-    echo '<div class="lumn-utilites-admin-accordion-content">';
+    echo '<div class="lumn-utilities-admin-accordion">';
+    echo '<div class="lumn-utilities-admin-accordion-header"><span class="icon-title">' . esc_html__('How to Use', 'lumn-utilities') . '</span><span class="plus">+</span><span class="minus">-</span></div>';
+    echo '<div class="lumn-utilities-admin-accordion-content">';
     echo '<p>' . esc_html__('A location holds its own name, address, contact info, hours, and map - separate from the General Business Information settings above.', 'lumn-utilities') . '</p>';
-    echo '<table class="lumn-utilites-table">';
+    echo '<table class="lumn-utilities-table">';
     echo '<tr><th>' . esc_html__('If you...', 'lumn-utilities') . '</th><th>' . esc_html__('Then...', 'lumn-utilities') . '</th></tr>';
     echo '<tr><td>' . esc_html__('Have no locations yet', 'lumn-utilities') . '</td><td>' . esc_html__('Every shortcode keeps using the General Business Information, Address, and Hours settings, exactly as before. Nothing changes until you add a location.', 'lumn-utilities') . '</td></tr>';
     echo '<tr><td>' . esc_html__('Only have one office', 'lumn-utilities') . '</td><td>' . esc_html__('Click "Create a location from the existing practice information" to copy your current settings into a location - or just leave things as they are.', 'lumn-utilities') . '</td></tr>';
@@ -154,7 +154,23 @@ function lumn_ut_render_location_form($location) {
     $location = wp_parse_args($location ?: array(), lumn_ut_default_location());
     $cancel_url = add_query_arg(array('page' => 'lumn-ut-locations'), admin_url('admin.php'));
 
+    // Every shortcode hint below is scoped to THIS location via its slug
+    // (e.g. [lumn_call location="downtown"]) - only shown once the
+    // location actually has one, i.e. it's been saved at least once.
+    // Never shown while adding a brand-new, not-yet-saved location: there
+    // is no real slug yet to build a working shortcode from.
+    $loc_slug = ($is_edit && $location['slug'] !== '') ? $location['slug'] : null;
+    $loc_attr = $loc_slug !== null ? ' location="' . $loc_slug . '"' : '';
+    $shortcode_hint = function ($name) use ($loc_slug, $loc_attr) {
+        return $loc_slug !== null ? array('[' . $name . $loc_attr . ']') : array();
+    };
+
     echo '<h3>' . ($is_edit ? esc_html__('Edit Location', 'lumn-utilities') : esc_html__('Add New Location', 'lumn-utilities')) . '</h3>';
+    if ($loc_slug === null && $is_edit) {
+        echo '<p class="description">' . esc_html__('This location has no slug yet, so its per-location shortcodes can\'t be shown here - save it once to see them.', 'lumn-utilities') . '</p>';
+    } elseif ($loc_slug === null) {
+        echo '<p class="description">' . esc_html__('Save this location once to see its per-location shortcodes here.', 'lumn-utilities') . '</p>';
+    }
     echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" class="lumn-ut-location-form">';
     wp_nonce_field('lumn_ut_save_location');
     echo '<input type="hidden" name="action" value="lumn_ut_save_location" />';
@@ -163,15 +179,15 @@ function lumn_ut_render_location_form($location) {
     echo '<table class="form-table">';
     lumn_ut_location_field_row('name', __('Location Name', 'lumn-utilities'), $location['name'], 'text', __('e.g. Downtown Office (internal label)', 'lumn-utilities'));
     lumn_ut_location_field_row('practice_name', __('Practice / Display Name', 'lumn-utilities'), $location['practice_name'], 'text', __('Name shown to patients', 'lumn-utilities'));
-    lumn_ut_location_field_row('address_street', __('Street Address', 'lumn-utilities'), $location['address_street'], 'text', '123 Elm St.');
-    lumn_ut_location_field_row('address_street2', __('Street Address Line 2', 'lumn-utilities'), $location['address_street2'], 'text', 'Apt 4B');
-    lumn_ut_location_field_row('address_city', __('City', 'lumn-utilities'), $location['address_city'], 'text', __('Example City', 'lumn-utilities'));
-    lumn_ut_location_field_row('address_state', __('State', 'lumn-utilities'), $location['address_state'], 'text', 'UT');
-    lumn_ut_location_field_row('address_zip', __('ZIP Code', 'lumn-utilities'), $location['address_zip'], 'text', '84123');
-    lumn_ut_location_field_row('phone', __('Phone Number', 'lumn-utilities'), $location['phone'], 'tel', '555-555-5555');
-    lumn_ut_location_field_row('text_phone', __('Text Number', 'lumn-utilities'), $location['text_phone'], 'tel', '555-555-5555');
-    lumn_ut_location_field_row('fax', __('Fax Number', 'lumn-utilities'), $location['fax'], 'tel', '555-555-5555');
-    lumn_ut_location_field_row('email', __('Email', 'lumn-utilities'), $location['email'], 'email', 'mail@example.com');
+    lumn_ut_location_field_row('address_street', __('Street Address', 'lumn-utilities'), $location['address_street'], 'text', '123 Elm St.', $shortcode_hint('lumn_address_street'));
+    lumn_ut_location_field_row('address_street2', __('Street Address Line 2', 'lumn-utilities'), $location['address_street2'], 'text', 'Apt 4B', $shortcode_hint('lumn_address_street2'));
+    lumn_ut_location_field_row('address_city', __('City', 'lumn-utilities'), $location['address_city'], 'text', __('Example City', 'lumn-utilities'), $shortcode_hint('lumn_address_city'));
+    lumn_ut_location_field_row('address_state', __('State', 'lumn-utilities'), $location['address_state'], 'text', 'UT', $shortcode_hint('lumn_address_state'));
+    lumn_ut_location_field_row('address_zip', __('ZIP Code', 'lumn-utilities'), $location['address_zip'], 'text', '84123', $shortcode_hint('lumn_address_zip'));
+    lumn_ut_location_field_row('phone', __('Phone Number', 'lumn-utilities'), $location['phone'], 'tel', '555-555-5555', $shortcode_hint('lumn_call'));
+    lumn_ut_location_field_row('text_phone', __('Text Number', 'lumn-utilities'), $location['text_phone'], 'tel', '555-555-5555', $shortcode_hint('lumn_txt'));
+    lumn_ut_location_field_row('fax', __('Fax Number', 'lumn-utilities'), $location['fax'], 'tel', '555-555-5555', $shortcode_hint('lumn_fax'));
+    lumn_ut_location_field_row('email', __('Email', 'lumn-utilities'), $location['email'], 'email', 'mail@example.com', $shortcode_hint('lumn_email'));
     echo '</table>';
 
     echo '<h4>' . esc_html__('Location Details', 'lumn-utilities') . '</h4>';
@@ -179,6 +195,9 @@ function lumn_ut_render_location_form($location) {
 
     echo '<tr><th><label for="location_map">' . esc_html__('Google Maps Iframe', 'lumn-utilities') . '</label></th><td>';
     echo '<textarea id="location_map" name="map" placeholder="&lt;iframe src=&hellip;">' . esc_textarea($location['map']) . '</textarea>';
+    foreach ($shortcode_hint('lumn_map') as $hint) {
+        lumn_ut_shortcode_hint($hint);
+    }
     echo '</td></tr>';
 
     lumn_ut_location_field_row('google_place_id', __('Google Place ID', 'lumn-utilities'), $location['google_place_id'], 'text', __('Used for reviews widgets and Business Profile lookups', 'lumn-utilities'));
@@ -213,6 +232,9 @@ function lumn_ut_render_location_form($location) {
         'payments' => __('Payments', 'lumn-utilities'),
         'facebook' => __('Facebook', 'lumn-utilities'),
         'google' => __('Google', 'lumn-utilities'),
+        'googlemaps' => __('Google Maps', 'lumn-utilities'),
+        'googlereviews' => __('Google Reviews', 'lumn-utilities'),
+        'googlewritereview' => __('Write a Google Review', 'lumn-utilities'),
         'instagram' => __('Instagram', 'lumn-utilities'),
         'linkedin' => __('LinkedIn', 'lumn-utilities'),
         'pinterest' => __('Pinterest', 'lumn-utilities'),
@@ -225,7 +247,16 @@ function lumn_ut_render_location_form($location) {
     foreach (lumn_ut_social_url_names() as $name) {
         $key = $name . '_url';
         $label = isset($social_url_labels[$name]) ? $social_url_labels[$name] : ucfirst($name);
-        lumn_ut_location_field_row($key, $label . ' ' . __('(override)', 'lumn-utilities'), isset($location[$key]) ? $location[$key] : '', 'text', __('Leave blank to use the site-wide link', 'lumn-utilities'));
+        // Two hints, same pair the site-wide field shows on Shortcode
+        // Settings (lumn_ut_social_url_callback()) - the shortcode AND the
+        // redirect link, both scoped to this location via its slug (see
+        // lumn_ut_social_url_redirects() in register/redirects.php for the
+        // /lumn-social-url-{name}/{slug}/ form).
+        $hints = $loc_slug !== null ? array(
+            '[lumn_social_url name="' . $name . '"' . $loc_attr . ']',
+            '/lumn-social-url-' . $name . '/' . $loc_slug,
+        ) : array();
+        lumn_ut_location_field_row($key, $label . ' ' . __('(override)', 'lumn-utilities'), isset($location[$key]) ? $location[$key] : '', 'text', __('Leave blank to use the site-wide link', 'lumn-utilities'), $hints);
     }
     echo '</table>';
 
@@ -236,6 +267,9 @@ function lumn_ut_render_location_form($location) {
         $value = isset($location['hours'][$day]) ? $location['hours'][$day] : '';
         echo '<tr><th><label for="location_hours_' . esc_attr($day) . '">' . esc_html(ucfirst($day)) . '</label></th><td>';
         echo '<input type="text" id="location_hours_' . esc_attr($day) . '" name="hours[' . esc_attr($day) . ']" value="' . esc_attr($value) . '" placeholder="e.g., 8:00 AM - 5:00 PM" />';
+        foreach ($shortcode_hint('lumn_hours_' . $day) as $hint) {
+            lumn_ut_shortcode_hint($hint);
+        }
         echo '</td></tr>';
     }
     echo '</table>';
@@ -258,9 +292,13 @@ function lumn_ut_render_location_form($location) {
     echo '</form>';
 }
 
-function lumn_ut_location_field_row($key, $label, $value, $type = 'text', $placeholder = '') {
+function lumn_ut_location_field_row($key, $label, $value, $type = 'text', $placeholder = '', $hints = array()) {
     echo '<tr>';
     echo '<th><label for="location_' . esc_attr($key) . '">' . esc_html($label) . '</label></th>';
-    echo '<td><input type="' . esc_attr($type) . '" id="location_' . esc_attr($key) . '" name="' . esc_attr($key) . '" value="' . esc_attr($value) . '" placeholder="' . esc_attr($placeholder) . '" /></td>';
+    echo '<td><input type="' . esc_attr($type) . '" id="location_' . esc_attr($key) . '" name="' . esc_attr($key) . '" value="' . esc_attr($value) . '" placeholder="' . esc_attr($placeholder) . '" />';
+    foreach ($hints as $hint) {
+        lumn_ut_shortcode_hint($hint);
+    }
+    echo '</td>';
     echo '</tr>';
 }

@@ -98,6 +98,27 @@ function lumn_ut_render_admin_header($subtitle = '') {
     echo '</div>';
 }
 
+// Renders a "Copy" button for one value - click handler in
+// admin/admin-scripts.js (.lumn-ut-copy-btn), Clipboard-API-first with a
+// window.prompt() fallback for a browser/context without it. Originally
+// local to admin/tracking-debugger-page.php (Event Catalog/GTM Guide
+// tabs); moved here so register/fields.php and admin/locations-page.php -
+// both loaded earlier than that file, per index.php's require order -
+// can call it directly rather than needing a function_exists() guard.
+function lumn_ut_render_copy_button($value) {
+    return '<button type="button" class="button button-small lumn-ut-copy-btn" data-copy-value="' . esc_attr($value) . '">' . esc_html__('Copy', 'lumn-utilities') . '</button>';
+}
+
+// Renders one shortcode/URL "hint" line under a Shortcode Settings or
+// Practice Locations field - the exact text a site editor would paste
+// into a page, plus a Copy button for it (lumn_ut_render_copy_button()
+// above). $text is copied byte-for-byte via the button's data attribute,
+// never re-derived from what's displayed, so what gets copied always
+// matches what's shown.
+function lumn_ut_shortcode_hint($text) {
+    echo '<div class="lumn-shortcode-hint"><span class="lumn-shortcode-hint-text">' . esc_html($text) . '</span> ' . lumn_ut_render_copy_button($text) . '</div>';
+}
+
 // Helper function to check if a shortcode's "html_tag" attribute input value is valid
 function lumn_ut_check_html_tag_value($value) {
     if($value) {
@@ -116,7 +137,7 @@ function lumn_ut_check_html_tag_value($value) {
 
 // Add a menu item to the admin dashboard
 function lumn_ut_shortcode_settings_add_admin_menu() {
-    add_menu_page('LUMN Utilites', 'LUMN Utilites', 'edit_pages', 'lumn-ut-shortcode-settings', '', lumn_ut_svg_to_base64('svgs/lumn-fish.svg'), 26);
+    add_menu_page('LUMN Utilities', 'LUMN Utilities', 'edit_pages', 'lumn-ut-shortcode-settings', '', lumn_ut_svg_to_base64('svgs/lumn-fish.svg'), 26);
     add_submenu_page('lumn-ut-shortcode-settings', 'LUMN Shortcodes', 'LUMN Shortcodes', 'edit_pages', 'lumn-ut-shortcode-settings', 'Lumn\Utilities\lumn_ut_shortcode_settings_options_page_callback');
 }
 add_action('admin_menu', 'Lumn\Utilities\lumn_ut_shortcode_settings_add_admin_menu');

@@ -1,7 +1,7 @@
 <?php
 namespace Lumn\Utilities;
 
-function lumn_ut_register_utilites_fields() {
+function lumn_ut_register_utilities_fields() {
     // Register [lumn_site_name] field
     register_setting('lumn_ut_shortcode_settings', 'lumn_site_name', lumn_ut_registered_setting_args('lumn_site_name'));
     add_settings_field('lumn_site_name_field', 'Site Name', 'Lumn\Utilities\lumn_ut_site_name_field_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_practice_info_section');
@@ -9,7 +9,7 @@ function lumn_ut_register_utilites_fields() {
     function lumn_ut_site_name_field_callback() {
         $lumn_site_name = get_option('lumn_site_name');
         echo '<input type="text" id="lumn_site_name" name="lumn_site_name" value="' . esc_attr($lumn_site_name) . '" placeholder="Practice Name"/>';
-        echo '<div class="lumn-shortcode-hint">[lumn_site_name]</div>';
+        lumn_ut_shortcode_hint('[lumn_site_name]');
     }
 
     // Register [lumn_call] field
@@ -19,7 +19,7 @@ function lumn_ut_register_utilites_fields() {
     function lumn_ut_call_field_callback() {
         $lumn_call = get_option('lumn_call');
         echo '<input type="tel" id="lumn_call" name="lumn_call" value="' . esc_attr($lumn_call) . '" placeholder="555-555-5555" />';
-        echo '<div class="lumn-shortcode-hint">[lumn_call]</div>';
+        lumn_ut_shortcode_hint('[lumn_call]');
     }
 
     // Register [lumn_txt] field
@@ -29,7 +29,7 @@ function lumn_ut_register_utilites_fields() {
     function lumn_ut_txt_field_callback() {
         $lumn_txt = get_option('lumn_txt');
         echo '<input type="tel" id="lumn_txt" name="lumn_txt" value="' . esc_attr($lumn_txt) . '" placeholder="555-555-5555" />';
-        echo '<div class="lumn-shortcode-hint">[lumn_txt]</div>';
+        lumn_ut_shortcode_hint('[lumn_txt]');
     }
 
     // Register [lumn_fax] field
@@ -39,17 +39,41 @@ function lumn_ut_register_utilites_fields() {
     function lumn_ut_fax_field_callback() {
         $lumn_fax = get_option('lumn_fax');
         echo '<input type="tel" id="lumn_fax" name="lumn_fax" value="' . esc_attr($lumn_fax) . '" placeholder="555-555-5555" />';
-        echo '<div class="lumn-shortcode-hint">[lumn_fax]</div>';
+        lumn_ut_shortcode_hint('[lumn_fax]');
     }
 
     // Register [lumn_email] field
     register_setting('lumn_ut_shortcode_settings', 'lumn_email', lumn_ut_registered_setting_args('lumn_email'));
     add_settings_field('lumn_email_field', 'Email', 'Lumn\Utilities\lumn_ut_email_field_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_practice_info_section');
     // Callback function for the [lumn_email] field
+    //
+    // Once any Practice Location exists, [lumn_email] resolves through
+    // that location's own 'email' field (register/locations.php,
+    // lumn_ut_get_location_field()) instead of this option - with NO
+    // fallback to this option if that field happens to be blank (only a
+    // site with zero Practice Locations falls back here at all). So
+    // editing this field would have no visible effect and could confuse
+    // an admin into thinking their change didn't save, or mask a blank
+    // per-location field. Grayed out (readonly, not disabled - a disabled
+    // input is never submitted with the form, which would silently blank
+    // this option out on every save) with an explanatory note pointing at
+    // Practice Locations instead. This option's own value is left
+    // untouched either way - it's exactly what a NEW site with no
+    // locations yet still falls back to.
     function lumn_ut_email_field_callback() {
         $lumn_email = get_option('lumn_email');
-        echo '<input type="email" id="lumn_email" name="lumn_email" value="' . esc_attr($lumn_email) . '" placeholder="mail@example.com" />';
-        echo '<div class="lumn-shortcode-hint">[lumn_email]</div>';
+        $has_locations = function_exists('Lumn\Utilities\lumn_ut_get_locations') && !empty(lumn_ut_get_locations());
+        $readonly_attr = $has_locations ? ' readonly="readonly" class="lumn-ut-field-shadowed"' : '';
+        echo '<input type="email" id="lumn_email" name="lumn_email" value="' . esc_attr($lumn_email) . '" placeholder="mail@example.com"' . $readonly_attr . ' />';
+        lumn_ut_shortcode_hint('[lumn_email]');
+        if ($has_locations) {
+            $locations_url = admin_url('admin.php?page=lumn-ut-locations');
+            echo '<p class="description">' . sprintf(
+                /* translators: %s: URL to the Practice Locations admin page */
+                esc_html__('Practice Locations are set up on this site, so this site-wide email is no longer used by [lumn_email]. Set each location\'s own Email field instead, under %s.', 'lumn-utilities'),
+                '<a href="' . esc_url($locations_url) . '">' . esc_html__('Practice Locations', 'lumn-utilities') . '</a>'
+            ) . '</p>';
+        }
     }
 
     register_setting('lumn_ut_shortcode_settings', 'lumn_address_street', lumn_ut_registered_setting_args('lumn_address_street'));
@@ -58,7 +82,7 @@ function lumn_ut_register_utilites_fields() {
     function lumn_ut_address_street_field_callback() {
         $lumn_address_street = get_option('lumn_address_street');
         echo '<input type="text" id="lumn_address_street" name="lumn_address_street" value="' . esc_attr($lumn_address_street) . '" placeholder="123 Elm St." />';
-        echo '<div class="lumn-shortcode-hint">[lumn_address_street]</div>';
+        lumn_ut_shortcode_hint('[lumn_address_street]');
     }
 
     register_setting('lumn_ut_shortcode_settings', 'lumn_address_street2', lumn_ut_registered_setting_args('lumn_address_street2'));
@@ -67,7 +91,7 @@ function lumn_ut_register_utilites_fields() {
     function lumn_ut_address_street2_field_callback() {
         $lumn_address_street2 = get_option('lumn_address_street2');
         echo '<input type="text" id="lumn_address_street2" name="lumn_address_street2" value="' . esc_attr($lumn_address_street2) . '" placeholder="Apt 4B" />';
-        echo '<div class="lumn-shortcode-hint">[lumn_address_street2]</div>';
+        lumn_ut_shortcode_hint('[lumn_address_street2]');
     }
 
     register_setting('lumn_ut_shortcode_settings', 'lumn_address_city', lumn_ut_registered_setting_args('lumn_address_city'));
@@ -76,7 +100,7 @@ function lumn_ut_register_utilites_fields() {
     function lumn_ut_address_city_field_callback() {
         $lumn_address_city = get_option('lumn_address_city');
         echo '<input type="text" id="lumn_address_city" name="lumn_address_city" value="' . esc_attr($lumn_address_city) . '" placeholder="Example City" />';
-        echo '<div class="lumn-shortcode-hint">[lumn_address_city]</div>';
+        lumn_ut_shortcode_hint('[lumn_address_city]');
     }
 
     register_setting('lumn_ut_shortcode_settings', 'lumn_address_state', lumn_ut_registered_setting_args('lumn_address_state'));
@@ -85,7 +109,7 @@ function lumn_ut_register_utilites_fields() {
     function lumn_ut_address_state_field_callback() {
         $lumn_address_state = get_option('lumn_address_state');
         echo '<input type="text" id="lumn_address_state" name="lumn_address_state" value="' . esc_attr($lumn_address_state) . '" placeholder="UT" />';
-        echo '<div class="lumn-shortcode-hint">[lumn_address_state]</div>';
+        lumn_ut_shortcode_hint('[lumn_address_state]');
     }
 
     register_setting('lumn_ut_shortcode_settings', 'lumn_address_zip', lumn_ut_registered_setting_args('lumn_address_zip'));
@@ -94,7 +118,7 @@ function lumn_ut_register_utilites_fields() {
     function lumn_ut_address_zip_field_callback() {
         $lumn_address_zip = get_option('lumn_address_zip');
         echo '<input type="text" id="lumn_address_zip" name="lumn_address_zip" value="' . esc_attr($lumn_address_zip) . '" placeholder="84123" />';
-        echo '<div class="lumn-shortcode-hint">[lumn_address_zip]</div>';
+        lumn_ut_shortcode_hint('[lumn_address_zip]');
     }
 
     // Register [lumn_map] field
@@ -108,7 +132,7 @@ function lumn_ut_register_utilites_fields() {
     function lumn_ut_map_field_callback() {
         $lumn_map = get_option('lumn_map');
         echo '<textarea id="lumn_map" name="lumn_map" placeholder="<iframe src=…">' . esc_textarea($lumn_map) . '</textarea>';
-        echo '<div class="lumn-shortcode-hint">[lumn_map]</div>';
+        lumn_ut_shortcode_hint('[lumn_map]');
     }
 
     $lumn_ut_days_of_week = lumn_ut_get_days_of_week();
@@ -124,7 +148,7 @@ function lumn_ut_register_utilites_fields() {
     function lumn_ut_hours_field_callback($day) {
         $lumn_hours = get_option('lumn_hours_' . $day);
         echo '<input type="text" id="lumn_hours_' . $day . '" name="lumn_hours_' . $day . '" value="' . esc_attr($lumn_hours) . '" placeholder="e.g., 8:00 AM - 5:00 PM" />';
-        echo '<div class="lumn-shortcode-hint">[lumn_hours_' . $day . ']</div>';
+        lumn_ut_shortcode_hint('[lumn_hours_' . $day . ']');
     }
 
     // Register the social URL fields
@@ -139,6 +163,22 @@ function lumn_ut_register_utilites_fields() {
 
     register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_google', lumn_ut_registered_setting_args('lumn_social_url_google'));
     add_settings_field('lumn_social_url_google', 'Google', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_google', 'item' => 'google', 'placeholder_url' => 'https://maps.app.goo.gl/example'));
+
+    // Dedicated Google Maps / Reviews / Write-a-Review fields (split out from
+    // the general-purpose "Google" field above so each has a clear single
+    // purpose). Google Maps is the one wired into automatic directions-click
+    // detection - see lumn_ut_tracking_known_directions_urls() in
+    // register/tracking.php. The general "Google" field above is left as-is
+    // for backward compatibility with any existing [lumn_social_url
+    // name="google"] usage or /lumn-social-url-google/ links.
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_googlemaps', lumn_ut_registered_setting_args('lumn_social_url_googlemaps'));
+    add_settings_field('lumn_social_url_googlemaps', 'Google Maps', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_googlemaps', 'item' => 'googlemaps', 'placeholder_url' => 'https://maps.app.goo.gl/example'));
+
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_googlereviews', lumn_ut_registered_setting_args('lumn_social_url_googlereviews'));
+    add_settings_field('lumn_social_url_googlereviews', 'Google Reviews', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_googlereviews', 'item' => 'googlereviews', 'placeholder_url' => 'https://g.page/r/example/reviews'));
+
+    register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_googlewritereview', lumn_ut_registered_setting_args('lumn_social_url_googlewritereview'));
+    add_settings_field('lumn_social_url_googlewritereview', 'Write a Google Review', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_googlewritereview', 'item' => 'googlewritereview', 'placeholder_url' => 'https://g.page/r/example/review'));
 
     register_setting('lumn_ut_shortcode_settings', 'lumn_social_url_instagram', lumn_ut_registered_setting_args('lumn_social_url_instagram'));
     add_settings_field('lumn_social_url_instagram', 'Instagram', 'Lumn\Utilities\lumn_ut_social_url_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_social_section', array('option_name' => 'lumn_social_url_instagram', 'item' => 'instagram', 'placeholder_url' => 'https://www.instagram.com/example/'));
@@ -172,8 +212,8 @@ function lumn_ut_register_utilites_fields() {
         $lumn_social_url = get_option($option_name);
 
         echo '<input type="text" id="' . $option_name . '" name="' . $option_name . '" value="' . esc_attr($lumn_social_url) . '" placeholder="' . $placeholder_url . '"/>';
-        echo '<div class="lumn-shortcode-hint">[lumn_social_url name="' . $item . '"]</div>';
-        echo '<div class="lumn-shortcode-hint">' . site_url() . '/lumn-social-url-' . $item . '</div>';
+        lumn_ut_shortcode_hint('[lumn_social_url name="' . $item . '"]');
+        lumn_ut_shortcode_hint('/lumn-social-url-' . $item);
     }
 
     // Register other shortcodes fields (empty field to prevent errors when registering the section)
@@ -185,4 +225,4 @@ function lumn_ut_register_utilites_fields() {
         return;
     }
 }
-add_action('admin_init', 'Lumn\Utilities\lumn_ut_register_utilites_fields');
+add_action('admin_init', 'Lumn\Utilities\lumn_ut_register_utilities_fields');
