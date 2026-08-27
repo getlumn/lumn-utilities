@@ -88,7 +88,7 @@ function lumn_ut_render_debugger_tab() {
     }
 
     echo '<h3>' . esc_html__('Status Checks', 'lumn-utilities') . '</h3>';
-    echo '<table class="lumn-utilites-table lumn-ut-status-checks">';
+    echo '<table class="lumn-utilities-table lumn-ut-status-checks">';
     lumn_ut_render_status_row(__('LUMN Tracking (master)', 'lumn-utilities'), !empty($settings['master']));
     foreach (lumn_ut_tracking_feature_registry() as $key => $meta) {
         if (empty($meta['implemented'])) {
@@ -127,19 +127,19 @@ function lumn_ut_render_catalog_tab() {
         $feature_label = isset($features[$event['feature']]['label']) ? $features[$event['feature']]['label'] : $event['feature'];
         $enabled = lumn_ut_tracking_feature_enabled($event['feature']);
 
-        echo '<div class="lumn-utilites-admin-accordion lumn-ut-catalog-item">';
-        echo '<div class="lumn-utilites-admin-accordion-header"><span class="icon-title"><code>' . esc_html($event['name']) . '</code> ';
+        echo '<div class="lumn-utilities-admin-accordion lumn-ut-catalog-item">';
+        echo '<div class="lumn-utilities-admin-accordion-header"><span class="icon-title"><code>' . esc_html($event['name']) . '</code> ';
         echo '<span class="lumn-ut-tracking-badge">' . esc_html($event['category']) . '</span>';
         echo ' <span class="lumn-ut-tracking-badge">' . esc_html(lumn_ut_tracking_event_mode_label($key)) . '</span>';
         if ($enabled) {
             echo ' <span class="lumn-ut-tracking-badge lumn-ut-tracking-badge-ok">' . esc_html__('Active', 'lumn-utilities') . '</span>';
         }
         echo '</span><span class="plus">+</span><span class="minus">-</span></div>';
-        echo '<div class="lumn-utilites-admin-accordion-content">';
+        echo '<div class="lumn-utilities-admin-accordion-content">';
 
         echo '<p>' . esc_html($event['description']) . '</p>';
 
-        echo '<table class="lumn-utilites-table">';
+        echo '<table class="lumn-utilities-table">';
         echo '<tr><th>' . esc_html__('Category', 'lumn-utilities') . '</th><td>' . esc_html($event['category']) . '</td></tr>';
         echo '<tr><th>' . esc_html__('Action', 'lumn-utilities') . '</th><td>' . esc_html($event['action']) . '</td></tr>';
         echo '<tr><th>' . esc_html__('Detection', 'lumn-utilities') . '</th><td>' . esc_html(lumn_ut_tracking_event_mode_label($key)) . '</td></tr>';
@@ -167,7 +167,7 @@ function lumn_ut_render_gtm_recipe($event_key) {
 
     echo '<div class="lumn-ut-gtm-recipe">';
     echo '<h4>' . esc_html__('Recommended GTM Trigger', 'lumn-utilities') . '</h4>';
-    echo '<table class="lumn-utilites-table">';
+    echo '<table class="lumn-utilities-table">';
     echo '<tr><th>' . esc_html__('Trigger Type', 'lumn-utilities') . '</th><td>' . esc_html($recipe['trigger_type']) . '</td></tr>';
     echo '<tr><th>' . esc_html__('Custom Event Name', 'lumn-utilities') . '</th><td><code>' . esc_html($recipe['custom_event_name']) . '</code> ' . lumn_ut_render_copy_button($recipe['custom_event_name']) . '</td></tr>';
     echo '</table>';
@@ -204,8 +204,8 @@ function lumn_ut_render_copy_button($value) {
 function lumn_ut_render_gtm_tab() {
     echo '<h2>' . esc_html__('GTM Setup Guide', 'lumn-utilities') . '</h2>';
 
-    echo '<div class="lumn-utilites-table-wrap">';
-    echo '<table class="lumn-utilites-table">';
+    echo '<div class="lumn-utilities-table-wrap">';
+    echo '<table class="lumn-utilities-table">';
     echo '<tr><th>' . esc_html__('1. WordPress', 'lumn-utilities') . '</th><td>' . esc_html__('LUMN Utilities identifies an action and sends a standardized event to the browser data layer.', 'lumn-utilities') . '</td></tr>';
     echo '<tr><th>' . esc_html__('2. GTM', 'lumn-utilities') . '</th><td>' . esc_html__('Google Tag Manager listens for that event using a Custom Event trigger.', 'lumn-utilities') . '</td></tr>';
     echo '<tr><th>' . esc_html__('3. Tags', 'lumn-utilities') . '</th><td>' . esc_html__('GTM then decides which tags should fire.', 'lumn-utilities') . '</td></tr>';

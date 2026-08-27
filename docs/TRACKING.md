@@ -1270,7 +1270,7 @@ ignored, and is never fired.
 `lumn_ut_tracking_event_registry()` - name, category, action, required
 feature (and whether it's currently on), full parameter list, and a
 recommended GTM trigger, with no data duplicated by hand. Each event is an
-accordion item (the same `.lumn-utilites-admin-accordion` component used
+accordion item (the same `.lumn-utilities-admin-accordion` component used
 elsewhere in this plugin), so nothing new needs to be learned to use it.
 
 ### GTM Guide and recipes

@@ -299,13 +299,13 @@ function lumn_ut_render_tracking_configure_tab() {
 }
 
 function lumn_ut_render_tracking_intro() {
-    echo '<div class="lumn-utilites-admin-accordion">';
-    echo '<div class="lumn-utilites-admin-accordion-header"><span class="icon-title">' . esc_html__('How this works', 'lumn-utilities') . '</span><span class="plus">+</span><span class="minus">-</span></div>';
-    echo '<div class="lumn-utilites-admin-accordion-content">';
+    echo '<div class="lumn-utilities-admin-accordion">';
+    echo '<div class="lumn-utilities-admin-accordion-header"><span class="icon-title">' . esc_html__('How this works', 'lumn-utilities') . '</span><span class="plus">+</span><span class="minus">-</span></div>';
+    echo '<div class="lumn-utilities-admin-accordion-content">';
 
     echo '<p>' . esc_html__('LUMN Tracking is a standardization layer, not a replacement for your existing analytics. It never creates a GTM container, tag, or trigger; never creates a GA4 property; never sends anything to Google directly; and never touches a GTM/GA4 configuration that is already on this site.', 'lumn-utilities') . '</p>';
 
-    echo '<table class="lumn-utilites-table">';
+    echo '<table class="lumn-utilities-table">';
     echo '<tr><th>' . esc_html__('WordPress', 'lumn-utilities') . '</th><td>' . esc_html__('LUMN Utilities identifies an action and generates a standardized lumn_* event', 'lumn-utilities') . '</td></tr>';
     echo '<tr><th>&darr;</th><td></td></tr>';
     echo '<tr><th>' . esc_html__('window.dataLayer', 'lumn-utilities') . '</th><td>' . esc_html__('The event is pushed to the data layer already on this site', 'lumn-utilities') . '</td></tr>';

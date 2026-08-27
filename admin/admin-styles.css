@@ -228,36 +228,36 @@
 /* Reference tables (attribute docs + locations list)                   */
 /* -------------------------------------------------------------------- */
 
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilities-table {
 	border-collapse: collapse;
 	margin-bottom: 15px;
 	width: 100%;
 }
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table,
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table td,
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table th,
-.lumn-ut-locations-page .lumn-utilites-table,
-.lumn-ut-locations-page .lumn-utilites-table td,
-.lumn-ut-locations-page .lumn-utilites-table th,
-.lumn-ut-tracking-debugger-page .lumn-utilites-table,
-.lumn-ut-tracking-debugger-page .lumn-utilites-table td,
-.lumn-ut-tracking-debugger-page .lumn-utilites-table th
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilities-table,
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilities-table td,
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilities-table th,
+.lumn-ut-locations-page .lumn-utilities-table,
+.lumn-ut-locations-page .lumn-utilities-table td,
+.lumn-ut-locations-page .lumn-utilities-table th,
+.lumn-ut-tracking-debugger-page .lumn-utilities-table,
+.lumn-ut-tracking-debugger-page .lumn-utilities-table td,
+.lumn-ut-tracking-debugger-page .lumn-utilities-table th
 {
 	border: 1px solid var(--lumn-border);
 	text-align: left;
 }
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table td,
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table th,
-.lumn-ut-locations-page .lumn-utilites-table td,
-.lumn-ut-locations-page .lumn-utilites-table th,
-.lumn-ut-tracking-debugger-page .lumn-utilites-table td,
-.lumn-ut-tracking-debugger-page .lumn-utilites-table th
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilities-table td,
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilities-table th,
+.lumn-ut-locations-page .lumn-utilities-table td,
+.lumn-ut-locations-page .lumn-utilities-table th,
+.lumn-ut-tracking-debugger-page .lumn-utilities-table td,
+.lumn-ut-tracking-debugger-page .lumn-utilities-table th
 {
 	padding: 10px 14px;
 }
-.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilites-table th,
-.lumn-ut-locations-page .lumn-utilites-table th,
-.lumn-ut-tracking-debugger-page .lumn-utilites-table th {
+.toplevel_page_lumn-ut-shortcode-settings .lumn-ut-admin-settings-form .lumn-utilities-table th,
+.lumn-ut-locations-page .lumn-utilities-table th,
+.lumn-ut-tracking-debugger-page .lumn-utilities-table th {
 	background: var(--lumn-navy-tint);
 	color: var(--lumn-navy);
 	font-weight: 600;
@@ -285,14 +285,14 @@
 /* "How to Use" accordion                                               */
 /* -------------------------------------------------------------------- */
 
-.lumn-utilites-admin-accordion {
+.lumn-utilities-admin-accordion {
 	border: 1px solid var(--lumn-border);
 	border-radius: 6px;
 	margin-bottom: 14px;
 	overflow: hidden;
 }
 
-.lumn-utilites-admin-accordion-header {
+.lumn-utilities-admin-accordion-header {
 	background-color: var(--lumn-blue-tint);
 	color: var(--lumn-navy);
 	font-weight: 600;
@@ -302,7 +302,7 @@
 	justify-content: space-between;
 	align-items: center;
 }
-.lumn-utilites-admin-accordion-header::before {
+.lumn-utilities-admin-accordion-header::before {
 	content: "?";
 	display: inline-flex;
 	align-items: center;
@@ -316,38 +316,38 @@
 	font-size: 12px;
 	font-weight: 700;
 }
-.lumn-utilites-admin-accordion-header .icon-title {
+.lumn-utilities-admin-accordion-header .icon-title {
 	display: flex;
 	align-items: center;
 	flex: 1;
 }
-.lumn-utilites-admin-accordion-header .plus,
-.lumn-utilites-admin-accordion-header .minus {
+.lumn-utilities-admin-accordion-header .plus,
+.lumn-utilities-admin-accordion-header .minus {
 	color: var(--lumn-blue);
 	font-weight: 700;
 }
 
-.lumn-utilites-admin-accordion-header .minus {
+.lumn-utilities-admin-accordion-header .minus {
 	display: none;
 }
 
-.lumn-utilites-admin-accordion-content {
+.lumn-utilities-admin-accordion-content {
 	display: none;
 	padding: 16px;
 	background-color: #fff;
 	border-top: 1px solid var(--lumn-border);
 }
 
-.lumn-utilites-admin-accordion.active .lumn-utilites-admin-accordion-content {
+.lumn-utilities-admin-accordion.active .lumn-utilities-admin-accordion-content {
 	display: block;
 	overflow: auto;
 }
 
-.lumn-utilites-admin-accordion.active .lumn-utilites-admin-accordion-header .minus {
+.lumn-utilities-admin-accordion.active .lumn-utilities-admin-accordion-header .minus {
 	display: block;
 }
 
-.lumn-utilites-admin-accordion.active .lumn-utilites-admin-accordion-header .plus {
+.lumn-utilities-admin-accordion.active .lumn-utilities-admin-accordion-header .plus {
 	display: none;
 }
 
@@ -511,7 +511,7 @@
 	color: var(--lumn-navy);
 }
 
-.lumn-ut-tracking-page .lumn-ut-catalog-item .lumn-utilites-admin-accordion-header .icon-title {
+.lumn-ut-tracking-page .lumn-ut-catalog-item .lumn-utilities-admin-accordion-header .icon-title {
 	display: flex;
 	align-items: center;
 	gap: 8px;

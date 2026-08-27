@@ -1,7 +1,7 @@
 <?php
 namespace Lumn\Utilities;
 
-function lumn_ut_register_utilites_fields() {
+function lumn_ut_register_utilities_fields() {
     // Register [lumn_site_name] field
     register_setting('lumn_ut_shortcode_settings', 'lumn_site_name', lumn_ut_registered_setting_args('lumn_site_name'));
     add_settings_field('lumn_site_name_field', 'Site Name', 'Lumn\Utilities\lumn_ut_site_name_field_callback', 'lumn_ut_shortcode_settings', 'lumn_ut_practice_info_section');
@@ -185,4 +185,4 @@ function lumn_ut_register_utilites_fields() {
         return;
     }
 }
-add_action('admin_init', 'Lumn\Utilities\lumn_ut_register_utilites_fields');
+add_action('admin_init', 'Lumn\Utilities\lumn_ut_register_utilities_fields');

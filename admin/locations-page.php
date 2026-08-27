@@ -49,11 +49,11 @@ function lumn_ut_render_locations_list() {
 
     echo '<p>' . esc_html__('Manage one or more practice locations. Each location can store its own name, address, contact info, and hours.', 'lumn-utilities') . '</p>';
 
-    echo '<div class="lumn-utilites-admin-accordion">';
-    echo '<div class="lumn-utilites-admin-accordion-header"><span class="icon-title">' . esc_html__('How to Use', 'lumn-utilities') . '</span><span class="plus">+</span><span class="minus">-</span></div>';
-    echo '<div class="lumn-utilites-admin-accordion-content">';
+    echo '<div class="lumn-utilities-admin-accordion">';
+    echo '<div class="lumn-utilities-admin-accordion-header"><span class="icon-title">' . esc_html__('How to Use', 'lumn-utilities') . '</span><span class="plus">+</span><span class="minus">-</span></div>';
+    echo '<div class="lumn-utilities-admin-accordion-content">';
     echo '<p>' . esc_html__('A location holds its own name, address, contact info, hours, and map - separate from the General Business Information settings above.', 'lumn-utilities') . '</p>';
-    echo '<table class="lumn-utilites-table">';
+    echo '<table class="lumn-utilities-table">';
     echo '<tr><th>' . esc_html__('If you...', 'lumn-utilities') . '</th><th>' . esc_html__('Then...', 'lumn-utilities') . '</th></tr>';
     echo '<tr><td>' . esc_html__('Have no locations yet', 'lumn-utilities') . '</td><td>' . esc_html__('Every shortcode keeps using the General Business Information, Address, and Hours settings, exactly as before. Nothing changes until you add a location.', 'lumn-utilities') . '</td></tr>';
     echo '<tr><td>' . esc_html__('Only have one office', 'lumn-utilities') . '</td><td>' . esc_html__('Click "Create a location from the existing practice information" to copy your current settings into a location - or just leave things as they are.', 'lumn-utilities') . '</td></tr>';
