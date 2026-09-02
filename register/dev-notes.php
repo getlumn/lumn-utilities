@@ -41,7 +41,7 @@ const LUMN_UT_DEV_NOTES_DB_VERSION_OPTION = 'lumn_ut_db_version';
 
 // Schema version for the data this file owns (profile shape, dev-note post
 // meta shape). Bump alongside a migration in lumn_ut_dev_notes_run_migrations().
-const LUMN_UT_DEV_NOTES_DB_VERSION = 2;
+const LUMN_UT_DEV_NOTES_DB_VERSION = 3;
 
 const LUMN_UT_DEV_NOTES_CRON_HOOK = 'lumn_ut_dev_notes_detect_cron';
 
@@ -104,6 +104,10 @@ function lumn_ut_dev_notes_run_migrations() {
         lumn_ut_dev_notes_migrate_to_v2();
     }
 
+    if ($current < 3) {
+        lumn_ut_dev_notes_migrate_to_v3();
+    }
+
     update_option(LUMN_UT_DEV_NOTES_DB_VERSION_OPTION, LUMN_UT_DEV_NOTES_DB_VERSION);
 }
 add_action('plugins_loaded', 'Lumn\Utilities\lumn_ut_dev_notes_run_migrations');
@@ -140,6 +144,42 @@ function lumn_ut_dev_notes_migrate_to_v2() {
     if ($changed) {
         update_option(LUMN_UT_DEV_NOTES_PROFILE_OPTION, $profile, false);
     }
+}
+
+/**
+ * v3 detected-data shape: the 'core' auto-detected group gained
+ * theme_name/theme_version/is_child_theme/parent_theme_* in place of the
+ * old single 'active_theme' string. A site whose cron/refresh last ran
+ * before this shipped still has the old shape sitting in
+ * lumn_ut_site_profile_detected - normalize it now rather than showing
+ * "undefined array key" warnings on the Developers page until the next
+ * detection run (daily cron, or an explicit Refresh) happens to overwrite
+ * it. lumn_ut_dev_notes_render_detected_group_value() also guards every
+ * key with isset()/empty() as a second line of defense, in case this
+ * option ever ends up in some other unexpected shape.
+ */
+function lumn_ut_dev_notes_migrate_to_v3() {
+    $detected = get_option(LUMN_UT_DEV_NOTES_DETECTED_OPTION, array());
+    if (!is_array($detected) || empty($detected['core']['data']) || !is_array($detected['core']['data'])) {
+        return;
+    }
+
+    $data = $detected['core']['data'];
+    if (array_key_exists('theme_name', $data) || !array_key_exists('active_theme', $data)) {
+        return;
+    }
+
+    $detected['core']['data'] = array(
+        'wp_version' => isset($data['wp_version']) ? $data['wp_version'] : '',
+        'php_version' => isset($data['php_version']) ? $data['php_version'] : '',
+        'theme_name' => $data['active_theme'],
+        'theme_version' => '',
+        'is_child_theme' => false,
+        'parent_theme_name' => '',
+        'parent_theme_version' => '',
+    );
+
+    update_option(LUMN_UT_DEV_NOTES_DETECTED_OPTION, $detected, false);
 }
 
 // ---------------------------------------------------------------------

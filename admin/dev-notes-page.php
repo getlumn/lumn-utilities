@@ -237,22 +237,31 @@ function lumn_ut_dev_notes_render_detected_fields($detected, $mismatches) {
 
 function lumn_ut_dev_notes_render_detected_group_value($group_key, $data) {
     if ($group_key === 'core') {
+        // isset()-guarded rather than trusting every key is present:
+        // $data is whatever a past detection run stored, which can be
+        // older than the code reading it (e.g. right after a plugin
+        // update, before the next daily cron run or manual Refresh) -
+        // see lumn_ut_dev_notes_migrate_to_v3() for the one-time cleanup
+        // of the specific old shape this replaced.
+        $theme_name = isset($data['theme_name']) ? $data['theme_name'] : __('unknown theme', 'lumn-utilities');
+        $theme_version = isset($data['theme_version']) ? $data['theme_version'] : '';
+
         if (!empty($data['is_child_theme'])) {
             $theme_text = sprintf(
                 /* translators: 1: child theme name, 2: child theme version, 3: parent theme name, 4: parent theme version */
                 __('%1$s %2$s (child of %3$s %4$s)', 'lumn-utilities'),
-                $data['theme_name'],
-                $data['theme_version'],
-                $data['parent_theme_name'],
-                $data['parent_theme_version']
+                $theme_name,
+                $theme_version,
+                isset($data['parent_theme_name']) ? $data['parent_theme_name'] : __('unknown', 'lumn-utilities'),
+                isset($data['parent_theme_version']) ? $data['parent_theme_version'] : ''
             );
         } else {
-            $theme_text = sprintf(
+            $theme_text = trim(sprintf(
                 /* translators: 1: theme name, 2: theme version */
                 __('%1$s %2$s', 'lumn-utilities'),
-                $data['theme_name'],
-                $data['theme_version']
-            );
+                $theme_name,
+                $theme_version
+            ));
         }
 
         // The middle dot is a literal Unicode character, not an HTML
@@ -262,8 +271,8 @@ function lumn_ut_dev_notes_render_detected_group_value($group_key, $data) {
             sprintf(
                 /* translators: 1: WP version, 2: PHP version, 3: theme name/version (and parent theme, if any) */
                 __('WP %1$s · PHP %2$s · %3$s', 'lumn-utilities'),
-                $data['wp_version'],
-                $data['php_version'],
+                isset($data['wp_version']) ? $data['wp_version'] : __('unknown', 'lumn-utilities'),
+                isset($data['php_version']) ? $data['php_version'] : __('unknown', 'lumn-utilities'),
                 $theme_text
             )
         );
