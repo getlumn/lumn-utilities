@@ -29,10 +29,21 @@ namespace Lumn\Utilities;
  */
 function lumn_ut_dev_notes_dependency_defaults() {
     return array(
-        'formidable/formidable.php' => array(
+        // Formidable Pro requires the free Formidable plugin to also be
+        // installed, so both show up as separate rows in get_plugins() -
+        // 'formidable-pro/formidable-pro.php' is a best guess at Pro's
+        // exact main file; confirm it (and the free plugin's slug below)
+        // against the Copy button on a real site's Dependencies row before
+        // relying on either - a wrong slug here just means that row keeps
+        // showing "None" instead of silently applying to the wrong plugin.
+        'formidable-pro/formidable-pro.php' => array(
             'licence_ownership' => 'ours',
             'licence_expiry' => '2027-02-03',
             'notes' => __("LUMN primarily uses Formidable Pro for it's conditional logic features.", 'lumn-utilities'),
+        ),
+        'formidable/formidable.php' => array(
+            'licence_ownership' => 'none',
+            'notes' => __('Free version, required by Formidable Pro to be installed alongside it.', 'lumn-utilities'),
         ),
     );
 }
