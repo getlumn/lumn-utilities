@@ -791,6 +791,17 @@ form.lumn-ut-dn-hidden-form.lumn-ut-dn-visible {
 	border: 1px solid var(--lumn-border);
 	border-radius: 6px;
 }
+.lumn-ut-dn-log-entry-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 10px;
+	margin-bottom: 6px;
+}
+.lumn-ut-dn-log-actions {
+	flex-shrink: 0;
+	white-space: nowrap;
+}
 .lumn-ut-dn-log-pagination {
 	margin-top: 12px;
 }

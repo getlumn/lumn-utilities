@@ -67,6 +67,8 @@ function lumn_ut_dev_notes_render_notices() {
         'issue_saved' => __('Issue saved.', 'lumn-utilities'),
         'issue_deleted' => __('Issue deleted.', 'lumn-utilities'),
         'log_added' => __('Activity log entry added.', 'lumn-utilities'),
+        'log_saved' => __('Activity log entry updated.', 'lumn-utilities'),
+        'log_deleted' => __('Activity log entry deleted.', 'lumn-utilities'),
     );
 
     if (isset($messages[$notice])) {
@@ -680,7 +682,7 @@ function lumn_ut_dev_notes_render_activity_log() {
 
     echo '<div class="lumn-ut-dn-card lumn-ut-dn-log">';
     echo '<h2>' . esc_html__('Activity Log', 'lumn-utilities') . '</h2>';
-    echo '<p class="description">' . esc_html__('Deployments, rollbacks, client decisions and the reasoning behind them, one-off interventions - anything that does not belong above. Append-only.', 'lumn-utilities') . '</p>';
+    echo '<p class="description">' . esc_html__('Deployments, rollbacks, client decisions and the reasoning behind them, one-off interventions - anything that does not belong above.', 'lumn-utilities') . '</p>';
 
     echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '">';
     wp_nonce_field('lumn_ut_dn_add_log_entry');
@@ -698,13 +700,7 @@ function lumn_ut_dev_notes_render_activity_log() {
 
     echo '<ul class="lumn-ut-dn-log-list">';
     foreach ($query->posts as $entry) {
-        echo '<li>';
-        echo '<span class="lumn-ut-dn-meta">' . esc_html(mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $entry->post_date)) . ' &mdash; ' . esc_html(get_the_author_meta('display_name', $entry->post_author)) . '</span>';
-        if ($entry->post_title !== '') {
-            echo '<br /><strong>' . esc_html($entry->post_title) . '</strong>';
-        }
-        echo '<div class="lumn-ut-dn-richtext">' . wp_kses_post(wpautop($entry->post_content)) . '</div>';
-        echo '</li>';
+        lumn_ut_dev_notes_render_log_entry($entry);
     }
     echo '</ul>';
 
@@ -721,4 +717,38 @@ function lumn_ut_dev_notes_render_activity_log() {
 
     wp_reset_postdata();
     echo '</div>';
+}
+
+function lumn_ut_dev_notes_render_log_entry($entry) {
+    $form_id = 'lumn-ut-dn-log-edit-' . (int) $entry->ID;
+
+    echo '<li>';
+    echo '<div class="lumn-ut-dn-log-entry-header">';
+    echo '<span class="lumn-ut-dn-meta">' . esc_html(mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $entry->post_date)) . ' &mdash; ' . esc_html(get_the_author_meta('display_name', $entry->post_author)) . '</span>';
+    echo '<span class="lumn-ut-dn-log-actions">';
+    echo '<button type="button" class="button button-small lumn-ut-dn-toggle-target" data-lumn-ut-dn-target="' . esc_attr($form_id) . '">' . esc_html__('Edit', 'lumn-utilities') . '</button> ';
+    $delete_url = wp_nonce_url(
+        add_query_arg(array('action' => 'lumn_ut_dn_delete_log_entry', 'log_id' => $entry->ID), admin_url('admin-post.php')),
+        'lumn_ut_dn_delete_log_entry_' . $entry->ID
+    );
+    echo '<a class="button button-small" href="' . esc_url($delete_url) . '" onclick="return confirm(\'' . esc_js(__('Delete this activity log entry?', 'lumn-utilities')) . '\');">' . esc_html__('Delete', 'lumn-utilities') . '</a>';
+    echo '</span>';
+    echo '</div>';
+
+    if ($entry->post_title !== '') {
+        echo '<strong>' . esc_html($entry->post_title) . '</strong>';
+    }
+    echo '<div class="lumn-ut-dn-richtext">' . wp_kses_post(wpautop($entry->post_content)) . '</div>';
+
+    echo '<form id="' . esc_attr($form_id) . '" class="lumn-ut-dn-hidden-form" method="post" action="' . esc_url(admin_url('admin-post.php')) . '">';
+    wp_nonce_field('lumn_ut_dn_save_log_entry');
+    echo '<input type="hidden" name="action" value="lumn_ut_dn_save_log_entry" />';
+    echo '<input type="hidden" name="log_id" value="' . esc_attr($entry->ID) . '" />';
+    echo '<p><input type="text" name="title" class="regular-text" value="' . esc_attr($entry->post_title) . '" placeholder="' . esc_attr__('Short label (optional)', 'lumn-utilities') . '" /></p>';
+    echo '<p><textarea name="body" rows="3" class="large-text" required>' . esc_textarea($entry->post_content) . '</textarea></p>';
+    submit_button(__('Save', 'lumn-utilities'), 'primary', 'submit', false);
+    echo ' <button type="button" class="button lumn-ut-dn-toggle-target" data-lumn-ut-dn-target="' . esc_attr($form_id) . '">' . esc_html__('Cancel', 'lumn-utilities') . '</button>';
+    echo '</form>';
+
+    echo '</li>';
 }

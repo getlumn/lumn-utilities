@@ -1070,7 +1070,10 @@ function lumn_ut_dev_notes_handle_delete_issue() {
 }
 
 // ---------------------------------------------------------------------
-// Activity log - append-only, one post per entry.
+// Activity log - one post per entry. Entries can be edited/deleted (for
+// fixing typos or removing a mistaken entry), but nothing here ever
+// rewrites which entry an edit applies to or reorders them - it's still a
+// chronological record, just not literally immutable.
 // ---------------------------------------------------------------------
 
 function lumn_ut_dev_notes_get_log_query($paged) {
@@ -1114,6 +1117,58 @@ function lumn_ut_dev_notes_handle_add_log_entry() {
     update_post_meta($result, 'lumn_ut_note_type', 'log');
 
     lumn_ut_dev_notes_redirect('log_added');
+}
+
+function lumn_ut_dev_notes_is_log_entry($post_id) {
+    return $post_id && get_post_type($post_id) === LUMN_UT_DEV_NOTES_CPT && get_post_meta($post_id, 'lumn_ut_note_type', true) === 'log';
+}
+
+add_action('admin_post_lumn_ut_dn_save_log_entry', 'Lumn\Utilities\lumn_ut_dev_notes_handle_save_log_entry');
+function lumn_ut_dev_notes_handle_save_log_entry() {
+    if (!current_user_can(LUMN_UT_DEV_NOTES_CAPABILITY)) {
+        wp_die(esc_html__('You do not have permission to do this.', 'lumn-utilities'));
+    }
+    check_admin_referer('lumn_ut_dn_save_log_entry');
+
+    $log_id = isset($_POST['log_id']) ? absint($_POST['log_id']) : 0;
+    if (!lumn_ut_dev_notes_is_log_entry($log_id)) {
+        lumn_ut_dev_notes_redirect('', __('That activity log entry could not be found.', 'lumn-utilities'));
+    }
+
+    $body = isset($_POST['body']) ? wp_kses_post(wp_unslash($_POST['body'])) : '';
+    if (trim(wp_strip_all_tags($body)) === '') {
+        lumn_ut_dev_notes_redirect('', __('An entry needs some text.', 'lumn-utilities'));
+    }
+
+    $title = isset($_POST['title']) ? sanitize_text_field(wp_unslash($_POST['title'])) : '';
+
+    $result = wp_update_post(array(
+        'ID' => $log_id,
+        'post_title' => $title !== '' ? $title : wp_trim_words(wp_strip_all_tags($body), 8),
+        'post_content' => $body,
+    ), true);
+
+    if (is_wp_error($result)) {
+        lumn_ut_dev_notes_redirect('', $result->get_error_message());
+    }
+
+    lumn_ut_dev_notes_redirect('log_saved');
+}
+
+add_action('admin_post_lumn_ut_dn_delete_log_entry', 'Lumn\Utilities\lumn_ut_dev_notes_handle_delete_log_entry');
+function lumn_ut_dev_notes_handle_delete_log_entry() {
+    if (!current_user_can(LUMN_UT_DEV_NOTES_CAPABILITY)) {
+        wp_die(esc_html__('You do not have permission to do this.', 'lumn-utilities'));
+    }
+
+    $log_id = isset($_GET['log_id']) ? absint($_GET['log_id']) : 0;
+    check_admin_referer('lumn_ut_dn_delete_log_entry_' . $log_id);
+
+    if (lumn_ut_dev_notes_is_log_entry($log_id)) {
+        wp_trash_post($log_id);
+    }
+
+    lumn_ut_dev_notes_redirect('log_deleted');
 }
 
 // ---------------------------------------------------------------------
