@@ -109,7 +109,15 @@ function lumn_ut_admin_scripts() {
     $styles_path = LUMN_UTILITIES_PLUGIN_PATH . 'admin/admin-styles.css';
     $scripts_path = LUMN_UTILITIES_PLUGIN_PATH . 'admin/admin-scripts.js';
     wp_enqueue_style( 'lumn-ut-admin-styles', plugins_url( '/admin/admin-styles.css' , __FILE__ ), array(), file_exists( $styles_path ) ? filemtime( $styles_path ) : null );
-    wp_enqueue_script( 'lumn-ut-admin-scripts', plugins_url( '/admin/admin-scripts.js' , __FILE__ ), array( 'jquery' ), file_exists( $scripts_path ) ? filemtime( $scripts_path ) : null );
+    // in_footer=true (final arg) matters here, not just as best practice:
+    // admin/dev-notes-page.php's page callback calls wp_localize_script()
+    // on this handle from inside its own render (i.e. after admin-header.php
+    // has already run). A head-printed script (the default) is flushed to
+    // the page before that callback executes, so the localized data would
+    // never make it into the page and window.lumnUtDevNotes would be
+    // undefined - printing in the footer defers it until after the whole
+    // page body, including that callback, has run.
+    wp_enqueue_script( 'lumn-ut-admin-scripts', plugins_url( '/admin/admin-scripts.js' , __FILE__ ), array( 'jquery' ), file_exists( $scripts_path ) ? filemtime( $scripts_path ) : null, true );
 }
 add_action( 'admin_enqueue_scripts', 'Lumn\Utilities\lumn_ut_admin_scripts' );
 
