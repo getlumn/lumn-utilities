@@ -651,14 +651,18 @@ form.lumn-ut-dn-hidden-form.lumn-ut-dn-visible {
 }
 
 .lumn-ut-dn-detected {
+	margin-top: 16px;
 	margin-bottom: 16px;
+	padding-top: 14px;
 	padding-bottom: 12px;
+	border-top: 1px solid var(--lumn-border);
 	border-bottom: 1px solid var(--lumn-border);
 }
 .lumn-ut-dn-detected-header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+	margin-bottom: 10px;
 }
 .lumn-ut-dn-detected-header h3 {
 	margin: 0;
@@ -765,14 +769,20 @@ form.lumn-ut-dn-hidden-form.lumn-ut-dn-visible {
 .lumn-ut-dn-log-list {
 	list-style: none;
 	margin: 16px 0 0;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
 }
 .lumn-ut-dn-log-list li {
-	padding: 10px 0;
-	border-bottom: 1px solid var(--lumn-navy-tint);
-}
-.lumn-ut-dn-log-list li:last-child {
-	border-bottom: none;
+	padding: 12px 14px;
+	background: var(--lumn-navy-tint);
+	border: 1px solid var(--lumn-border);
+	border-radius: 6px;
 }
 .lumn-ut-dn-log-pagination {
 	margin-top: 12px;
+}
+
+.lumn-ut-dn-add-btn {
+	margin-top: 14px;
 }

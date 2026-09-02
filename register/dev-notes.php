@@ -45,6 +45,12 @@ const LUMN_UT_DEV_NOTES_DB_VERSION = 3;
 
 const LUMN_UT_DEV_NOTES_CRON_HOOK = 'lumn_ut_dev_notes_detect_cron';
 
+// Hides the profile Export/Import buttons on the Developers page without
+// removing the feature - the admin-post handlers (still capability/nonce
+// gated either way) stay in place so this is a one-line flip back to true
+// later, not a rebuild.
+const LUMN_UT_DEV_NOTES_SHOW_PROFILE_IMPORT_EXPORT = false;
+
 // LUMN's HubSpot portal (account) ID - the numeric segment right after
 // "/contacts/" in any record URL for this account, e.g.
 // https://app.hubspot.com/contacts/23704634/record/0-2/{record id}. One

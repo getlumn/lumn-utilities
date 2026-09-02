@@ -171,7 +171,9 @@ function lumn_ut_dev_notes_render_profile_card() {
     echo ' <button type="button" class="button lumn-ut-dn-edit-cancel">' . esc_html__('Cancel', 'lumn-utilities') . '</button>';
     echo '</form>';
 
-    lumn_ut_dev_notes_render_profile_export_import();
+    if (LUMN_UT_DEV_NOTES_SHOW_PROFILE_IMPORT_EXPORT) {
+        lumn_ut_dev_notes_render_profile_export_import();
+    }
 
     echo '</div>'; // .lumn-ut-dn-card
 }
@@ -235,6 +237,13 @@ function lumn_ut_dev_notes_render_detected_fields($detected, $mismatches) {
     echo '</div>';
 }
 
+// "Theme Name 1.2.3", or just "Theme Name" when $version isn't present
+// (blank stored data, or a future detection run that couldn't read it) -
+// avoids a stray trailing space/blank version number in the UI.
+function lumn_ut_dev_notes_theme_label($name, $version) {
+    return $version !== '' ? $name . ' ' . $version : $name;
+}
+
 function lumn_ut_dev_notes_render_detected_group_value($group_key, $data) {
     if ($group_key === 'core') {
         // isset()-guarded rather than trusting every key is present:
@@ -245,23 +254,21 @@ function lumn_ut_dev_notes_render_detected_group_value($group_key, $data) {
         // of the specific old shape this replaced.
         $theme_name = isset($data['theme_name']) ? $data['theme_name'] : __('unknown theme', 'lumn-utilities');
         $theme_version = isset($data['theme_version']) ? $data['theme_version'] : '';
+        $theme_label = lumn_ut_dev_notes_theme_label($theme_name, $theme_version);
 
         if (!empty($data['is_child_theme'])) {
-            $theme_text = sprintf(
-                /* translators: 1: child theme name, 2: child theme version, 3: parent theme name, 4: parent theme version */
-                __('%1$s %2$s (child of %3$s %4$s)', 'lumn-utilities'),
-                $theme_name,
-                $theme_version,
+            $parent_label = lumn_ut_dev_notes_theme_label(
                 isset($data['parent_theme_name']) ? $data['parent_theme_name'] : __('unknown', 'lumn-utilities'),
                 isset($data['parent_theme_version']) ? $data['parent_theme_version'] : ''
             );
+            $theme_text = sprintf(
+                /* translators: 1: child theme name and version, 2: parent theme name and version */
+                __('%1$s (child of %2$s)', 'lumn-utilities'),
+                $theme_label,
+                $parent_label
+            );
         } else {
-            $theme_text = trim(sprintf(
-                /* translators: 1: theme name, 2: theme version */
-                __('%1$s %2$s', 'lumn-utilities'),
-                $theme_name,
-                $theme_version
-            ));
+            $theme_text = $theme_label;
         }
 
         // The middle dot is a literal Unicode character, not an HTML
@@ -404,7 +411,7 @@ function lumn_ut_dev_notes_render_dependencies_table() {
         echo '</tbody></table>';
     }
 
-    echo '<button type="button" class="button lumn-ut-dn-toggle-target" data-lumn-ut-dn-target="lumn-ut-dn-add-dependency">' . esc_html__('Add Manual Dependency', 'lumn-utilities') . '</button>';
+    echo '<button type="button" class="button lumn-ut-dn-toggle-target lumn-ut-dn-add-btn" data-lumn-ut-dn-target="lumn-ut-dn-add-dependency">' . esc_html__('Add Manual Dependency', 'lumn-utilities') . '</button>';
 
     echo '<form id="lumn-ut-dn-add-dependency" class="lumn-ut-dn-hidden-form" method="post" action="' . esc_url(admin_url('admin-post.php')) . '">';
     wp_nonce_field('lumn_ut_dn_save_manual_dependency');
@@ -577,7 +584,7 @@ function lumn_ut_dev_notes_render_known_issues() {
         }
     }
 
-    echo '<button type="button" class="button lumn-ut-dn-toggle-target" data-lumn-ut-dn-target="lumn-ut-dn-add-issue">' . esc_html__('Add New Issue', 'lumn-utilities') . '</button>';
+    echo '<button type="button" class="button lumn-ut-dn-toggle-target lumn-ut-dn-add-btn" data-lumn-ut-dn-target="lumn-ut-dn-add-issue">' . esc_html__('Add New Issue', 'lumn-utilities') . '</button>';
     lumn_ut_dev_notes_render_issue_form(null, 'lumn-ut-dn-add-issue');
 
     echo '</div>';
