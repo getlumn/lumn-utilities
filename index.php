@@ -82,6 +82,15 @@ require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/tracking-debugger.php');
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/rest.php');
 register_activation_hook(__FILE__, 'Lumn\Utilities\lumn_ut_rest_ensure_capability');
 
+// Register the "Developers" tab - per-site technical context (profile,
+// change rules, dependencies, known issues, activity log) visible only to
+// super admins. Loaded after register/rest.php since it adds routes under
+// the same lumn/v1 namespace; see register/dev-notes.php.
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/dev-notes.php');
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'admin/dev-notes-page.php');
+register_activation_hook(__FILE__, 'Lumn\Utilities\lumn_ut_dev_notes_activate');
+register_deactivation_hook(__FILE__, 'Lumn\Utilities\lumn_ut_dev_notes_deactivate');
+
 // Enqueue admin scripts and styles.
 // Versioned by filemtime() rather than left blank: with no $ver, WP falls
 // back to the current WP core version as the cache-busting query string,
