@@ -6,7 +6,8 @@
 
 .toplevel_page_lumn-ut-shortcode-settings,
 .lumn-ut-locations-page,
-.lumn-ut-tracking-page {
+.lumn-ut-tracking-page,
+.lumn-ut-dev-notes-page {
 	--lumn-blue: #00a0e3;
 	--lumn-navy: #045a7b;
 	--lumn-blue-tint: #e6f6fd;
@@ -565,4 +566,249 @@
 .lumn-shortcode-hint .lumn-ut-copy-btn {
 	flex-shrink: 0;
 	margin-left: 0;
+}
+
+/* -------------------------------------------------------------------- */
+/* Developers page (admin/dev-notes-page.php)                           */
+/* -------------------------------------------------------------------- */
+
+.lumn-ut-dn-top-row {
+	display: flex;
+	gap: 20px;
+	align-items: stretch;
+}
+.lumn-ut-dn-top-row-col {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0;
+	min-width: 0;
+}
+/* A column with only one card (Site Profile, on the left) grows to fill
+   the stretched column height instead of staying its own natural height -
+   a column with several stacked cards (Known Issues/Rules/Log, on the
+   right) is left alone since it already defines that height. */
+.lumn-ut-dn-top-row-col > .lumn-ut-dn-card:only-child {
+	flex: 1;
+}
+@media (max-width: 900px) {
+	.lumn-ut-dn-top-row {
+		flex-direction: column;
+	}
+	.lumn-ut-dn-top-row-col > .lumn-ut-dn-card:only-child {
+		flex: initial;
+	}
+}
+
+.lumn-ut-dn-card {
+	background: #fff;
+	border: 1px solid var(--lumn-border);
+	border-radius: 6px;
+	padding: 18px 22px;
+	margin-bottom: 20px;
+}
+.lumn-ut-dn-card h2 {
+	margin-top: 0;
+}
+.lumn-ut-dn-card-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+.lumn-ut-dn-card-header h2 {
+	margin-bottom: 0;
+}
+.lumn-ut-dn-edit,
+.lumn-ut-dn-hidden-form {
+	display: none;
+}
+.lumn-ut-dn-card.lumn-ut-dn-editing .lumn-ut-dn-view {
+	display: none;
+}
+.lumn-ut-dn-card.lumn-ut-dn-editing .lumn-ut-dn-edit {
+	display: block;
+	margin-top: 12px;
+}
+.lumn-ut-dn-hidden-form.lumn-ut-dn-visible {
+	display: table-row;
+}
+form.lumn-ut-dn-hidden-form.lumn-ut-dn-visible {
+	display: block;
+	margin-top: 10px;
+}
+
+.lumn-ut-dn-field-row {
+	padding: 6px 0;
+	border-bottom: 1px solid var(--lumn-navy-tint);
+}
+.lumn-ut-dn-field-row:last-child {
+	border-bottom: none;
+}
+.lumn-ut-dn-field-label {
+	display: inline-block;
+	min-width: 190px;
+	font-weight: 600;
+	color: var(--lumn-navy);
+}
+.lumn-ut-dn-field-value-multiline {
+	display: inline-block;
+	vertical-align: top;
+}
+.lumn-ut-dn-empty-state {
+	color: #6b7880;
+	font-style: italic;
+}
+.lumn-ut-dn-meta {
+	color: #6b7880;
+	font-size: 12px;
+}
+
+.lumn-ut-dn-detected {
+	margin-top: 16px;
+	margin-bottom: 16px;
+	padding-top: 14px;
+	padding-bottom: 12px;
+	border-top: 1px solid var(--lumn-border);
+	border-bottom: 1px solid var(--lumn-border);
+}
+.lumn-ut-dn-detected-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 10px;
+}
+.lumn-ut-dn-detected-header h3 {
+	margin: 0;
+}
+.lumn-ut-dn-detected-table td {
+	vertical-align: top;
+}
+.lumn-ut-dn-detected-label {
+	width: 220px;
+	font-weight: 600;
+}
+.lumn-ut-dn-detect-failed {
+	color: #a94442;
+}
+.lumn-ut-dn-mismatch {
+	display: inline-block;
+	margin-left: 8px;
+	padding: 1px 8px;
+	border-radius: 999px;
+	background: #fdf0d5;
+	color: #8a5a00;
+	font-size: 11px;
+}
+.lumn-ut-dn-checked-at {
+	color: #9aa7ad;
+	font-size: 11px;
+}
+
+.lumn-ut-dn-import-export {
+	margin-top: 16px;
+	padding-top: 12px;
+	border-top: 1px solid var(--lumn-border);
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+.lumn-ut-dn-import-form {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.lumn-ut-dn-richtext {
+	max-width: 900px;
+}
+
+.lumn-ut-dn-badge {
+	display: inline-block;
+	padding: 2px 9px;
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	background: var(--lumn-navy-tint);
+	color: var(--lumn-navy);
+}
+.lumn-ut-dn-badge-active {
+	background: #e3f6e9;
+	color: #1c6b3d;
+}
+.lumn-ut-dn-badge-high {
+	background: #fbe1e1;
+	color: #a12626;
+}
+.lumn-ut-dn-badge-medium {
+	background: #fdf0d5;
+	color: #8a5a00;
+}
+.lumn-ut-dn-badge-low {
+	background: var(--lumn-blue-tint);
+	color: var(--lumn-navy);
+}
+.lumn-ut-dn-status-open {
+	background: #fbe1e1;
+	color: #a12626;
+}
+.lumn-ut-dn-status-mitigated {
+	background: #fdf0d5;
+	color: #8a5a00;
+}
+.lumn-ut-dn-status-resolved {
+	background: #e3f6e9;
+	color: #1c6b3d;
+}
+
+.lumn-ut-dn-issue {
+	padding: 12px 0;
+	border-bottom: 1px solid var(--lumn-navy-tint);
+}
+.lumn-ut-dn-issue:last-of-type {
+	border-bottom: none;
+}
+.lumn-ut-dn-issue-header {
+	margin-bottom: 6px;
+}
+.lumn-ut-dn-mitigation {
+	background: var(--lumn-navy-tint);
+	padding: 8px 12px;
+	border-radius: 4px;
+}
+
+.lumn-ut-dn-log-list {
+	list-style: none;
+	margin: 16px 0 0;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.lumn-ut-dn-log-list li {
+	padding: 12px 14px;
+	background: var(--lumn-navy-tint);
+	border: 1px solid var(--lumn-border);
+	border-radius: 6px;
+}
+.lumn-ut-dn-log-entry-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 10px;
+	margin-bottom: 6px;
+}
+.lumn-ut-dn-log-actions {
+	flex-shrink: 0;
+	white-space: nowrap;
+}
+.lumn-ut-dn-log-pagination {
+	margin-top: 12px;
+}
+
+/* !important because wp-admin core's own ".wp-core-ui .button" rule (two
+   classes) can otherwise tie or beat a single-class selector here on
+   specificity, regardless of which stylesheet loads last. */
+.lumn-ut-dn-add-btn {
+	margin-top: 20px !important;
 }

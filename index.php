@@ -3,7 +3,7 @@
 Plugin Name: LUMN Utilities
 Plugin URI: https://getlumn.com
 Description: A set of custom shortcodes and tools for LUMN sites.
-Version: 4.7.2
+Version: 4.8.0
 Author: LUMN
 Author URI: https://getlumn.com
 License: GPL2
@@ -82,6 +82,22 @@ require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/tracking-debugger.php');
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/rest.php');
 register_activation_hook(__FILE__, 'Lumn\Utilities\lumn_ut_rest_ensure_capability');
 
+// Centralized Dependencies-table defaults for the Developers tab (e.g.
+// "we own Formidable Pro on every site") - a single list, edited here and
+// deployed to every site via git, instead of per-site data entry. Loaded
+// before register/dev-notes.php, which merges it with each site's own
+// per-plugin overrides; see register/dependency-defaults.php.
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/dependency-defaults.php');
+
+// Register the "Developers" tab - per-site technical context (profile,
+// change rules, dependencies, known issues, activity log) visible only to
+// super admins. Loaded after register/rest.php since it adds routes under
+// the same lumn/v1 namespace; see register/dev-notes.php.
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/dev-notes.php');
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'admin/dev-notes-page.php');
+register_activation_hook(__FILE__, 'Lumn\Utilities\lumn_ut_dev_notes_activate');
+register_deactivation_hook(__FILE__, 'Lumn\Utilities\lumn_ut_dev_notes_deactivate');
+
 // Enqueue admin scripts and styles.
 // Versioned by filemtime() rather than left blank: with no $ver, WP falls
 // back to the current WP core version as the cache-busting query string,
@@ -93,7 +109,15 @@ function lumn_ut_admin_scripts() {
     $styles_path = LUMN_UTILITIES_PLUGIN_PATH . 'admin/admin-styles.css';
     $scripts_path = LUMN_UTILITIES_PLUGIN_PATH . 'admin/admin-scripts.js';
     wp_enqueue_style( 'lumn-ut-admin-styles', plugins_url( '/admin/admin-styles.css' , __FILE__ ), array(), file_exists( $styles_path ) ? filemtime( $styles_path ) : null );
-    wp_enqueue_script( 'lumn-ut-admin-scripts', plugins_url( '/admin/admin-scripts.js' , __FILE__ ), array( 'jquery' ), file_exists( $scripts_path ) ? filemtime( $scripts_path ) : null );
+    // in_footer=true (final arg) matters here, not just as best practice:
+    // admin/dev-notes-page.php's page callback calls wp_localize_script()
+    // on this handle from inside its own render (i.e. after admin-header.php
+    // has already run). A head-printed script (the default) is flushed to
+    // the page before that callback executes, so the localized data would
+    // never make it into the page and window.lumnUtDevNotes would be
+    // undefined - printing in the footer defers it until after the whole
+    // page body, including that callback, has run.
+    wp_enqueue_script( 'lumn-ut-admin-scripts', plugins_url( '/admin/admin-scripts.js' , __FILE__ ), array( 'jquery' ), file_exists( $scripts_path ) ? filemtime( $scripts_path ) : null, true );
 }
 add_action( 'admin_enqueue_scripts', 'Lumn\Utilities\lumn_ut_admin_scripts' );
 
