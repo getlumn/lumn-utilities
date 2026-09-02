@@ -221,11 +221,18 @@ function lumn_ut_dev_notes_render_detected_fields($detected, $mismatches) {
         }
 
         if (!empty($group['checked_at'])) {
+            // time(), not current_time('timestamp') - $group['checked_at']
+            // was stored with time() (a real UTC epoch), and
+            // current_time('timestamp') is a "local" timestamp shifted by
+            // the site's UTC offset despite the name. Comparing the two
+            // introduced a fake gap equal to that offset (e.g. a site on
+            // Mountain Time showed everything as ~6-7 hours older than it
+            // actually was, even right after a refresh).
             echo ' <span class="lumn-ut-dn-checked-at">(' . esc_html(
                 sprintf(
                     /* translators: %s: human-readable time, e.g. "3 hours" */
                     __('checked %s ago', 'lumn-utilities'),
-                    human_time_diff((int) $group['checked_at'], current_time('timestamp'))
+                    human_time_diff((int) $group['checked_at'], time())
                 )
             ) . ')</span>';
         }
