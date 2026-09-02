@@ -575,15 +575,27 @@
 .lumn-ut-dn-top-row {
 	display: flex;
 	gap: 20px;
-	align-items: flex-start;
+	align-items: stretch;
 }
 .lumn-ut-dn-top-row-col {
+	display: flex;
+	flex-direction: column;
 	flex: 1 1 0;
 	min-width: 0;
+}
+/* A column with only one card (Site Profile, on the left) grows to fill
+   the stretched column height instead of staying its own natural height -
+   a column with several stacked cards (Known Issues/Rules/Log, on the
+   right) is left alone since it already defines that height. */
+.lumn-ut-dn-top-row-col > .lumn-ut-dn-card:only-child {
+	flex: 1;
 }
 @media (max-width: 900px) {
 	.lumn-ut-dn-top-row {
 		flex-direction: column;
+	}
+	.lumn-ut-dn-top-row-col > .lumn-ut-dn-card:only-child {
+		flex: initial;
 	}
 }
 
