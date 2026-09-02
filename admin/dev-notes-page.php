@@ -366,7 +366,7 @@ function lumn_ut_dev_notes_render_dependencies_table() {
     echo '<table class="form-table"><tbody>';
     echo '<tr><th scope="row"><label>' . esc_html__('Name', 'lumn-utilities') . '</label></th><td><input type="text" name="name" class="regular-text" required /></td></tr>';
     echo '<tr><th scope="row"><label>' . esc_html__('Version', 'lumn-utilities') . '</label></th><td><input type="text" name="version" class="regular-text" /></td></tr>';
-    lumn_ut_dev_notes_render_dependency_licence_fields('', '', '');
+    lumn_ut_dev_notes_render_dependency_licence_fields('', '', '', false);
     echo '</tbody></table>';
     submit_button(__('Add Dependency', 'lumn-utilities'), 'primary', 'submit', false);
     echo '</form>';
@@ -374,33 +374,89 @@ function lumn_ut_dev_notes_render_dependencies_table() {
     echo '</div>';
 }
 
-function lumn_ut_dev_notes_render_dependency_licence_fields($ownership, $expiry, $notes) {
+/**
+ * $ownership/$expiry/$notes are the RAW per-site override values, not the
+ * resolved ones - blank means "not overridden" (a plugin row keeps
+ * tracking register/dependency-defaults.php; a manual row has nothing to
+ * inherit, so blank ownership just means 'none'). $is_plugin_row adds the
+ * "Inherit default" ownership option and, when a central default exists
+ * for that field, shows it as a hint so it's clear what leaving the field
+ * blank actually resolves to.
+ */
+function lumn_ut_dev_notes_render_dependency_licence_fields($ownership, $expiry, $notes, $is_plugin_row, $default_expiry = '', $default_notes = '') {
+    $ownership_for_select = ($ownership === '' && !$is_plugin_row) ? 'none' : $ownership;
+
     echo '<tr><th scope="row"><label>' . esc_html__('Licence Ownership', 'lumn-utilities') . '</label></th><td>';
     echo '<select name="licence_ownership">';
-    echo '<option value="ours"' . selected($ownership, 'ours', false) . '>' . esc_html__('Ours', 'lumn-utilities') . '</option>';
-    echo '<option value="client"' . selected($ownership, 'client', false) . '>' . esc_html__("Client's", 'lumn-utilities') . '</option>';
+    if ($is_plugin_row) {
+        echo '<option value=""' . selected($ownership_for_select, '', false) . '>' . esc_html__('Inherit default', 'lumn-utilities') . '</option>';
+    }
+    echo '<option value="none"' . selected($ownership_for_select, 'none', false) . '>' . esc_html__('None', 'lumn-utilities') . '</option>';
+    echo '<option value="ours"' . selected($ownership_for_select, 'ours', false) . '>' . esc_html__('Ours', 'lumn-utilities') . '</option>';
+    echo '<option value="client"' . selected($ownership_for_select, 'client', false) . '>' . esc_html__("Client's", 'lumn-utilities') . '</option>';
     echo '</select></td></tr>';
-    echo '<tr><th scope="row"><label>' . esc_html__('Licence Expiry', 'lumn-utilities') . '</label></th><td><input type="date" name="licence_expiry" value="' . esc_attr($expiry) . '" /></td></tr>';
-    echo '<tr><th scope="row"><label>' . esc_html__('Notes', 'lumn-utilities') . '</label></th><td><textarea name="notes" rows="2" class="large-text">' . esc_textarea($notes) . '</textarea></td></tr>';
+
+    echo '<tr><th scope="row"><label>' . esc_html__('Licence Expiry', 'lumn-utilities') . '</label></th><td><input type="date" name="licence_expiry" value="' . esc_attr($expiry) . '" />';
+    if ($is_plugin_row && $expiry === '' && $default_expiry !== '') {
+        echo ' <span class="lumn-ut-dn-meta">' . esc_html(sprintf(
+            /* translators: %s: the default licence expiry date, if left blank */
+            __('blank inherits the default: %s', 'lumn-utilities'),
+            mysql2date(get_option('date_format'), $default_expiry . ' 00:00:00')
+        )) . '</span>';
+    }
+    echo '</td></tr>';
+
+    echo '<tr><th scope="row"><label>' . esc_html__('Notes', 'lumn-utilities') . '</label></th><td><textarea name="notes" rows="2" class="large-text"' .
+        ($is_plugin_row && $default_notes !== '' ? ' placeholder="' . esc_attr(sprintf(/* translators: %s: the default notes text, if left blank */ __('Default: %s', 'lumn-utilities'), $default_notes)) . '"' : '') .
+        '>' . esc_textarea($notes) . '</textarea></td></tr>';
+}
+
+function lumn_ut_dev_notes_dependency_ownership_label($ownership) {
+    if ($ownership === 'client') {
+        return __("Client's", 'lumn-utilities');
+    }
+    if ($ownership === 'ours') {
+        return __('Ours', 'lumn-utilities');
+    }
+    return __('None', 'lumn-utilities');
 }
 
 function lumn_ut_dev_notes_render_dependency_row($row, $is_manual) {
     $row_key = $is_manual ? $row['id'] : $row['slug'];
     $form_id = 'lumn-ut-dn-dep-edit-' . sanitize_html_class($row_key);
+    $default_badge = ' <span class="lumn-ut-dn-meta">(' . esc_html__('default', 'lumn-utilities') . ')</span>';
 
     echo '<tr>';
-    echo '<td>' . esc_html($row['name']) . ($is_manual ? '' : ' ' . ($row['active'] ? '<span class="lumn-ut-dn-badge lumn-ut-dn-badge-active">' . esc_html__('active', 'lumn-utilities') . '</span>' : '<span class="lumn-ut-dn-badge">' . esc_html__('inactive', 'lumn-utilities') . '</span>')) . '</td>';
+    echo '<td>' . esc_html($row['name']) . ($is_manual ? '' : ' ' . ($row['active'] ? '<span class="lumn-ut-dn-badge lumn-ut-dn-badge-active">' . esc_html__('active', 'lumn-utilities') . '</span>' : '<span class="lumn-ut-dn-badge">' . esc_html__('inactive', 'lumn-utilities') . '</span>'));
+    if (!$is_manual) {
+        // Prints the exact key register/dependency-defaults.php expects,
+        // with a Copy button - lumn_ut_shortcode_hint() in
+        // register/functions.php, the same "copyable reference string"
+        // treatment already used for shortcodes/redirect URLs elsewhere.
+        lumn_ut_shortcode_hint($row['slug']);
+    }
+    echo '</td>';
     echo '<td>' . esc_html($row['version']) . '</td>';
-    echo '<td>' . esc_html($row['licence_ownership'] === 'client' ? __("Client's", 'lumn-utilities') : __('Ours', 'lumn-utilities'));
+    echo '<td>' . esc_html(lumn_ut_dev_notes_dependency_ownership_label($row['licence_ownership']));
+    if (!$is_manual && $row['licence_ownership_is_default']) {
+        echo $default_badge;
+    }
     if (!empty($row['licence_expiry'])) {
         echo '<br /><span class="lumn-ut-dn-meta">' . esc_html(sprintf(
             /* translators: %s: licence expiry date */
             __('expires %s', 'lumn-utilities'),
             mysql2date(get_option('date_format'), $row['licence_expiry'] . ' 00:00:00')
         )) . '</span>';
+        if (!$is_manual && $row['licence_expiry_is_default']) {
+            echo $default_badge;
+        }
     }
     echo '</td>';
-    echo '<td>' . nl2br(esc_html($row['notes'])) . '</td>';
+    echo '<td>' . nl2br(esc_html($row['notes']));
+    if (!$is_manual && $row['notes_is_default']) {
+        echo $default_badge;
+    }
+    echo '</td>';
     echo '<td>';
     echo '<button type="button" class="button button-small lumn-ut-dn-toggle-target" data-lumn-ut-dn-target="' . esc_attr($form_id) . '">' . esc_html__('Edit', 'lumn-utilities') . '</button>';
     if ($is_manual) {
@@ -421,14 +477,18 @@ function lumn_ut_dev_notes_render_dependency_row($row, $is_manual) {
         echo '<input type="hidden" name="row_id" value="' . esc_attr($row['id']) . '" />';
         echo '<p><label>' . esc_html__('Name', 'lumn-utilities') . ' <input type="text" name="name" value="' . esc_attr($row['name']) . '" required /></label> ';
         echo '<label>' . esc_html__('Version', 'lumn-utilities') . ' <input type="text" name="version" value="' . esc_attr($row['version']) . '" /></label></p>';
+        echo '<table class="form-table"><tbody>';
+        lumn_ut_dev_notes_render_dependency_licence_fields($row['licence_ownership'], $row['licence_expiry'], $row['notes'], false);
+        echo '</tbody></table>';
     } else {
         wp_nonce_field('lumn_ut_dn_save_dependency_overlay');
         echo '<input type="hidden" name="action" value="lumn_ut_dn_save_dependency_overlay" />';
         echo '<input type="hidden" name="slug" value="' . esc_attr($row['slug']) . '" />';
+        echo '<p class="description">' . esc_html__('Leave a field on "Inherit default" or blank to keep tracking the central default below - only fill it in if this site needs to be different.', 'lumn-utilities') . '</p>';
+        echo '<table class="form-table"><tbody>';
+        lumn_ut_dev_notes_render_dependency_licence_fields($row['licence_ownership_override'], $row['licence_expiry_override'], $row['notes_override'], true, $row['default_expiry'], $row['default_notes']);
+        echo '</tbody></table>';
     }
-    echo '<table class="form-table"><tbody>';
-    lumn_ut_dev_notes_render_dependency_licence_fields($row['licence_ownership'], $row['licence_expiry'], $row['notes']);
-    echo '</tbody></table>';
     submit_button(__('Save', 'lumn-utilities'), 'primary', 'submit', false);
     echo ' <button type="button" class="button lumn-ut-dn-toggle-target" data-lumn-ut-dn-target="' . esc_attr($form_id) . '">' . esc_html__('Cancel', 'lumn-utilities') . '</button>';
     echo '</form>';

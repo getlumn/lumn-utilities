@@ -82,6 +82,13 @@ require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/tracking-debugger.php');
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/rest.php');
 register_activation_hook(__FILE__, 'Lumn\Utilities\lumn_ut_rest_ensure_capability');
 
+// Centralized Dependencies-table defaults for the Developers tab (e.g.
+// "we own Formidable Pro on every site") - a single list, edited here and
+// deployed to every site via git, instead of per-site data entry. Loaded
+// before register/dev-notes.php, which merges it with each site's own
+// per-plugin overrides; see register/dependency-defaults.php.
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/dependency-defaults.php');
+
 // Register the "Developers" tab - per-site technical context (profile,
 // change rules, dependencies, known issues, activity log) visible only to
 // super admins. Loaded after register/rest.php since it adds routes under

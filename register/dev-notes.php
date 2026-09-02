@@ -650,33 +650,80 @@ function lumn_ut_dev_notes_get_manual_dependencies() {
     return is_array($rows) ? $rows : array();
 }
 
+/**
+ * Plugin dependency rows: get_plugins() (name/version, always live) merged
+ * with the centralized defaults in register/dependency-defaults.php,
+ * merged again with this site's own per-plugin overrides
+ * (lumn_ut_dev_notes_get_dependency_overlay()) - in that order, so a site
+ * override always wins, a central default is used next, and 'none'/blank
+ * is the last resort. Each field also gets an "is this the central
+ * default, or has this site overridden it" flag for the page to display,
+ * and the *_override fields carry the raw (possibly blank/inherited)
+ * per-site value the edit form should show - never the resolved one, or
+ * saving the form with that field untouched would freeze it forever
+ * instead of continuing to track the central default.
+ */
 function lumn_ut_dev_notes_get_plugin_dependencies() {
     if (!function_exists('get_plugins')) {
         require_once ABSPATH . 'wp-admin/includes/plugin.php';
     }
 
     $overlay = lumn_ut_dev_notes_get_dependency_overlay();
+    $defaults = lumn_ut_dev_notes_dependency_defaults();
     $rows = array();
 
     foreach (get_plugins() as $slug => $data) {
-        $extra = isset($overlay[$slug]) && is_array($overlay[$slug]) ? $overlay[$slug] : array();
+        $site_override = isset($overlay[$slug]) && is_array($overlay[$slug]) ? $overlay[$slug] : array();
+        $central_default = isset($defaults[$slug]) && is_array($defaults[$slug]) ? $defaults[$slug] : array();
+
+        $ownership_override = isset($site_override['licence_ownership']) ? $site_override['licence_ownership'] : '';
+        $expiry_override = isset($site_override['licence_expiry']) ? $site_override['licence_expiry'] : '';
+        $notes_override = isset($site_override['notes']) ? $site_override['notes'] : '';
+
+        $ownership_default = isset($central_default['licence_ownership']) ? $central_default['licence_ownership'] : 'none';
+        $expiry_default = isset($central_default['licence_expiry']) ? $central_default['licence_expiry'] : '';
+        $notes_default = isset($central_default['notes']) ? $central_default['notes'] : '';
+
         $rows[] = array(
             'slug' => $slug,
             'name' => $data['Name'],
             'version' => $data['Version'],
             'active' => is_plugin_active($slug),
-            'licence_ownership' => isset($extra['licence_ownership']) ? $extra['licence_ownership'] : '',
-            'licence_expiry' => isset($extra['licence_expiry']) ? $extra['licence_expiry'] : '',
-            'notes' => isset($extra['notes']) ? $extra['notes'] : '',
+            'licence_ownership' => $ownership_override !== '' ? $ownership_override : $ownership_default,
+            'licence_expiry' => $expiry_override !== '' ? $expiry_override : $expiry_default,
+            'notes' => $notes_override !== '' ? $notes_override : $notes_default,
+            'licence_ownership_override' => $ownership_override,
+            'licence_expiry_override' => $expiry_override,
+            'notes_override' => $notes_override,
+            'licence_ownership_is_default' => $ownership_override === '',
+            'licence_expiry_is_default' => $expiry_override === '' && $expiry_default !== '',
+            'notes_is_default' => $notes_override === '' && $notes_default !== '',
+            'default_expiry' => $expiry_default,
+            'default_notes' => $notes_default,
         );
     }
 
     return $rows;
 }
 
-function lumn_ut_dev_notes_sanitize_dependency_overlay_input($input) {
+/**
+ * Shared sanitizer for both the per-plugin overlay form and the manual
+ * dependency form. $blank_ownership controls what an unrecognized/blank
+ * "licence_ownership" submission resolves to: '' for the plugin overlay
+ * (blank means "inherit the central default"), 'none' for manual rows
+ * (which have no central default to inherit from, and 'none' is the
+ * overall default per the Dependencies table).
+ */
+function lumn_ut_dev_notes_sanitize_dependency_overlay_input($input, $blank_ownership = 'none') {
+    $ownership_raw = isset($input['licence_ownership']) ? $input['licence_ownership'] : '';
+    if (in_array($ownership_raw, array('ours', 'client', 'none'), true)) {
+        $ownership = $ownership_raw;
+    } else {
+        $ownership = $blank_ownership;
+    }
+
     return array(
-        'licence_ownership' => isset($input['licence_ownership']) && $input['licence_ownership'] === 'client' ? 'client' : 'ours',
+        'licence_ownership' => $ownership,
         'licence_expiry' => isset($input['licence_expiry']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $input['licence_expiry']) ? $input['licence_expiry'] : '',
         'notes' => isset($input['notes']) ? sanitize_textarea_field($input['notes']) : '',
     );
@@ -696,7 +743,10 @@ function lumn_ut_dev_notes_handle_save_dependency_overlay() {
 
     $post_id = lumn_ut_dev_notes_get_or_create_singleton_post('dependencies', __('Dependencies', 'lumn-utilities'));
     $overlay = lumn_ut_dev_notes_get_dependency_overlay();
-    $overlay[$slug] = lumn_ut_dev_notes_sanitize_dependency_overlay_input(wp_unslash($_POST));
+    // '' (not 'none') so a blank/"Inherit default" submission keeps this
+    // site tracking register/dependency-defaults.php instead of freezing
+    // it to 'none'.
+    $overlay[$slug] = lumn_ut_dev_notes_sanitize_dependency_overlay_input(wp_unslash($_POST), '');
     update_post_meta($post_id, 'lumn_ut_dep_overlay', $overlay);
 
     lumn_ut_dev_notes_redirect('dependency_saved');
