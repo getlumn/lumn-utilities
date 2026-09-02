@@ -37,11 +37,11 @@ function lumn_ut_dev_notes_page_callback() {
     echo '</div>';
     echo '<div class="lumn-ut-dn-top-row-col">';
     lumn_ut_dev_notes_render_known_issues();
+    lumn_ut_dev_notes_render_rules_panel();
+    lumn_ut_dev_notes_render_activity_log();
     echo '</div>';
     echo '</div>';
 
-    lumn_ut_dev_notes_render_rules_panel();
-    lumn_ut_dev_notes_render_activity_log();
     lumn_ut_dev_notes_render_dependencies_table();
 
     echo '</div>';
