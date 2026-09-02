@@ -30,11 +30,19 @@ function lumn_ut_dev_notes_page_callback() {
     lumn_ut_render_admin_header(__('Per-site technical context for developers: profile, change rules, dependencies, known issues, and the activity log. Visible only to super admins.', 'lumn-utilities'));
 
     lumn_ut_dev_notes_render_notices();
+
+    echo '<div class="lumn-ut-dn-top-row">';
+    echo '<div class="lumn-ut-dn-top-row-col">';
     lumn_ut_dev_notes_render_profile_card();
-    lumn_ut_dev_notes_render_rules_panel();
-    lumn_ut_dev_notes_render_dependencies_table();
+    echo '</div>';
+    echo '<div class="lumn-ut-dn-top-row-col">';
     lumn_ut_dev_notes_render_known_issues();
+    echo '</div>';
+    echo '</div>';
+
+    lumn_ut_dev_notes_render_rules_panel();
     lumn_ut_dev_notes_render_activity_log();
+    lumn_ut_dev_notes_render_dependencies_table();
 
     echo '</div>';
 }
@@ -78,10 +86,10 @@ function lumn_ut_dev_notes_profile_field_labels() {
         'registrar_account_owner' => __('Registrar Account Owner', 'lumn-utilities'),
         'expected_registrar' => __('Expected Registrar', 'lumn-utilities'),
         'expected_dns_provider' => __('Expected DNS Provider', 'lumn-utilities'),
-        'billing_contact' => __('Billing Contact', 'lumn-utilities'),
         'primary_contact' => __('Primary Contact', 'lumn-utilities'),
+        'primary_contact_email' => __('Primary Contact Email', 'lumn-utilities'),
         'launch_date' => __('Launch Date', 'lumn-utilities'),
-        'hubspot_url' => __('HubSpot Record URL', 'lumn-utilities'),
+        'hubspot_record_id' => __('HubSpot Record ID', 'lumn-utilities'),
         'contract_notes' => __('Contract Notes', 'lumn-utilities'),
     );
 }
@@ -109,8 +117,15 @@ function lumn_ut_dev_notes_render_profile_card() {
         }
         $has_any = true;
         echo '<div class="lumn-ut-dn-field-row"><span class="lumn-ut-dn-field-label">' . esc_html($labels[$key]) . '</span> ';
-        if ($type === 'url') {
-            echo '<a href="' . esc_url($profile[$key]) . '" target="_blank" rel="noopener noreferrer">' . esc_html($profile[$key]) . '</a>';
+        if ($type === 'hubspot_id') {
+            $hubspot_url = lumn_ut_dev_notes_hubspot_record_url($profile[$key]);
+            if ($hubspot_url !== '') {
+                echo '<a href="' . esc_url($hubspot_url) . '" target="_blank" rel="noopener noreferrer">' . esc_html($hubspot_url) . '</a>';
+            } else {
+                echo '<span class="lumn-ut-dn-field-value">' . esc_html($profile[$key]) . '</span>';
+            }
+        } elseif ($type === 'email') {
+            echo '<a href="' . esc_url('mailto:' . $profile[$key]) . '">' . esc_html($profile[$key]) . '</a>';
         } elseif ($type === 'textarea') {
             echo '<span class="lumn-ut-dn-field-value lumn-ut-dn-field-value-multiline">' . nl2br(esc_html($profile[$key])) . '</span>';
         } else {
@@ -138,8 +153,12 @@ function lumn_ut_dev_notes_render_profile_card() {
             case 'date':
                 echo '<input type="date" id="lumn-ut-dn-' . esc_attr($key) . '" name="' . esc_attr($key) . '" value="' . esc_attr($value) . '" />';
                 break;
-            case 'url':
-                echo '<input type="url" id="lumn-ut-dn-' . esc_attr($key) . '" name="' . esc_attr($key) . '" value="' . esc_attr($value) . '" class="regular-text" />';
+            case 'email':
+                echo '<input type="email" id="lumn-ut-dn-' . esc_attr($key) . '" name="' . esc_attr($key) . '" value="' . esc_attr($value) . '" class="regular-text" />';
+                break;
+            case 'hubspot_id':
+                echo '<input type="text" inputmode="numeric" pattern="[0-9]*" id="lumn-ut-dn-' . esc_attr($key) . '" name="' . esc_attr($key) . '" value="' . esc_attr($value) . '" class="regular-text" placeholder="' . esc_attr__('e.g. 13645415015', 'lumn-utilities') . '" />';
+                echo '<p class="description">' . esc_html__('Just the numeric record ID from the HubSpot record URL - the link is generated from it.', 'lumn-utilities') . '</p>';
                 break;
             default:
                 echo '<input type="text" id="lumn-ut-dn-' . esc_attr($key) . '" name="' . esc_attr($key) . '" value="' . esc_attr($value) . '" class="regular-text" />';
@@ -218,16 +237,34 @@ function lumn_ut_dev_notes_render_detected_fields($detected, $mismatches) {
 
 function lumn_ut_dev_notes_render_detected_group_value($group_key, $data) {
     if ($group_key === 'core') {
+        if (!empty($data['is_child_theme'])) {
+            $theme_text = sprintf(
+                /* translators: 1: child theme name, 2: child theme version, 3: parent theme name, 4: parent theme version */
+                __('%1$s %2$s (child of %3$s %4$s)', 'lumn-utilities'),
+                $data['theme_name'],
+                $data['theme_version'],
+                $data['parent_theme_name'],
+                $data['parent_theme_version']
+            );
+        } else {
+            $theme_text = sprintf(
+                /* translators: 1: theme name, 2: theme version */
+                __('%1$s %2$s', 'lumn-utilities'),
+                $data['theme_name'],
+                $data['theme_version']
+            );
+        }
+
         // The middle dot is a literal Unicode character, not an HTML
         // entity - esc_html() below would double-encode "&middot;" into
         // visible literal text instead of rendering a dot.
         return esc_html(
             sprintf(
-                /* translators: 1: WP version, 2: PHP version, 3: active theme name */
+                /* translators: 1: WP version, 2: PHP version, 3: theme name/version (and parent theme, if any) */
                 __('WP %1$s · PHP %2$s · %3$s', 'lumn-utilities'),
                 $data['wp_version'],
                 $data['php_version'],
-                $data['active_theme']
+                $theme_text
             )
         );
     }

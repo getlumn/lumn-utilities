@@ -41,9 +41,20 @@ const LUMN_UT_DEV_NOTES_DB_VERSION_OPTION = 'lumn_ut_db_version';
 
 // Schema version for the data this file owns (profile shape, dev-note post
 // meta shape). Bump alongside a migration in lumn_ut_dev_notes_run_migrations().
-const LUMN_UT_DEV_NOTES_DB_VERSION = 1;
+const LUMN_UT_DEV_NOTES_DB_VERSION = 2;
 
 const LUMN_UT_DEV_NOTES_CRON_HOOK = 'lumn_ut_dev_notes_detect_cron';
+
+// LUMN's HubSpot portal (account) ID - the numeric segment right after
+// "/contacts/" in any record URL for this account, e.g.
+// https://app.hubspot.com/contacts/23704634/record/0-2/{record id}. One
+// shared LUMN HubSpot account, so this is a constant rather than a
+// per-site profile field.
+const LUMN_UT_DEV_NOTES_HUBSPOT_PORTAL_ID = '23704634';
+
+// HubSpot's own object-type ID for Contacts - the profile card always
+// links to a contact record.
+const LUMN_UT_DEV_NOTES_HUBSPOT_CONTACT_OBJECT_TYPE = '0-2';
 
 // ---------------------------------------------------------------------
 // Capability grant - idempotent, re-checked on every admin_init rather
@@ -86,13 +97,50 @@ function lumn_ut_dev_notes_run_migrations() {
         return;
     }
 
-    // if ($current < 1) { ... } - nothing to migrate for version 1, this
-    // just establishes the baseline so future migrations have somewhere
-    // to start counting from.
+    // Nothing to migrate for version 1 - it just establishes the baseline
+    // so future migrations have somewhere to start counting from.
+
+    if ($current < 2) {
+        lumn_ut_dev_notes_migrate_to_v2();
+    }
 
     update_option(LUMN_UT_DEV_NOTES_DB_VERSION_OPTION, LUMN_UT_DEV_NOTES_DB_VERSION);
 }
 add_action('plugins_loaded', 'Lumn\Utilities\lumn_ut_dev_notes_run_migrations');
+
+/**
+ * v2 profile shape: drops 'billing_contact' (replaced by
+ * 'primary_contact_email', a different kind of field with nothing
+ * sensible to carry over) and replaces the stored 'hubspot_url' with
+ * 'hubspot_record_id' - extracted from the trailing numeric segment of
+ * whatever URL was already saved, since every real HubSpot record URL
+ * ends in the record ID.
+ */
+function lumn_ut_dev_notes_migrate_to_v2() {
+    $profile = get_option(LUMN_UT_DEV_NOTES_PROFILE_OPTION, array());
+    if (!is_array($profile) || empty($profile)) {
+        return;
+    }
+
+    $changed = false;
+
+    if (array_key_exists('billing_contact', $profile)) {
+        unset($profile['billing_contact']);
+        $changed = true;
+    }
+
+    if (array_key_exists('hubspot_url', $profile)) {
+        if (empty($profile['hubspot_record_id']) && preg_match('/(\d+)\/?$/', (string) $profile['hubspot_url'], $matches)) {
+            $profile['hubspot_record_id'] = $matches[1];
+        }
+        unset($profile['hubspot_url']);
+        $changed = true;
+    }
+
+    if ($changed) {
+        update_option(LUMN_UT_DEV_NOTES_PROFILE_OPTION, $profile, false);
+    }
+}
 
 // ---------------------------------------------------------------------
 // Activation / deactivation (registered from index.php, same pattern as
@@ -185,10 +233,10 @@ function lumn_ut_dev_notes_profile_fields() {
         'registrar_account_owner' => 'text',
         'expected_registrar' => 'text',
         'expected_dns_provider' => 'text',
-        'billing_contact' => 'text',
         'primary_contact' => 'text',
+        'primary_contact_email' => 'email',
         'launch_date' => 'date',
-        'hubspot_url' => 'url',
+        'hubspot_record_id' => 'hubspot_id',
         'contract_notes' => 'textarea',
     );
 }
@@ -208,14 +256,20 @@ function lumn_ut_dev_notes_sanitize_profile_input($input) {
         }
 
         switch ($type) {
-            case 'url':
-                $out[$key] = esc_url_raw($raw);
+            case 'email':
+                $out[$key] = sanitize_email($raw);
                 break;
             case 'textarea':
                 $out[$key] = sanitize_textarea_field($raw);
                 break;
             case 'date':
                 $out[$key] = preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw) ? $raw : '';
+                break;
+            case 'hubspot_id':
+                // Just the numeric record ID - lumn_ut_dev_notes_hubspot_record_url()
+                // builds the actual link from it. Strips anything a user
+                // pastes the full URL into this field instead of just the ID.
+                $out[$key] = preg_replace('/\D+/', '', $raw);
                 break;
             default:
                 $out[$key] = sanitize_text_field($raw);
@@ -227,6 +281,22 @@ function lumn_ut_dev_notes_sanitize_profile_input($input) {
 
 function lumn_ut_dev_notes_save_profile($sanitized) {
     update_option(LUMN_UT_DEV_NOTES_PROFILE_OPTION, $sanitized, false);
+}
+
+// Builds a HubSpot contact record URL from just the record ID - see the
+// LUMN_UT_DEV_NOTES_HUBSPOT_* constants above for the fixed portal/object
+// type this account always uses. Returns '' for a blank/non-numeric ID.
+function lumn_ut_dev_notes_hubspot_record_url($record_id) {
+    $record_id = preg_replace('/\D+/', '', (string) $record_id);
+    if ($record_id === '') {
+        return '';
+    }
+    return sprintf(
+        'https://app.hubspot.com/contacts/%s/record/%s/%s',
+        LUMN_UT_DEV_NOTES_HUBSPOT_PORTAL_ID,
+        LUMN_UT_DEV_NOTES_HUBSPOT_CONTACT_OBJECT_TYPE,
+        $record_id
+    );
 }
 
 add_action('admin_post_lumn_ut_dn_save_profile', 'Lumn\Utilities\lumn_ut_dev_notes_handle_save_profile');
@@ -339,13 +409,23 @@ function lumn_ut_dev_notes_run_detection() {
 
     $detected['domain'] = $domain;
 
+    // wp_get_theme() with no args returns the ACTIVE theme - the child
+    // theme itself, if one is active - and ->parent() returns the parent
+    // WP_Theme (or false if the active theme isn't a child theme).
+    $active_theme = wp_get_theme();
+    $parent_theme = $active_theme->parent();
+
     $detected['core'] = array(
         'success' => true,
         'checked_at' => $now,
         'data' => array(
             'wp_version' => get_bloginfo('version'),
             'php_version' => PHP_VERSION,
-            'active_theme' => wp_get_theme()->get('Name'),
+            'theme_name' => $active_theme->get('Name'),
+            'theme_version' => $active_theme->get('Version'),
+            'is_child_theme' => (bool) $parent_theme,
+            'parent_theme_name' => $parent_theme ? $parent_theme->get('Name') : '',
+            'parent_theme_version' => $parent_theme ? $parent_theme->get('Version') : '',
         ),
     );
 

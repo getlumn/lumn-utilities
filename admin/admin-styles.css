@@ -572,6 +572,21 @@
 /* Developers page (admin/dev-notes-page.php)                           */
 /* -------------------------------------------------------------------- */
 
+.lumn-ut-dn-top-row {
+	display: flex;
+	gap: 20px;
+	align-items: flex-start;
+}
+.lumn-ut-dn-top-row-col {
+	flex: 1 1 0;
+	min-width: 0;
+}
+@media (max-width: 900px) {
+	.lumn-ut-dn-top-row {
+		flex-direction: column;
+	}
+}
+
 .lumn-ut-dn-card {
 	background: #fff;
 	border: 1px solid var(--lumn-border);
