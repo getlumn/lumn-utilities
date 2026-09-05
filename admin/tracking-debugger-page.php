@@ -2,63 +2,13 @@
 namespace Lumn\Utilities;
 
 /**
- * Rendering for the "Tracking Debugger" admin page (Debugger / Event
- * Catalog / Health Check / GTM Guide tabs). Kept separate from
- * register/tracking-debugger.php (activation, enqueue, health-check
- * logic, GTM recipe data) the same way admin/tracking-page.php is split
- * from register/tracking.php.
+ * Rendering for the Debugger / Event Catalog / Health Check / GTM Guide
+ * tabs of the "SEO & Tracking" admin page (admin/tracking-page.php owns
+ * the page shell, tab nav, and URL slug for all seven tabs). Kept
+ * separate from register/tracking-debugger.php (activation, enqueue,
+ * health-check logic, GTM recipe data) the same way admin/tracking-page.php
+ * is split from register/tracking.php.
  */
-
-function lumn_ut_tracking_debugger_page_callback() {
-    if (!current_user_can(LUMN_UT_TRACKING_CAPABILITY)) {
-        wp_die(esc_html__('You do not have permission to access this page.', 'lumn-utilities'));
-    }
-
-    $valid_tabs = array('debugger', 'catalog', 'health', 'gtm');
-    $tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'debugger';
-    if (!in_array($tab, $valid_tabs, true)) {
-        $tab = 'debugger';
-    }
-
-    echo '<div class="lumn-ut-admin-settings-wrap wrap lumn-ut-tracking-page lumn-ut-tracking-debugger-page">';
-    lumn_ut_render_admin_header(__('Debug live events, browse the event catalog, check tracking health, and get GTM setup guidance.', 'lumn-utilities'));
-
-    lumn_ut_render_debugger_tab_nav($tab);
-
-    switch ($tab) {
-        case 'catalog':
-            lumn_ut_render_catalog_tab();
-            break;
-        case 'health':
-            lumn_ut_render_health_tab();
-            break;
-        case 'gtm':
-            lumn_ut_render_gtm_tab();
-            break;
-        default:
-            lumn_ut_render_debugger_tab();
-            break;
-    }
-
-    echo '</div>';
-}
-
-function lumn_ut_render_debugger_tab_nav($active) {
-    $tabs = array(
-        'debugger' => __('Debugger', 'lumn-utilities'),
-        'catalog' => __('Event Catalog', 'lumn-utilities'),
-        'health' => __('Health Check', 'lumn-utilities'),
-        'gtm' => __('GTM Guide', 'lumn-utilities'),
-    );
-
-    echo '<h2 class="nav-tab-wrapper lumn-ut-tracking-debugger-tabs">';
-    foreach ($tabs as $key => $label) {
-        $url = add_query_arg(array('page' => LUMN_UT_TRACKING_DEBUGGER_PAGE_SLUG, 'tab' => $key), admin_url('admin.php'));
-        $class = 'nav-tab' . ($key === $active ? ' nav-tab-active' : '');
-        echo '<a href="' . esc_url($url) . '" class="' . esc_attr($class) . '">' . esc_html($label) . '</a>';
-    }
-    echo '</h2>';
-}
 
 // ---------------------------------------------------------------------
 // Debugger tab
@@ -103,7 +53,7 @@ function lumn_ut_render_debugger_tab() {
     echo '<p class="description">' . esc_html__('Data Layer and GTM detection are shown live in the front-end panel itself (they depend on the actual page, not this admin screen). Detecting GTM never causes LUMN to interact with it.', 'lumn-utilities') . '</p>';
 
     if (empty($settings['master']) || empty($settings['debugger'])) {
-        echo '<div class="notice notice-warning inline"><p>' . esc_html__('Master Tracking and/or the Debugger feature toggle are off (see Feature Toggles on the SEO & Tracking page). The front-end panel will still appear once you enable it above, but its Recent Events feed will stay empty until both of those are also on.', 'lumn-utilities') . '</p></div>';
+        echo '<div class="notice notice-warning inline"><p>' . esc_html__('Master Tracking and/or the Debugger feature toggle are off (see Feature Toggles on the Configure Tracking tab). The front-end panel will still appear once you enable it above, but its Recent Events feed will stay empty until both of those are also on.', 'lumn-utilities') . '</p></div>';
     }
 }
 
@@ -229,7 +179,7 @@ function lumn_ut_render_health_tab() {
     }
 
     $run_url = wp_nonce_url(add_query_arg(array(
-        'page' => LUMN_UT_TRACKING_DEBUGGER_PAGE_SLUG,
+        'page' => LUMN_UT_TRACKING_PAGE_SLUG,
         'tab' => 'health',
         'lumn_ut_run_health_check' => '1',
     ), admin_url('admin.php')), 'lumn_ut_run_health_check');
