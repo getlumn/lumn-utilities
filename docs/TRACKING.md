@@ -95,13 +95,13 @@ inherits the opt-in guarantees automatically.
 | Automatic + explicit click detection (phone/email/appointment/directions, `data-lumn-event`) | `public/js/lumn-tracking-events.js` |
 | Form-submission relay consumption (Gravity Forms / Formidable "confirmation shown" listeners) | `public/js/lumn-tracking-forms.js` |
 | Debug overlay activation/authorization, its script enqueue, Health Checker, GTM recipe generator | `register/tracking-debugger.php` |
-| Admin page rendering (Debugger / Event Catalog / Health Check / GTM Guide tabs) | `admin/tracking-debugger-page.php` |
+| Debugger / Event Catalog / Health Check / GTM Guide tab rendering (tabs on the "SEO & Tracking" page) | `admin/tracking-debugger-page.php` |
 | Front-end debug overlay panel (Recent Events, Test Event tool, page scanner) | `public/js/lumn-tracking-debugger.js` |
 | Automatic CTA classification config (URL patterns/domains/excluded domains), its Settings API registration, download-extensions registry | `register/engagement-tracking.php` |
 | Download/external-link classification + `data-lumn-track="false"` suppression (extends the Step 2 click engine) | `public/js/lumn-tracking-events.js` |
 | Native HTML5 `<video>` engagement tracking (start/progress/complete) | `public/js/lumn-tracking-video.js` |
 | Central configuration model (`lumn_ut_tracking_get_full_config()`), per-event overrides, Global URL Exclusions, Anchor/Fragment Exclusions, reset, export/import, presets, last-modified tracking | `register/tracking-config.php` |
-| Dashboard / Configure Tracking / Import-Export tab rendering ("SEO & Tracking" page) | `admin/tracking-page.php` |
+| Dashboard / Configure Tracking / Import-Export tab rendering, page shell + tab nav for all seven tabs ("SEO & Tracking" page) | `admin/tracking-page.php` |
 
 ## Settings
 
@@ -1462,11 +1462,15 @@ duplicating anything that existed before:
 
 ### The Dashboard
 
-`LUMN Utilities -> SEO & Tracking` is now three tabs
-(`admin/tracking-page.php`): **Dashboard** (default), **Configure
-Tracking** (the full settings form from Steps 1-5, unchanged), and
-**Import / Export**. The Dashboard answers, at a glance, the questions
-this step's spec opens with:
+`LUMN Utilities -> SEO & Tracking` is a single admin page with seven
+tabs (`admin/tracking-page.php` owns the page shell and tab nav):
+**Dashboard** (default), **Configure Tracking** (the full settings form
+from Steps 1-5, unchanged), **Debugger**, **Event Catalog**, **Health
+Check**, **GTM Guide** (rendered by `admin/tracking-debugger-page.php` -
+formerly its own "Tracking Debugger" menu item, folded in here so every
+LUMN tracking feature lives under one menu entry), and **Import /
+Export**. The Dashboard answers, at a glance, the questions this step's
+spec opens with:
 
 - **Status** - one line, ✓/✗ LUMN Tracking Enabled, sourced from
   `$config['enabled']`.
@@ -1481,7 +1485,7 @@ this step's spec opens with:
   unconditionally.
 - Action buttons: **Configure Tracking** (this page's other tab),
   **Debug Tracking** / **View Event Catalog** / **Run Health Check**
-  (link straight to the matching Tracking Debugger tab).
+  (link straight to the matching tab on this same page).
 - **Presets** and **Reset** - see below.
 
 ### Configuration Summary
@@ -2136,8 +2140,8 @@ Requires a test form on a Gravity Forms or Formidable Forms install.
 1. Log out (or open a private window) and confirm a normal visitor sees
    no debugger UI anywhere, and that `?lumn_debug=1` on any page does
    nothing for them either.
-2. Log back in as an administrator. `LUMN Utilities -> Tracking Debugger`
-   - confirm Status shows **● Debugging OFF**.
+2. Log back in as an administrator. `LUMN Utilities -> SEO & Tracking ->
+   Debugger` - confirm Status shows **● Debugging OFF**.
 3. Click **Enable Debugging**, then visit any front-end page - a small
    panel should appear in the bottom-left corner (deliberately not
    bottom-right, where a site's own floating elements often sit).
@@ -2270,8 +2274,8 @@ Requires a test form on a Gravity Forms or Formidable Forms install.
    under "currently track."
 4. Under **Automatic Classification Settings**, enable **Automatic CTA
    Classification** with nothing entered in Appointment URL
-   Patterns/Domains, Save Changes. Open **Tracking Debugger -> Health
-   Check**, run it, and confirm a warning: *"Automatic CTA tracking is
+   Patterns/Domains, Save Changes. Open the **Health
+   Check** tab, run it, and confirm a warning: *"Automatic CTA tracking is
    enabled but no appointment destinations are configured."* Add a
    pattern or domain and re-run - confirm the warning clears and
    **Configuration Consistency** reports **Good**.
@@ -2343,8 +2347,7 @@ site (or aren't set up to listen for LUMN's events specifically), turning
 on a LUMN toggle is completely safe and simply does nothing visible yet -
 it never creates or changes anything in Google's tools on its own. If you
 need GTM configured to actually *use* what LUMN generates, see the **GTM
-Guide** tab under Tracking Debugger, or hand that page to whoever manages
-this site's analytics.
+Guide** tab, or hand that page to whoever manages this site's analytics.
 
 **A safe way to turn things on:**
 
@@ -2363,8 +2366,8 @@ this site's analytics.
 5. Check the **Dashboard**'s Configuration Summary again - it should now
    describe exactly what you just turned on, in the same plain language.
 6. If anything looks wrong, or you want to see events happening live,
-   use the **Tracking Debugger** (its own menu item) - turn on debugging,
-   then click around your own site to watch events appear.
+   use the **Debugger** tab - turn on debugging, then click around your
+   own site to watch events appear.
 7. Run **Health Check** any time you're unsure whether something is
    configured correctly - it's designed to tell you the difference
    between "this is off" (fine, not an error) and "this is on but

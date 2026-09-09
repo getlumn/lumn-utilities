@@ -22,7 +22,6 @@ namespace Lumn\Utilities;
  *   event registry (never manually duplicated per event).
  */
 
-const LUMN_UT_TRACKING_DEBUGGER_PAGE_SLUG = 'lumn-ut-tracking-debugger';
 const LUMN_UT_DEBUG_OVERLAY_USER_META = 'lumn_ut_debug_overlay_enabled';
 const LUMN_UT_DEBUG_OVERLAY_QUERY_VAR = 'lumn_debug';
 const LUMN_UT_DEBUG_OVERLAY_SCRIPT_HANDLE = 'lumn-ut-tracking-debugger';
@@ -86,7 +85,7 @@ function lumn_ut_handle_toggle_debug_overlay() {
     $enable = isset($_GET['enable']) && $_GET['enable'] === '1';
     update_user_meta(get_current_user_id(), LUMN_UT_DEBUG_OVERLAY_USER_META, $enable);
 
-    wp_safe_redirect(wp_get_referer() ?: admin_url('admin.php?page=' . LUMN_UT_TRACKING_DEBUGGER_PAGE_SLUG));
+    wp_safe_redirect(wp_get_referer() ?: admin_url('admin.php?page=' . LUMN_UT_TRACKING_PAGE_SLUG . '&tab=debugger'));
     exit;
 }
 
@@ -630,18 +629,3 @@ function lumn_ut_tracking_gtm_recipe($event_key) {
 
     return $recipe;
 }
-
-// ---------------------------------------------------------------------
-// Admin menu
-// ---------------------------------------------------------------------
-
-add_action('admin_menu', function () {
-    add_submenu_page(
-        'lumn-ut-shortcode-settings',
-        __('Tracking Debugger', 'lumn-utilities'),
-        __('Tracking Debugger', 'lumn-utilities'),
-        LUMN_UT_TRACKING_CAPABILITY,
-        LUMN_UT_TRACKING_DEBUGGER_PAGE_SLUG,
-        'Lumn\Utilities\lumn_ut_tracking_debugger_page_callback'
-    );
-});

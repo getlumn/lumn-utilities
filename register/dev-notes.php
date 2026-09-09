@@ -266,11 +266,14 @@ function lumn_ut_dev_notes_get_or_create_singleton_post($note_type, $default_tit
 // ---------------------------------------------------------------------
 
 // key => field type, used by both the sanitizer below and the form in
-// admin/dev-notes-page.php. expected_registrar/expected_dns_provider
-// aren't in the original field list from the spec, but are needed to make
-// the "mismatch display" requirement mean anything: without something to
-// compare the detected registrar/nameservers against, there is nothing to
-// flag as mismatched. Added here as manual fields for exactly that purpose.
+// admin/dev-notes-page.php. expected_registrar/expected_dns_provider are
+// needed to make the "mismatch display" requirement mean anything:
+// without something to compare the detected registrar/nameservers
+// against, there is nothing to flag as mismatched. registrar_url is
+// different from the detected registrar's public website shown in
+// Auto-Detected - it's a direct link to this specific site's registrar
+// account/portal (e.g. a client's GoDaddy account login), which no
+// public lookup can determine, so it stays a manual field.
 function lumn_ut_dev_notes_profile_fields() {
     return array(
         'client_name' => 'text',
@@ -278,6 +281,7 @@ function lumn_ut_dev_notes_profile_fields() {
         'marketer_partner' => 'text',
         'registrar_account_owner' => 'text',
         'expected_registrar' => 'text',
+        'registrar_url' => 'url',
         'expected_dns_provider' => 'text',
         'primary_contact' => 'text',
         'primary_contact_email' => 'email',
@@ -304,6 +308,9 @@ function lumn_ut_dev_notes_sanitize_profile_input($input) {
         switch ($type) {
             case 'email':
                 $out[$key] = sanitize_email($raw);
+                break;
+            case 'url':
+                $out[$key] = esc_url_raw($raw);
                 break;
             case 'textarea':
                 $out[$key] = sanitize_textarea_field($raw);
@@ -414,10 +421,10 @@ function lumn_ut_dev_notes_handle_import_profile() {
 // ---------------------------------------------------------------------
 // Site profile - auto-detected fields
 //
-// Never run on page load - every one of these lookups can hang (a slow
-// resolver, an SSL handshake against a domain mid-migration, RDAP being
-// briefly down). All four run together in a single daily cron event, and
-// each is wrapped so one failing doesn't take the others down with it.
+// Never run on page load - a DNS lookup or RDAP request can hang (a slow
+// resolver, RDAP being briefly down, or a domain mid-migration). All
+// three groups run together in a single daily cron event, and each is
+// wrapped so one failing doesn't take the others down with it.
 // ---------------------------------------------------------------------
 
 function lumn_ut_dev_notes_schedule_cron() {
@@ -477,7 +484,6 @@ function lumn_ut_dev_notes_run_detection() {
 
     if ($domain === '') {
         $detected['dns'] = array('success' => false, 'checked_at' => $now, 'error' => __('No domain to look up.', 'lumn-utilities'));
-        $detected['ssl'] = array('success' => false, 'checked_at' => $now, 'error' => __('No domain to look up.', 'lumn-utilities'));
         $detected['registrar'] = array('success' => false, 'checked_at' => $now, 'error' => __('No domain to look up.', 'lumn-utilities'));
         update_option(LUMN_UT_DEV_NOTES_DETECTED_OPTION, $detected, false);
         return $detected;
@@ -498,16 +504,6 @@ function lumn_ut_dev_notes_run_detection() {
     }
 
     try {
-        $detected['ssl'] = array(
-            'success' => true,
-            'checked_at' => $now,
-            'data' => lumn_ut_dev_notes_detect_ssl($domain),
-        );
-    } catch (\Throwable $e) {
-        $detected['ssl'] = array('success' => false, 'checked_at' => $now, 'error' => $e->getMessage());
-    }
-
-    try {
         $detected['registrar'] = array(
             'success' => true,
             'checked_at' => $now,
@@ -521,58 +517,11 @@ function lumn_ut_dev_notes_run_detection() {
     return $detected;
 }
 
-// Reads the peer certificate via a raw TLS handshake (a stream context,
-// not a full HTTP request) - a 5 second connect timeout so a stalled
-// handshake against a domain mid-migration can't hang the caller.
-function lumn_ut_dev_notes_detect_ssl($domain) {
-    $context = stream_context_create(array(
-        'ssl' => array(
-            'capture_peer_cert' => true,
-            'verify_peer' => false,
-            'verify_peer_name' => false,
-        ),
-    ));
-
-    $client = @stream_socket_client(
-        'ssl://' . $domain . ':443',
-        $errno,
-        $errstr,
-        5,
-        STREAM_CLIENT_CONNECT,
-        $context
-    );
-
-    if (!$client) {
-        throw new \Exception($errstr !== '' ? $errstr : __('Unable to open a TLS connection.', 'lumn-utilities'));
-    }
-
-    $params = stream_context_get_params($client);
-    fclose($client);
-
-    if (empty($params['options']['ssl']['peer_certificate'])) {
-        throw new \Exception(__('No certificate was returned.', 'lumn-utilities'));
-    }
-
-    $cert = openssl_x509_parse($params['options']['ssl']['peer_certificate']);
-    if (!$cert) {
-        throw new \Exception(__('The certificate could not be parsed.', 'lumn-utilities'));
-    }
-
-    $issuer = '';
-    if (!empty($cert['issuer']['O'])) {
-        $issuer = $cert['issuer']['O'];
-    } elseif (!empty($cert['issuer']['CN'])) {
-        $issuer = $cert['issuer']['CN'];
-    }
-
-    return array(
-        'issuer' => $issuer,
-        'expires_at' => isset($cert['validTo_time_t']) ? (int) $cert['validTo_time_t'] : null,
-    );
-}
-
 // RDAP - https://rdap.org/domain/{domain}, JSON, no auth/API key. A 5s
-// timeout via wp_remote_get()'s own args, per the spec.
+// timeout via wp_remote_get()'s own args. Only the registrar's name and
+// (when RDAP happens to publish one) its public website are extracted -
+// no domain-expiry data is kept here, since that isn't shown anywhere on
+// this page.
 function lumn_ut_dev_notes_detect_registrar($domain) {
     $response = wp_remote_get('https://rdap.org/domain/' . rawurlencode($domain), array('timeout' => 5));
 
@@ -597,6 +546,8 @@ function lumn_ut_dev_notes_detect_registrar($domain) {
     }
 
     $registrar = '';
+    $website = '';
+
     if (!empty($body['entities']) && is_array($body['entities'])) {
         foreach ($body['entities'] as $entity) {
             if (empty($entity['roles']) || !in_array('registrar', (array) $entity['roles'], true)) {
@@ -604,8 +555,16 @@ function lumn_ut_dev_notes_detect_registrar($domain) {
             }
             if (!empty($entity['vcardArray'][1]) && is_array($entity['vcardArray'][1])) {
                 foreach ($entity['vcardArray'][1] as $vcard_row) {
-                    if (isset($vcard_row[0], $vcard_row[3]) && $vcard_row[0] === 'fn') {
+                    if (!isset($vcard_row[0], $vcard_row[3])) {
+                        continue;
+                    }
+                    if ($vcard_row[0] === 'fn') {
                         $registrar = (string) $vcard_row[3];
+                    } elseif ($vcard_row[0] === 'url' && is_string($vcard_row[3]) && $vcard_row[3] !== '') {
+                        // Not every registry's RDAP output includes this -
+                        // when it's missing, $website just stays '' and
+                        // the UI shows the registrar name without a link.
+                        $website = $vcard_row[3];
                     }
                 }
             }
@@ -613,19 +572,9 @@ function lumn_ut_dev_notes_detect_registrar($domain) {
         }
     }
 
-    $domain_expiry = null;
-    if (!empty($body['events']) && is_array($body['events'])) {
-        foreach ($body['events'] as $event) {
-            if (!empty($event['eventAction']) && $event['eventAction'] === 'expiration' && !empty($event['eventDate'])) {
-                $timestamp = strtotime($event['eventDate']);
-                $domain_expiry = $timestamp ?: null;
-            }
-        }
-    }
-
     return array(
         'registrar' => $registrar,
-        'domain_expiry' => $domain_expiry,
+        'website' => $website,
     );
 }
 
@@ -709,7 +658,10 @@ function lumn_ut_dev_notes_rest_refresh_profile($request) {
 }
 
 // ---------------------------------------------------------------------
-// Rules for making changes - single standing record.
+// Site Notes (formerly "Rules for Making Changes") - single standing
+// record. Internal names below still say "rules" (note_type, hook names,
+// meta keys) - only the label shown on the Developers page changed, to
+// reflect its now more general purpose.
 // ---------------------------------------------------------------------
 
 function lumn_ut_dev_notes_get_rules() {
@@ -734,9 +686,9 @@ function lumn_ut_dev_notes_handle_save_rules() {
     }
     check_admin_referer('lumn_ut_dn_save_rules');
 
-    $post_id = lumn_ut_dev_notes_get_or_create_singleton_post('rules', __('Rules for Making Changes', 'lumn-utilities'));
+    $post_id = lumn_ut_dev_notes_get_or_create_singleton_post('rules', __('Site Notes', 'lumn-utilities'));
     if (!$post_id) {
-        lumn_ut_dev_notes_redirect('', __('The rules panel could not be saved.', 'lumn-utilities'));
+        lumn_ut_dev_notes_redirect('', __('The Site Notes panel could not be saved.', 'lumn-utilities'));
     }
 
     $content = isset($_POST['content']) ? wp_kses_post(wp_unslash($_POST['content'])) : '';

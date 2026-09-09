@@ -9,7 +9,7 @@ namespace Lumn\Utilities;
  * used for the Practice Locations page (admin/locations-page.php +
  * register/locations.php).
  *
- * Three tabs (Step 6):
+ * Seven tabs:
  * - Dashboard (default): a consolidated, read-only view of what this site
  *   is actually configured to do, sourced entirely from
  *   lumn_ut_tracking_get_full_config() - never a second copy of any
@@ -17,6 +17,12 @@ namespace Lumn\Utilities;
  * - Configure Tracking: the full settings form (unchanged from Steps 1-5,
  *   now including the Step 6 Per-Event Controls and Global URL Exclusions
  *   sections registered elsewhere).
+ * - Debugger / Event Catalog / Health Check / GTM Guide: the former
+ *   standalone "Tracking Debugger" admin page, folded in here as tabs so
+ *   every LUMN tracking feature lives under one "SEO & Tracking" menu
+ *   item. Rendered by admin/tracking-debugger-page.php, which still owns
+ *   the debugger/catalog/health/gtm markup and logic; only the page
+ *   shell (menu entry, tab nav, URL slug) moved.
  * - Import / Export: config portability between LUMN sites.
  */
 
@@ -25,13 +31,13 @@ function lumn_ut_tracking_page_callback() {
         wp_die(esc_html__('You do not have permission to access this page.', 'lumn-utilities'));
     }
 
-    $valid_tabs = array('dashboard', 'configure', 'importexport');
+    $valid_tabs = array('dashboard', 'configure', 'debugger', 'catalog', 'health', 'gtm', 'importexport');
     $tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'dashboard';
     if (!in_array($tab, $valid_tabs, true)) {
         $tab = 'dashboard';
     }
 
-    echo '<div class="lumn-ut-admin-settings-wrap wrap lumn-ut-tracking-page">';
+    echo '<div class="lumn-ut-admin-settings-wrap wrap lumn-ut-tracking-page lumn-ut-tracking-debugger-page">';
     lumn_ut_render_admin_header(__('Opt-in event tracking and SEO tooling. Everything here is off until you turn it on.', 'lumn-utilities'));
 
     lumn_ut_render_tracking_notices();
@@ -40,6 +46,18 @@ function lumn_ut_tracking_page_callback() {
     switch ($tab) {
         case 'configure':
             lumn_ut_render_tracking_configure_tab();
+            break;
+        case 'debugger':
+            lumn_ut_render_debugger_tab();
+            break;
+        case 'catalog':
+            lumn_ut_render_catalog_tab();
+            break;
+        case 'health':
+            lumn_ut_render_health_tab();
+            break;
+        case 'gtm':
+            lumn_ut_render_gtm_tab();
             break;
         case 'importexport':
             lumn_ut_render_tracking_importexport_tab();
@@ -56,6 +74,10 @@ function lumn_ut_render_tracking_tab_nav($active) {
     $tabs = array(
         'dashboard' => __('Dashboard', 'lumn-utilities'),
         'configure' => __('Configure Tracking', 'lumn-utilities'),
+        'debugger' => __('Debugger', 'lumn-utilities'),
+        'catalog' => __('Event Catalog', 'lumn-utilities'),
+        'health' => __('Health Check', 'lumn-utilities'),
+        'gtm' => __('GTM Guide', 'lumn-utilities'),
         'importexport' => __('Import / Export', 'lumn-utilities'),
     );
 
@@ -131,9 +153,9 @@ function lumn_ut_render_tracking_dashboard_tab() {
     lumn_ut_render_configuration_summary();
 
     $configure_url = add_query_arg(array('page' => LUMN_UT_TRACKING_PAGE_SLUG, 'tab' => 'configure'), admin_url('admin.php'));
-    $debugger_url = admin_url('admin.php?page=' . LUMN_UT_TRACKING_DEBUGGER_PAGE_SLUG);
-    $catalog_url = add_query_arg(array('page' => LUMN_UT_TRACKING_DEBUGGER_PAGE_SLUG, 'tab' => 'catalog'), admin_url('admin.php'));
-    $health_url = add_query_arg(array('page' => LUMN_UT_TRACKING_DEBUGGER_PAGE_SLUG, 'tab' => 'health'), admin_url('admin.php'));
+    $debugger_url = add_query_arg(array('page' => LUMN_UT_TRACKING_PAGE_SLUG, 'tab' => 'debugger'), admin_url('admin.php'));
+    $catalog_url = add_query_arg(array('page' => LUMN_UT_TRACKING_PAGE_SLUG, 'tab' => 'catalog'), admin_url('admin.php'));
+    $health_url = add_query_arg(array('page' => LUMN_UT_TRACKING_PAGE_SLUG, 'tab' => 'health'), admin_url('admin.php'));
 
     echo '<p class="lumn-ut-dashboard-actions">';
     echo '<a class="button button-primary" href="' . esc_url($configure_url) . '">' . esc_html__('Configure Tracking', 'lumn-utilities') . '</a> ';
@@ -319,10 +341,10 @@ function lumn_ut_render_tracking_intro() {
 
     echo '<p>' . esc_html__('See docs/TRACKING.md in the plugin for the full developer specification: automatic vs. explicit detection, supported data-lumn-* attributes, event naming convention, standard parameters, the feature-flag API, tracking overrides/exclusions, and recommended GTM triggers for each event.', 'lumn-utilities') . '</p>';
 
-    $debugger_url = admin_url('admin.php?page=' . LUMN_UT_TRACKING_DEBUGGER_PAGE_SLUG);
+    $debugger_url = add_query_arg(array('page' => LUMN_UT_TRACKING_PAGE_SLUG, 'tab' => 'debugger'), admin_url('admin.php'));
     $dashboard_url = admin_url('admin.php?page=' . LUMN_UT_TRACKING_PAGE_SLUG);
     echo '<p>' . sprintf(
-        /* translators: 1: link to the Dashboard tab, 2: link to the Tracking Debugger admin page */
+        /* translators: 1: link to the Dashboard tab, 2: link to the Debugger tab */
         esc_html__('Want a plain-language summary of what this site is currently set up to do? See the %1$s. Need to see events as they happen, browse every event in one place, or check this site\'s tracking configuration? Visit %2$s.', 'lumn-utilities'),
         '<a href="' . esc_url($dashboard_url) . '">' . esc_html__('Dashboard', 'lumn-utilities') . '</a>',
         '<a href="' . esc_url($debugger_url) . '">' . esc_html__('Tracking Debugger', 'lumn-utilities') . '</a>'
