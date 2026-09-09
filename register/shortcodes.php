@@ -43,6 +43,23 @@ function lumn_ut_location_field_shortcode($field_key, $atts) {
     }
 }
 
+// Define the [lumn_location_name] shortcode - the "Location Name" field
+// (internal label, e.g. "Downtown Office"). No legacy fallback: pre-locations
+// installs never had this field, so an unresolved reference returns ''.
+function lumn_ut_location_name_shortcode( $atts = '' ) {
+    return lumn_ut_location_field_shortcode('name', $atts);
+}
+add_shortcode('lumn_location_name', 'Lumn\Utilities\lumn_ut_location_name_shortcode');
+
+// Define the [lumn_practice_name] shortcode - the location's "Practice /
+// Display Name" field, the patient-facing name. Falls back to the legacy
+// lumn_site_name option (same value [lumn_site_name] reads) when no
+// locations exist yet, via the legacy option map in register/locations.php.
+function lumn_ut_practice_name_shortcode( $atts = '' ) {
+    return lumn_ut_location_field_shortcode('practice_name', $atts);
+}
+add_shortcode('lumn_practice_name', 'Lumn\Utilities\lumn_ut_practice_name_shortcode');
+
 // Define the [lumn_call] shortcode
 function lumn_ut_call_shortcode( $atts = '' ) {
     return lumn_ut_location_field_shortcode('phone', $atts);
