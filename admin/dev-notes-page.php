@@ -61,7 +61,7 @@ function lumn_ut_dev_notes_render_notices() {
     $messages = array(
         'profile_saved' => __('Profile saved.', 'lumn-utilities'),
         'profile_imported' => __('Profile imported.', 'lumn-utilities'),
-        'rules_saved' => __('Rules for making changes saved.', 'lumn-utilities'),
+        'rules_saved' => __('Site notes saved.', 'lumn-utilities'),
         'dependency_saved' => __('Dependency saved.', 'lumn-utilities'),
         'dependency_deleted' => __('Dependency removed.', 'lumn-utilities'),
         'issue_saved' => __('Issue saved.', 'lumn-utilities'),
@@ -87,6 +87,7 @@ function lumn_ut_dev_notes_profile_field_labels() {
         'marketer_partner' => __('Marketer Partner', 'lumn-utilities'),
         'registrar_account_owner' => __('Registrar Account Owner', 'lumn-utilities'),
         'expected_registrar' => __('Expected Registrar', 'lumn-utilities'),
+        'registrar_url' => __('Registrar URL', 'lumn-utilities'),
         'expected_dns_provider' => __('Expected DNS Provider', 'lumn-utilities'),
         'primary_contact' => __('Primary Contact', 'lumn-utilities'),
         'primary_contact_email' => __('Primary Contact Email', 'lumn-utilities'),
@@ -128,6 +129,8 @@ function lumn_ut_dev_notes_render_profile_card() {
             }
         } elseif ($type === 'email') {
             echo '<a href="' . esc_url('mailto:' . $profile[$key]) . '">' . esc_html($profile[$key]) . '</a>';
+        } elseif ($type === 'url') {
+            echo '<a href="' . esc_url($profile[$key]) . '" target="_blank" rel="noopener noreferrer">' . esc_html($profile[$key]) . '</a>';
         } elseif ($type === 'textarea') {
             echo '<span class="lumn-ut-dn-field-value lumn-ut-dn-field-value-multiline">' . nl2br(esc_html($profile[$key])) . '</span>';
         } else {
@@ -157,6 +160,9 @@ function lumn_ut_dev_notes_render_profile_card() {
                 break;
             case 'email':
                 echo '<input type="email" id="lumn-ut-dn-' . esc_attr($key) . '" name="' . esc_attr($key) . '" value="' . esc_attr($value) . '" class="regular-text" />';
+                break;
+            case 'url':
+                echo '<input type="url" id="lumn-ut-dn-' . esc_attr($key) . '" name="' . esc_attr($key) . '" value="' . esc_attr($value) . '" class="regular-text" placeholder="' . esc_attr__('https://…', 'lumn-utilities') . '" />';
                 break;
             case 'hubspot_id':
                 echo '<input type="text" inputmode="numeric" pattern="[0-9]*" id="lumn-ut-dn-' . esc_attr($key) . '" name="' . esc_attr($key) . '" value="' . esc_attr($value) . '" class="regular-text" placeholder="' . esc_attr__('e.g. 13645415015', 'lumn-utilities') . '" />';
@@ -190,8 +196,6 @@ function lumn_ut_dev_notes_render_detected_fields($detected, $mismatches) {
     $groups = array(
         'core' => __('WordPress / PHP / Theme', 'lumn-utilities'),
         'dns' => __('Nameservers', 'lumn-utilities'),
-        'ssl' => __('SSL Certificate', 'lumn-utilities'),
-        'registrar' => __('Registrar / Domain Expiry', 'lumn-utilities'),
     );
 
     echo '<table class="widefat striped lumn-ut-dn-detected-table"><tbody>';
@@ -299,32 +303,6 @@ function lumn_ut_dev_notes_render_detected_group_value($group_key, $data) {
         return $nameservers ? esc_html(implode(', ', $nameservers)) : esc_html__('No nameservers returned.', 'lumn-utilities');
     }
 
-    if ($group_key === 'ssl') {
-        $issuer = isset($data['issuer']) ? $data['issuer'] : '';
-        $expires = isset($data['expires_at']) && $data['expires_at'] ? date_i18n(get_option('date_format'), (int) $data['expires_at']) : __('unknown', 'lumn-utilities');
-        return esc_html(
-            sprintf(
-                /* translators: 1: certificate issuer, 2: expiry date */
-                __('Issued by %1$s, expires %2$s', 'lumn-utilities'),
-                $issuer !== '' ? $issuer : __('unknown', 'lumn-utilities'),
-                $expires
-            )
-        );
-    }
-
-    if ($group_key === 'registrar') {
-        $registrar = isset($data['registrar']) ? $data['registrar'] : '';
-        $expiry = isset($data['domain_expiry']) && $data['domain_expiry'] ? date_i18n(get_option('date_format'), (int) $data['domain_expiry']) : __('unknown', 'lumn-utilities');
-        return esc_html(
-            sprintf(
-                /* translators: 1: registrar name, 2: domain expiry date */
-                __('%1$s, expires %2$s', 'lumn-utilities'),
-                $registrar !== '' ? $registrar : __('unknown', 'lumn-utilities'),
-                $expiry
-            )
-        );
-    }
-
     return '';
 }
 
@@ -346,14 +324,14 @@ function lumn_ut_dev_notes_render_profile_export_import() {
 }
 
 // ---------------------------------------------------------------------
-// Rules for making changes
+// Site Notes (formerly "Rules for Making Changes")
 // ---------------------------------------------------------------------
 
 function lumn_ut_dev_notes_render_rules_panel() {
     $rules = lumn_ut_dev_notes_get_rules();
 
     echo '<div class="lumn-ut-dn-card lumn-ut-dn-rules-panel">';
-    echo '<div class="lumn-ut-dn-card-header"><h2>' . esc_html__('Rules for Making Changes', 'lumn-utilities') . '</h2>';
+    echo '<div class="lumn-ut-dn-card-header"><h2>' . esc_html__('Site Notes', 'lumn-utilities') . '</h2>';
     echo '<button type="button" class="button lumn-ut-dn-edit-toggle">' . esc_html__('Edit', 'lumn-utilities') . '</button>';
     echo '</div>';
 
@@ -370,7 +348,7 @@ function lumn_ut_dev_notes_render_rules_panel() {
 
     echo '<div class="lumn-ut-dn-view">';
     if (trim(wp_strip_all_tags($rules['content'])) === '') {
-        echo '<p class="lumn-ut-dn-empty-state">' . esc_html__('No standing rules recorded yet. Click Edit to write down anything a developer must not touch, and why.', 'lumn-utilities') . '</p>';
+        echo '<p class="lumn-ut-dn-empty-state">' . esc_html__('No site notes recorded yet. Click Edit to write down anything worth knowing about this site.', 'lumn-utilities') . '</p>';
     } else {
         echo '<div class="lumn-ut-dn-richtext">' . wp_kses_post(wpautop($rules['content'])) . '</div>';
     }
@@ -380,7 +358,7 @@ function lumn_ut_dev_notes_render_rules_panel() {
     wp_nonce_field('lumn_ut_dn_save_rules');
     echo '<input type="hidden" name="action" value="lumn_ut_dn_save_rules" />';
     echo '<textarea name="content" rows="8" class="large-text">' . esc_textarea($rules['content']) . '</textarea>';
-    submit_button(__('Save Rules', 'lumn-utilities'), 'primary', 'submit', false);
+    submit_button(__('Save Notes', 'lumn-utilities'), 'primary', 'submit', false);
     echo ' <button type="button" class="button lumn-ut-dn-edit-cancel">' . esc_html__('Cancel', 'lumn-utilities') . '</button>';
     echo '</form>';
 
