@@ -196,6 +196,7 @@ function lumn_ut_dev_notes_render_detected_fields($detected, $mismatches) {
     $groups = array(
         'core' => __('WordPress / PHP / Theme', 'lumn-utilities'),
         'dns' => __('Nameservers', 'lumn-utilities'),
+        'registrar' => __('Registrar', 'lumn-utilities'),
     );
 
     echo '<table class="widefat striped lumn-ut-dn-detected-table"><tbody>';
@@ -301,6 +302,23 @@ function lumn_ut_dev_notes_render_detected_group_value($group_key, $data) {
     if ($group_key === 'dns') {
         $nameservers = isset($data['nameservers']) ? (array) $data['nameservers'] : array();
         return $nameservers ? esc_html(implode(', ', $nameservers)) : esc_html__('No nameservers returned.', 'lumn-utilities');
+    }
+
+    if ($group_key === 'registrar') {
+        $registrar = isset($data['registrar']) ? $data['registrar'] : '';
+        $website = isset($data['website']) ? $data['website'] : '';
+
+        if ($registrar === '') {
+            return esc_html__('unknown', 'lumn-utilities');
+        }
+
+        $out = esc_html($registrar);
+        if ($website !== '') {
+            // RDAP doesn't always publish the registrar's own website -
+            // when it does, link to it; otherwise just show the name.
+            $out .= ' &mdash; <a href="' . esc_url($website) . '" target="_blank" rel="noopener noreferrer">' . esc_html__('Website', 'lumn-utilities') . '</a>';
+        }
+        return $out;
     }
 
     return '';
