@@ -177,8 +177,8 @@ function lumn_ut_render_location_form($location) {
     echo '<input type="hidden" name="location_id" value="' . esc_attr($is_edit ? $location['id'] : '') . '" />';
 
     echo '<table class="form-table">';
-    lumn_ut_location_field_row('name', __('Location Name', 'lumn-utilities'), $location['name'], 'text', __('e.g. Downtown Office (internal label)', 'lumn-utilities'));
-    lumn_ut_location_field_row('practice_name', __('Practice / Display Name', 'lumn-utilities'), $location['practice_name'], 'text', __('Name shown to patients', 'lumn-utilities'));
+    lumn_ut_location_field_row('name', __('Location Name', 'lumn-utilities'), $location['name'], 'text', __('e.g. Downtown Office (internal label)', 'lumn-utilities'), $shortcode_hint('lumn_location_name'));
+    lumn_ut_location_field_row('practice_name', __('Practice / Display Name', 'lumn-utilities'), $location['practice_name'], 'text', __('Name shown to patients', 'lumn-utilities'), $shortcode_hint('lumn_practice_name'));
     lumn_ut_location_field_row('address_street', __('Street Address', 'lumn-utilities'), $location['address_street'], 'text', '123 Elm St.', $shortcode_hint('lumn_address_street'));
     lumn_ut_location_field_row('address_street2', __('Street Address Line 2', 'lumn-utilities'), $location['address_street2'], 'text', 'Apt 4B', $shortcode_hint('lumn_address_street2'));
     lumn_ut_location_field_row('address_city', __('City', 'lumn-utilities'), $location['address_city'], 'text', __('Example City', 'lumn-utilities'), $shortcode_hint('lumn_address_city'));
