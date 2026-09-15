@@ -369,21 +369,28 @@ function lumn_ut_dev_notes_profile_defaults() {
 /**
  * Options for the two dropdown fields.
  *
- * NOTE: these lists are placeholders. The canonical tier and partner names
- * live in `Scripts & Automations.md`, which wasn't available when this was
- * built - confirm them before this reaches a client site. They are
- * filterable so a correction is a one-liner in a site's own code rather
- * than a plugin release, and lumn_ut_dev_notes_profile_select_options()
- * below always keeps whatever is already stored as a valid choice, so
- * changing this list can never silently discard existing data.
+ * client_tier is what we do for this client, in ascending order of
+ * engagement: hosting alone, hosting plus maintenance, or the full CMO
+ * relationship. It is not a quality rating - a Hosting Only site is not a
+ * worse site, it is a smaller engagement - which matters downstream,
+ * since the tier bounds what a Track B finding can reasonably be acted
+ * on. Values confirmed with Liz.
+ *
+ * NOTE: marketer_partner is still a placeholder - confirm those names
+ * before this reaches a client site.
+ *
+ * Both lists are filterable, so a correction is a one-liner in a site's
+ * own code rather than a plugin release, and
+ * lumn_ut_dev_notes_profile_select_options() below always keeps whatever
+ * is already stored as a valid choice, so changing a list can never
+ * silently discard existing data.
  */
 function lumn_ut_dev_notes_profile_field_options($key) {
     $options = array(
         'client_tier' => array(
-            'platinum' => __('Platinum', 'lumn-utilities'),
-            'gold' => __('Gold', 'lumn-utilities'),
-            'silver' => __('Silver', 'lumn-utilities'),
-            'bronze' => __('Bronze', 'lumn-utilities'),
+            'hosting_only' => __('Hosting Only', 'lumn-utilities'),
+            'hosting_maintenance' => __('Hosting & Maintenance', 'lumn-utilities'),
+            'cmo' => __('CMO', 'lumn-utilities'),
         ),
         'marketer_partner' => array(
             'none' => __('None - LUMN direct', 'lumn-utilities'),
