@@ -209,6 +209,22 @@ function lumn_ut_fleet_render_card() {
     if (!$ready) {
         echo '<p class="lumn-ut-dn-field-row"><strong>' . esc_html__('Off.', 'lumn-utilities') . '</strong> ' . esc_html($problem) . '</p>';
         echo '<p class="description">' . esc_html__('Nothing is being sent from this site.', 'lumn-utilities') . '</p>';
+
+        // Anything already defined but wrong needs the existing line
+        // edited, so it is called out separately from the paste block.
+        foreach (lumn_ut_fleet_wp_config_warnings() as $warning) {
+            echo '<div class="notice notice-warning inline"><p>' . esc_html($warning) . '</p></div>';
+        }
+
+        $snippet = lumn_ut_fleet_wp_config_snippet();
+        if ($snippet !== '') {
+            echo '<p class="lumn-ut-dn-field-row"><span class="lumn-ut-dn-field-label">' . esc_html__('Add to wp-config.php', 'lumn-utilities') . '</span></p>';
+            echo '<pre class="lumn-ut-dn-fleet-snippet">' . esc_html($snippet) . '</pre>';
+            echo '<p>' . lumn_ut_render_copy_button($snippet) . '</p>';
+            echo '<p class="description">' . esc_html__('Paste above the "That\'s all, stop editing!" line. The same key must also be registered against this site id in the collector - it is one half of a pair, and neither half works alone.', 'lumn-utilities') . '</p>';
+            echo '<p class="description">' . esc_html__('Nothing here is saved. The key is generated fresh each time this page loads, so copy the one you paste.', 'lumn-utilities') . '</p>';
+        }
+
         echo '</div>';
         return;
     }

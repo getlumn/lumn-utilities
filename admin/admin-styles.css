@@ -836,3 +836,18 @@ form.lumn-ut-dn-hidden-form.lumn-ut-dn-visible {
 	color: #646970;
 	font-size: 12px;
 }
+
+/* The wp-config block on the Fleet Reporting card. Monospace and
+   scrollable rather than wrapped - a wrapped define() line is hard to
+   read and easy to mis-copy by hand. */
+.lumn-ut-dn-fleet-snippet {
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+	padding: 10px 12px;
+	margin: 4px 0 8px;
+	font-size: 12px;
+	line-height: 1.6;
+	overflow-x: auto;
+	white-space: pre;
+}

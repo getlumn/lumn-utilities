@@ -99,6 +99,111 @@ function lumn_ut_fleet_is_ready() {
 }
 
 // ---------------------------------------------------------------------
+// wp-config.php helper
+//
+// Turning the reporter on means getting three constants right and copying
+// a 64-character key into two places that must match exactly. The
+// Developers page renders the block below so that is a paste rather than
+// a transcription.
+// ---------------------------------------------------------------------
+
+/**
+ * A site id derived from this site's host, conforming to the pattern the
+ * receiver enforces: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+ *
+ * Built to that pattern rather than hoping a hostname happens to match,
+ * so a suggestion can never be rejected on arrival.
+ */
+function lumn_ut_fleet_suggested_site_id() {
+    $host = wp_parse_url(home_url(), PHP_URL_HOST);
+    $host = is_string($host) ? $host : '';
+
+    $id = preg_replace('/[^A-Za-z0-9._-]/', '-', $host);
+    // The first character must be alphanumeric; everything else was
+    // already replaced above, so trimming these is enough.
+    $id = ltrim($id, '._-');
+    $id = substr($id, 0, 64);
+
+    return $id !== '' ? $id : 'lumn-site';
+}
+
+/**
+ * The wp-config.php block for whatever is still missing on this site.
+ *
+ * Only ever emits `define()` lines for constants that are NOT DEFINED AT
+ * ALL, so the block is always safe to paste: redefining a constant would
+ * raise a PHP warning on every request. A constant that is defined but
+ * wrong is reported by lumn_ut_fleet_wp_config_warnings() instead, since
+ * that needs an edit rather than an addition.
+ *
+ * The key is generated fresh on every call and STORED NOWHERE - not an
+ * option, not a transient. It only becomes real once it is pasted into
+ * wp-config.php and registered against this site id in the receiver, so
+ * an unused one is inert. Reloading the page simply produces another.
+ *
+ * wp_generate_password(..., false) is alphanumeric: a key containing a
+ * quote would break the PHP string literal it gets pasted into.
+ *
+ * Returns '' when nothing is missing.
+ */
+function lumn_ut_fleet_wp_config_snippet() {
+    $lines = array();
+
+    if (!defined('LUMN_FLEET_REPORTER_ENABLED')) {
+        $lines[] = "define( 'LUMN_FLEET_REPORTER_ENABLED', true );";
+    }
+
+    if (!defined('LUMN_FLEET_REPORTER_URL')) {
+        $lines[] = "// The receiver's ROOT path - any path segment returns 405.";
+        $lines[] = "define( 'LUMN_FLEET_REPORTER_URL',     'https://REPLACE-WITH-YOUR-RECEIVER.workers.dev/' );";
+    }
+
+    if (!defined('LUMN_FLEET_REPORTER_KEY')) {
+        $lines[] = "define( 'LUMN_FLEET_REPORTER_KEY',     '" . wp_generate_password(64, false) . "' );";
+    }
+
+    if (!defined('LUMN_FLEET_SITE_ID')) {
+        $lines[] = "define( 'LUMN_FLEET_SITE_ID',          '" . lumn_ut_fleet_suggested_site_id() . "' );";
+    }
+
+    return implode("\n", $lines);
+}
+
+/**
+ * Constants that are already defined but will not work as set.
+ *
+ * These cannot be fixed by pasting: the existing line has to change, and
+ * adding a second define() for the same constant would warn on every
+ * request. Kept separate from the snippet for exactly that reason.
+ *
+ * The collector-path check is a warning rather than a readiness failure.
+ * The receiver serves POST / only, so a path 405s - but refusing to send
+ * over it would be the reporter overruling a deployment it cannot see,
+ * and the log records the 405 plainly enough. Say it loudly, send anyway.
+ */
+function lumn_ut_fleet_wp_config_warnings() {
+    $warnings = array();
+
+    if (defined('LUMN_FLEET_REPORTER_ENABLED') && LUMN_FLEET_REPORTER_ENABLED !== true) {
+        $warnings[] = __('LUMN_FLEET_REPORTER_ENABLED is defined but is not boolean true - a quoted \'true\' or a 1 does not count. Edit the existing line.', 'lumn-utilities');
+    }
+
+    $url = lumn_ut_fleet_collector_url();
+    if ($url !== '') {
+        if (!preg_match('#^https://#i', $url)) {
+            $warnings[] = __('LUMN_FLEET_REPORTER_URL is not https. Nothing will be sent.', 'lumn-utilities');
+        }
+
+        $path = wp_parse_url($url, PHP_URL_PATH);
+        if (is_string($path) && $path !== '' && $path !== '/') {
+            $warnings[] = __('LUMN_FLEET_REPORTER_URL has a path. The receiver serves its root only, so this will come back 405 - drop everything after the host.', 'lumn-utilities');
+        }
+    }
+
+    return $warnings;
+}
+
+// ---------------------------------------------------------------------
 // Payload
 // ---------------------------------------------------------------------
 

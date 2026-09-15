@@ -38,20 +38,31 @@ Add to `wp-config.php`, above the `/* That's all, stop editing! */` line:
 
 ```php
 define( 'LUMN_FLEET_REPORTER_ENABLED', true );
-define( 'LUMN_FLEET_REPORTER_URL',     'https://collector.example.com/ingest' );
-define( 'LUMN_FLEET_REPORTER_KEY',     '...64+ random characters, unique per site...' );
+define( 'LUMN_FLEET_REPORTER_URL',     'https://lumn-fleet-receiver-test.example.workers.dev/' );
+define( 'LUMN_FLEET_REPORTER_KEY',     '...64 random characters, unique per site...' );
 define( 'LUMN_FLEET_SITE_ID',          'practice-name-01' );
 ```
 
 | Constant | Required | Notes |
 | :- | :- | :- |
-| `LUMN_FLEET_REPORTER_ENABLED` | yes | Must be boolean `true`. Anything else is off. |
-| `LUMN_FLEET_REPORTER_URL` | yes | **Must be `https`.** A plaintext URL is refused, not warned about — the payload carries owner names, email addresses and the tech's own notes. |
-| `LUMN_FLEET_REPORTER_KEY` | yes | Unique per site. Generate with `wp eval 'echo wp_generate_password(64, false);'`. |
-| `LUMN_FLEET_SITE_ID` | no | Falls back to the site's hostname. Set it explicitly if the domain might change. |
+| `LUMN_FLEET_REPORTER_ENABLED` | yes | Must be boolean `true`. A quoted `'true'` or a `1` is **not** — the check is `=== true`, so anything else leaves the reporter silently off. |
+| `LUMN_FLEET_REPORTER_URL` | yes | **Must be `https`**, and must point at the receiver's **root path** — see below. A plaintext URL is refused, not warned about: the payload carries owner names, email addresses and the tech's own notes. |
+| `LUMN_FLEET_REPORTER_KEY` | yes | Unique per site, and must match the value stored for this site id in the receiver's `SITE_KEYS` namespace. Both sides or neither. |
+| `LUMN_FLEET_SITE_ID` | no | Falls back to the site's hostname — which then becomes the key the receiver looks the site up by, and which changes silently if the domain ever does. Worth setting explicitly. |
 
-All four are checked before a single byte leaves the site. The Developers page
-shows which one is missing.
+All of these are checked before a single byte leaves the site, and the Developers
+page shows which one is missing. It also renders a ready-to-paste block with a
+freshly generated key, which is easier than assembling this by hand.
+
+### The URL must be the receiver's root
+
+The receiver serves exactly one route, `POST /`. **Any path segment returns 405**
+and the site logs "Collector responded 405" — so `https://…workers.dev/ingest` is
+wrong and `https://…workers.dev/` is right.
+
+The same applies to a custom domain: map it at the root. A Cloudflare route with a
+path prefix (`getlumn.com/fleet/*`) will 405, because the pathname the Worker sees
+is `/fleet/...`, not `/`.
 
 ## Scheduling
 
