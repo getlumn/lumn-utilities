@@ -324,6 +324,10 @@ function lumn_ut_dev_notes_profile_fields() {
         'client_name' => 'text',
         'client_tier' => 'select',
         'marketer_partner' => 'select',
+        // Only meaningful when marketer_partner is 'other'; the sanitiser
+        // clears it otherwise so a changed selection cannot leave a stale
+        // partner name sitting behind it.
+        'marketer_partner_other' => 'text',
 
         // The practice owner, split so the pipeline and any mail merge get
         // a usable first name rather than having to guess where to cut.
@@ -369,14 +373,14 @@ function lumn_ut_dev_notes_profile_defaults() {
 /**
  * Options for the two dropdown fields.
  *
- * client_tier is what we do for this client, in ascending order of
- * engagement: hosting alone, hosting plus maintenance, or the full CMO
- * relationship. It is not a quality rating - a Hosting Only site is not a
- * worse site, it is a smaller engagement - which matters downstream,
- * since the tier bounds what a Track B finding can reasonably be acted
- * on. Values confirmed with Liz.
+ * marketer_partner names are confirmed. Selecting 'other' is why
+ * marketer_partner_other exists: an option reading "Other (Fill in)" has
+ * to have somewhere to fill in, or it is a dead end. The sanitiser clears
+ * that field whenever the selection is not 'other', so a renamed partner
+ * cannot leave a stale name behind it.
  *
- * NOTE: marketer_partner is still a placeholder - confirm those names
+ * NOTE: client_tier is a placeholder. The canonical names live in
+ * `Scripts & Automations.md`, which still isn't available - confirm them
  * before this reaches a client site.
  *
  * Both lists are filterable, so a correction is a one-liner in a site's
@@ -388,14 +392,15 @@ function lumn_ut_dev_notes_profile_defaults() {
 function lumn_ut_dev_notes_profile_field_options($key) {
     $options = array(
         'client_tier' => array(
-            'hosting_only' => __('Hosting Only', 'lumn-utilities'),
-            'hosting_maintenance' => __('Hosting & Maintenance', 'lumn-utilities'),
-            'cmo' => __('CMO', 'lumn-utilities'),
+            'platinum' => __('Platinum', 'lumn-utilities'),
+            'gold' => __('Gold', 'lumn-utilities'),
+            'silver' => __('Silver', 'lumn-utilities'),
+            'bronze' => __('Bronze', 'lumn-utilities'),
         ),
         'marketer_partner' => array(
-            'none' => __('None - LUMN direct', 'lumn-utilities'),
-            'dentalcmo' => __('DentalCMO', 'lumn-utilities'),
-            'other' => __('Other', 'lumn-utilities'),
+            'prospecta' => __('Prospecta', 'lumn-utilities'),
+            'social_dental_now' => __('Social Dental Now', 'lumn-utilities'),
+            'other' => __('Other (Fill in)', 'lumn-utilities'),
         ),
         // Tri-state on purpose. An unchecked checkbox cannot tell "we do
         // not have access" apart from "nobody has looked yet", and the
@@ -497,6 +502,14 @@ function lumn_ut_dev_notes_sanitize_profile_input($input) {
                 break;
         }
     }
+
+    // A partner name with no 'Other' selection is noise: it would show in
+    // the Sheet next to whichever partner was actually picked. Mirrors how
+    // tech_flag_reason is cleared when the flag is off.
+    if (isset($out['marketer_partner']) && $out['marketer_partner'] !== 'other') {
+        $out['marketer_partner_other'] = '';
+    }
+
     return $out;
 }
 

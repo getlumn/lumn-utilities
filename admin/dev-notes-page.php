@@ -269,6 +269,7 @@ function lumn_ut_dev_notes_profile_field_labels() {
         'client_name' => __('Client Name', 'lumn-utilities'),
         'client_tier' => __('Client Tier', 'lumn-utilities'),
         'marketer_partner' => __('Marketer Partner', 'lumn-utilities'),
+        'marketer_partner_other' => __('Partner Name', 'lumn-utilities'),
         'owner_first_name' => __('Owner First Name', 'lumn-utilities'),
         'owner_last_name' => __('Owner Last Name', 'lumn-utilities'),
         'owner_email' => __('Owner Email', 'lumn-utilities'),
@@ -313,6 +314,10 @@ function lumn_ut_dev_notes_render_profile_card() {
         if ($type !== 'bool' && trim((string) $profile[$key]) === '') {
             continue;
         }
+        // Already shown in place of "Other (Fill in)" on the row above.
+        if ($key === 'marketer_partner_other') {
+            continue;
+        }
         $has_any = true;
         echo '<div class="lumn-ut-dn-field-row"><span class="lumn-ut-dn-field-label">' . esc_html($labels[$key]) . '</span> ';
         if ($type === 'hubspot_id') {
@@ -327,6 +332,11 @@ function lumn_ut_dev_notes_render_profile_card() {
         } elseif ($type === 'select' || $type === 'access') {
             $options = lumn_ut_dev_notes_profile_select_options($key, $profile[$key]);
             $label = isset($options[$profile[$key]]) ? $options[$profile[$key]] : $profile[$key];
+            // "Other (Fill in)" is an instruction to whoever is editing,
+            // not an answer. Once it has been filled in, show the answer.
+            if ($key === 'marketer_partner' && $profile[$key] === 'other' && trim((string) $profile['marketer_partner_other']) !== '') {
+                $label = $profile['marketer_partner_other'];
+            }
             echo '<span class="lumn-ut-dn-field-value">' . esc_html($label) . '</span>';
         } elseif ($type === 'email') {
             echo '<a href="' . esc_url('mailto:' . $profile[$key]) . '">' . esc_html($profile[$key]) . '</a>';
@@ -391,6 +401,9 @@ function lumn_ut_dev_notes_render_profile_card() {
                 break;
             default:
                 echo '<input type="text" id="lumn-ut-dn-' . esc_attr($key) . '" name="' . esc_attr($key) . '" value="' . esc_attr($value) . '" class="regular-text" />';
+                if ($key === 'marketer_partner_other') {
+                    echo '<p class="description">' . esc_html__('Only used when Marketer Partner is set to "Other (Fill in)". Cleared automatically otherwise.', 'lumn-utilities') . '</p>';
+                }
                 break;
         }
         echo '</td></tr>';
