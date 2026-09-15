@@ -116,21 +116,49 @@ function lumn_ut_get_primary_location() {
 }
 
 /**
+ * Reads the ?location= query parameter from the current request, sanitized.
+ * Returns '' when not present. Untrusted input - lumn_ut_resolve_location()
+ * still matches it against real slugs/IDs, and (unlike an explicit but
+ * unmatched shortcode attribute) falls back to the primary location rather
+ * than resolving to nothing when it doesn't match anything real.
+ */
+function lumn_ut_get_location_ref_from_query() {
+    if (!isset($_GET['location'])) {
+        return '';
+    }
+    return sanitize_text_field(wp_unslash($_GET['location']));
+}
+
+/**
  * Resolves a "location" shortcode attribute (blank, "primary", a slug, or a numeric ID).
+ * When $location_ref is blank (the shortcode attribute was omitted), also
+ * checks the ?location= query parameter before falling back to the primary
+ * location - this is what lets a link like ?location=prosper drive every
+ * location-aware shortcode on the page without the attribute being set
+ * explicitly. An explicit attribute always takes precedence over the query
+ * parameter.
  * Returns:
- * - a location array, when $location_ref resolves to one
+ * - a location array, when $location_ref (or the query param) resolves to one
  * - null, when NO locations have been created yet - callers fall back to
  *   the legacy single-practice options in this case
- * - false, when locations exist but $location_ref (a slug/ID that isn't
- *   blank or 'primary') didn't match any of them - deliberately distinct
- *   from null, so an unknown reference resolves to nothing rather than
- *   silently falling back to the legacy options or the primary location.
+ * - false, when locations exist but an EXPLICIT $location_ref (a slug/ID
+ *   passed as the shortcode attribute) didn't match any of them -
+ *   deliberately distinct from null, so an unknown reference resolves to
+ *   nothing rather than silently falling back to the legacy options or the
+ *   primary location. An unmatched query-param value is untrusted visitor
+ *   input rather than an editor mistake, so it falls back to the primary
+ *   location instead of returning false.
  */
 function lumn_ut_resolve_location($location_ref = '') {
     $locations = lumn_ut_get_locations();
 
     if (empty($locations)) {
         return null;
+    }
+
+    $is_explicit = !empty($location_ref);
+    if (!$is_explicit) {
+        $location_ref = lumn_ut_get_location_ref_from_query();
     }
 
     if (empty($location_ref) || $location_ref === 'primary') {
@@ -147,7 +175,7 @@ function lumn_ut_resolve_location($location_ref = '') {
         return $by_slug;
     }
 
-    return false;
+    return $is_explicit ? false : lumn_ut_get_primary_location();
 }
 
 /**

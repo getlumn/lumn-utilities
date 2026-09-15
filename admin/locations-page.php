@@ -62,7 +62,7 @@ function lumn_ut_render_locations_list() {
     echo '<p><strong>' . esc_html__('Pointing a shortcode at a specific location:', 'lumn-utilities') . '</strong></p>';
     echo '<p>' . esc_html__('Add a location attribute to any practice-data shortcode - the slug shown in the table below, "primary", or the numeric ID:', 'lumn-utilities') . '</p>';
     echo '<p>[lumn_call location="north-office"] &nbsp; [lumn_address location="primary"] &nbsp; [lumn_hours location="2"]</p>';
-    echo '<p>' . esc_html__('Leaving the attribute off (or blank) always resolves to the Primary location. Use [lumn_locations] to list every location - useful for a "Find a Location" page.', 'lumn-utilities') . '</p>';
+    echo '<p>' . esc_html__('Leaving the attribute off resolves to the ?location= URL parameter if the page was visited with one (e.g. a page loaded as ?location=north-office shows that location\'s info in every shortcode that doesn\'t set its own location attribute), otherwise it falls back to the Primary location. An unrecognized ?location= value also falls back to Primary rather than showing blank. Use [lumn_locations] to list every location - useful for a "Find a Location" page.', 'lumn-utilities') . '</p>';
     echo '<p><strong>' . esc_html__('Display hours vs. structured hours:', 'lumn-utilities') . '</strong> ' . esc_html__('the free-text "Hours" fields are what [lumn_hours] displays on the page; the "Structured Hours" fields (exact open/close times) are for map and search-engine data and don\'t need to match word-for-word.', 'lumn-utilities') . '</p>';
     echo '<p><strong>' . esc_html__('Overriding social/other links per location:', 'lumn-utilities') . '</strong> ' . esc_html__('each location\'s edit form has a "Link Overrides" section (Appointments, Payments, Facebook, Google, and every other link from the Social Links settings tab). Set one there to use it instead of the site-wide link for that location - both the [lumn_social_url] shortcode\'s location attribute and the /lumn-social-url-social_name/location-slug redirect will use it. Leave an override blank to keep using the site-wide link for that location.', 'lumn-utilities') . '</p>';
     echo '</div>';
@@ -177,8 +177,8 @@ function lumn_ut_render_location_form($location) {
     echo '<input type="hidden" name="location_id" value="' . esc_attr($is_edit ? $location['id'] : '') . '" />';
 
     echo '<table class="form-table">';
-    lumn_ut_location_field_row('name', __('Location Name', 'lumn-utilities'), $location['name'], 'text', __('e.g. Downtown Office (internal label)', 'lumn-utilities'));
-    lumn_ut_location_field_row('practice_name', __('Practice / Display Name', 'lumn-utilities'), $location['practice_name'], 'text', __('Name shown to patients', 'lumn-utilities'));
+    lumn_ut_location_field_row('name', __('Location Name', 'lumn-utilities'), $location['name'], 'text', __('e.g. Downtown Office (internal label)', 'lumn-utilities'), $shortcode_hint('lumn_location_name'));
+    lumn_ut_location_field_row('practice_name', __('Practice / Display Name', 'lumn-utilities'), $location['practice_name'], 'text', __('Name shown to patients', 'lumn-utilities'), $shortcode_hint('lumn_practice_name'));
     lumn_ut_location_field_row('address_street', __('Street Address', 'lumn-utilities'), $location['address_street'], 'text', '123 Elm St.', $shortcode_hint('lumn_address_street'));
     lumn_ut_location_field_row('address_street2', __('Street Address Line 2', 'lumn-utilities'), $location['address_street2'], 'text', 'Apt 4B', $shortcode_hint('lumn_address_street2'));
     lumn_ut_location_field_row('address_city', __('City', 'lumn-utilities'), $location['address_city'], 'text', __('Example City', 'lumn-utilities'), $shortcode_hint('lumn_address_city'));
