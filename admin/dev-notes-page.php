@@ -34,6 +34,8 @@ function lumn_ut_dev_notes_page_callback() {
     echo '<div class="lumn-ut-dn-top-row">';
     echo '<div class="lumn-ut-dn-top-row-col">';
     lumn_ut_dev_notes_render_profile_card();
+    lumn_ut_tech_input_render_card();
+    lumn_ut_fleet_render_card();
     echo '</div>';
     echo '<div class="lumn-ut-dn-top-row-col">';
     lumn_ut_dev_notes_render_known_issues();
@@ -61,6 +63,8 @@ function lumn_ut_dev_notes_render_notices() {
     $messages = array(
         'profile_saved' => __('Profile saved.', 'lumn-utilities'),
         'profile_imported' => __('Profile imported.', 'lumn-utilities'),
+        'tech_input_saved' => __('Site observations saved.', 'lumn-utilities'),
+        'fleet_sent' => __('Snapshot sent to the collector.', 'lumn-utilities'),
         'rules_saved' => __('Rules for making changes saved.', 'lumn-utilities'),
         'dependency_saved' => __('Dependency saved.', 'lumn-utilities'),
         'dependency_deleted' => __('Dependency removed.', 'lumn-utilities'),
@@ -77,6 +81,186 @@ function lumn_ut_dev_notes_render_notices() {
 }
 
 // ---------------------------------------------------------------------
+// Tech input card
+//
+// THIS CARD DISPLAYS NO ASSESSMENT. No tier, no track, no trigger, no
+// "this site would score X". The pipeline computes all of that centrally
+// and writes it to the Google Sheet; it is never sent back here.
+//
+// That is not an oversight to be helpfully corrected later. A tech who
+// cannot see a tier cannot act on a stale one, the plugin needs no
+// pipeline data and so has no cache to go wrong, and thresholds can move
+// without anything on a client site knowing. If a future change wants to
+// show a tier here, that is a change to the system's design, not a
+// display tweak.
+// ---------------------------------------------------------------------
+
+function lumn_ut_tech_input_render_card() {
+    if (!lumn_ut_tech_input_current_user_can()) {
+        return;
+    }
+
+    $tech = lumn_ut_tech_input_get();
+    $suppressed = lumn_ut_tech_input_is_suppressed($tech);
+    $age_days = lumn_ut_tech_input_note_age_days($tech);
+    $is_stale = lumn_ut_tech_input_note_is_stale($tech);
+
+    echo '<div class="lumn-ut-dn-card lumn-ut-dn-tech-input">';
+    echo '<div class="lumn-ut-dn-card-header"><h2>' . esc_html__('What We\'ve Noticed', 'lumn-utilities') . '</h2>';
+    echo '<button type="button" class="button lumn-ut-dn-edit-toggle">' . esc_html__('Edit', 'lumn-utilities') . '</button>';
+    echo '</div>';
+
+    // Read view
+    echo '<div class="lumn-ut-dn-view">';
+
+    if ($tech['tech_notes'] === '') {
+        echo '<p class="lumn-ut-dn-empty-state">' . esc_html__('Nothing recorded yet. Click Edit to add what you have noticed about this site.', 'lumn-utilities') . '</p>';
+    } else {
+        echo '<div class="lumn-ut-dn-field-row"><span class="lumn-ut-dn-field-value lumn-ut-dn-field-value-multiline">' . nl2br(esc_html($tech['tech_notes'])) . '</span></div>';
+
+        $byline = array();
+        if ($tech['tech_notes_author'] !== '') {
+            /* translators: %s: the name of whoever wrote the note. */
+            $byline[] = sprintf(__('by %s', 'lumn-utilities'), $tech['tech_notes_author']);
+        }
+        if ($age_days !== null) {
+            $byline[] = $age_days === 0
+                ? __('today', 'lumn-utilities')
+                /* translators: %s: human-readable duration, e.g. "3 months". */
+                : sprintf(__('%s ago', 'lumn-utilities'), human_time_diff(strtotime($tech['tech_notes_updated_at']), time()));
+        }
+        if (!empty($byline)) {
+            echo '<p class="lumn-ut-dn-field-row"><em>' . esc_html(implode(', ', $byline)) . '</em></p>';
+        }
+
+        if ($is_stale) {
+            echo '<div class="notice notice-warning inline"><p>' . esc_html__('This note is more than two quarters old. If it still reflects the site, re-save it; if it does not, please update it.', 'lumn-utilities') . '</p></div>';
+        }
+    }
+
+    if ($tech['tech_flag'] === '1') {
+        echo '<div class="lumn-ut-dn-field-row"><span class="lumn-ut-dn-field-label">' . esc_html__('Flagged', 'lumn-utilities') . '</span> ';
+        echo '<span class="lumn-ut-dn-field-value">' . esc_html($tech['tech_flag_reason'] !== '' ? $tech['tech_flag_reason'] : __('Worth a conversation', 'lumn-utilities')) . '</span></div>';
+    }
+
+    if ($tech['suppress_until'] !== '') {
+        echo '<div class="lumn-ut-dn-field-row"><span class="lumn-ut-dn-field-label">' . esc_html__("Don't approach until", 'lumn-utilities') . '</span> ';
+        echo '<span class="lumn-ut-dn-field-value">' . esc_html($tech['suppress_until']);
+        if (!$suppressed) {
+            echo ' ' . esc_html__('(expired)', 'lumn-utilities');
+        }
+        echo '</span></div>';
+    }
+
+    echo '</div>';
+
+    // Edit view
+    echo '<form class="lumn-ut-dn-edit" method="post" action="' . esc_url(admin_url('admin-post.php')) . '">';
+    wp_nonce_field('lumn_ut_tech_input_save');
+    echo '<input type="hidden" name="action" value="lumn_ut_tech_input_save" />';
+    echo '<table class="form-table"><tbody>';
+
+    echo '<tr><th scope="row"><label for="lumn-ut-tech-notes">' . esc_html__('What we have noticed', 'lumn-utilities') . '</label></th><td>';
+    echo '<textarea id="lumn-ut-tech-notes" name="tech_notes" rows="5" class="large-text">' . esc_textarea($tech['tech_notes']) . '</textarea>';
+    // Blunt on purpose - this text is the only thing standing between a
+    // salesperson and a sentence they cannot use.
+    echo '<p class="description">' . esc_html__('Written for sales, not for other developers. Plain language, no jargon, no version numbers.', 'lumn-utilities') . '</p>';
+    echo '<p class="description">' . esc_html__('"Elementor 2.9 abandoned, no migration path" is no use to them. "Their page builder stopped getting updates two years ago and there is no drop-in replacement - any redesign means rebuilding the pages" is.', 'lumn-utilities') . '</p>';
+    echo '</td></tr>';
+
+    echo '<tr><th scope="row">' . esc_html__('Worth a conversation', 'lumn-utilities') . '</th><td>';
+    echo '<label><input type="checkbox" id="lumn-ut-tech-flag" name="tech_flag" value="1" ' . checked($tech['tech_flag'], '1', false) . ' /> ';
+    echo esc_html__('Flag this site', 'lumn-utilities') . '</label>';
+    echo '<p class="description">' . esc_html__('For something you have spotted that a checklist would miss - an expansion, a frustration, an offhand question about a redesign.', 'lumn-utilities') . '</p>';
+    echo '<p><input type="text" id="lumn-ut-tech-flag-reason" name="tech_flag_reason" value="' . esc_attr($tech['tech_flag_reason']) . '" class="large-text" placeholder="' . esc_attr__('Optional: why?', 'lumn-utilities') . '" /></p>';
+    echo '</td></tr>';
+
+    echo '<tr><th scope="row"><label for="lumn-ut-suppress-until">' . esc_html__("Don't approach until", 'lumn-utilities') . '</label></th><td>';
+    echo '<input type="date" id="lumn-ut-suppress-until" name="suppress_until" value="' . esc_attr($tech['suppress_until']) . '" />';
+    echo '<p class="description">' . esc_html__('Declined, mid-sale, or simply not the moment. Leave empty if there is no reason to hold off.', 'lumn-utilities') . '</p>';
+    echo '</td></tr>';
+
+    echo '</tbody></table>';
+    submit_button(__('Save Observations', 'lumn-utilities'), 'primary', 'submit', false);
+    echo ' <button type="button" class="button lumn-ut-dn-edit-cancel">' . esc_html__('Cancel', 'lumn-utilities') . '</button>';
+    echo '</form>';
+
+    echo '</div>';
+}
+
+// ---------------------------------------------------------------------
+// Fleet reporter card - status only. Nothing here configures the
+// reporter: every setting is a wp-config.php constant, so this card can
+// report state but can never switch anything on.
+// ---------------------------------------------------------------------
+
+function lumn_ut_fleet_render_card() {
+    if (!current_user_can(LUMN_UT_DEV_NOTES_CAPABILITY)) {
+        return;
+    }
+
+    $problem = lumn_ut_fleet_readiness_problem();
+    $ready = ($problem === '');
+    $log = lumn_ut_fleet_get_log();
+
+    echo '<div class="lumn-ut-dn-card lumn-ut-dn-fleet-reporter">';
+    echo '<h2>' . esc_html__('Fleet Reporting', 'lumn-utilities') . '</h2>';
+
+    if (!$ready) {
+        echo '<p class="lumn-ut-dn-field-row"><strong>' . esc_html__('Off.', 'lumn-utilities') . '</strong> ' . esc_html($problem) . '</p>';
+        echo '<p class="description">' . esc_html__('Nothing is being sent from this site.', 'lumn-utilities') . '</p>';
+        echo '</div>';
+        return;
+    }
+
+    // Host only, never the full URL: the path can carry a token.
+    $host = wp_parse_url(lumn_ut_fleet_collector_url(), PHP_URL_HOST);
+    echo '<p class="lumn-ut-dn-field-row"><strong>' . esc_html__('On.', 'lumn-utilities') . '</strong> ';
+    /* translators: %s: the collector hostname. */
+    echo esc_html(sprintf(__('Sending a daily snapshot to %s.', 'lumn-utilities'), is_string($host) ? $host : ''));
+    echo '</p>';
+
+    $next = wp_next_scheduled(LUMN_UT_FLEET_CRON_HOOK);
+    if (!$next && lumn_ut_fleet_has_action_scheduler()) {
+        $next = as_next_scheduled_action(LUMN_UT_FLEET_CRON_HOOK, array(), LUMN_UT_FLEET_AS_GROUP);
+        // as_next_scheduled_action() returns true (not a timestamp) for an
+        // action that is already due.
+        $next = is_numeric($next) ? (int) $next : 0;
+    }
+    if ($next) {
+        echo '<p class="lumn-ut-dn-field-row">';
+        /* translators: %s: human-readable duration until the next scheduled send. */
+        echo esc_html(sprintf(__('Next send in %s.', 'lumn-utilities'), human_time_diff(time(), $next)));
+        echo '</p>';
+    }
+
+    if (!empty($log)) {
+        echo '<p class="lumn-ut-dn-field-row"><span class="lumn-ut-dn-field-label">' . esc_html__('Recent sends', 'lumn-utilities') . '</span></p>';
+        echo '<ul class="lumn-ut-dn-fleet-log">';
+        foreach ($log as $entry) {
+            $when = isset($entry['at']) ? (int) $entry['at'] : 0;
+            echo '<li>';
+            echo '<strong>' . esc_html(!empty($entry['ok']) ? __('OK', 'lumn-utilities') : __('Failed', 'lumn-utilities')) . '</strong> ';
+            if ($when) {
+                /* translators: %s: human-readable duration, e.g. "2 hours". */
+                echo esc_html(sprintf(__('%s ago', 'lumn-utilities'), human_time_diff($when, time()))) . ' ';
+            }
+            echo '<span class="lumn-ut-dn-field-value">' . esc_html(isset($entry['message']) ? $entry['message'] : '') . '</span>';
+            echo '</li>';
+        }
+        echo '</ul>';
+    }
+
+    echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '">';
+    wp_nonce_field('lumn_ut_fleet_send_now');
+    echo '<input type="hidden" name="action" value="lumn_ut_fleet_send_now" />';
+    submit_button(__('Send now', 'lumn-utilities'), 'secondary', 'submit', false);
+    echo '</form>';
+
+    echo '</div>';
+}
+
+// ---------------------------------------------------------------------
 // Profile card
 // ---------------------------------------------------------------------
 
@@ -85,13 +269,22 @@ function lumn_ut_dev_notes_profile_field_labels() {
         'client_name' => __('Client Name', 'lumn-utilities'),
         'client_tier' => __('Client Tier', 'lumn-utilities'),
         'marketer_partner' => __('Marketer Partner', 'lumn-utilities'),
+        'owner_first_name' => __('Owner First Name', 'lumn-utilities'),
+        'owner_last_name' => __('Owner Last Name', 'lumn-utilities'),
+        'owner_email' => __('Owner Email', 'lumn-utilities'),
+        'primary_contact_first_name' => __('Primary Contact First Name', 'lumn-utilities'),
+        'primary_contact_last_name' => __('Primary Contact Last Name', 'lumn-utilities'),
+        'primary_contact_email' => __('Primary Contact Email', 'lumn-utilities'),
         'registrar_account_owner' => __('Registrar Account Owner', 'lumn-utilities'),
         'expected_registrar' => __('Expected Registrar', 'lumn-utilities'),
+        'registrar_access' => __('We Have Registrar Access', 'lumn-utilities'),
+        'registrar_access_checked' => __('Registrar Access Last Checked', 'lumn-utilities'),
         'expected_dns_provider' => __('Expected DNS Provider', 'lumn-utilities'),
-        'primary_contact' => __('Primary Contact', 'lumn-utilities'),
-        'primary_contact_email' => __('Primary Contact Email', 'lumn-utilities'),
+        'dns_access' => __('We Have DNS Access', 'lumn-utilities'),
+        'dns_access_checked' => __('DNS Access Last Checked', 'lumn-utilities'),
         'launch_date' => __('Launch Date', 'lumn-utilities'),
         'hubspot_record_id' => __('HubSpot Record ID', 'lumn-utilities'),
+        'include_in_fleet' => __('Include in Fleet Reporting', 'lumn-utilities'),
         'contract_notes' => __('Contract Notes', 'lumn-utilities'),
     );
 }
@@ -114,7 +307,9 @@ function lumn_ut_dev_notes_render_profile_card() {
     echo '<div class="lumn-ut-dn-view">';
     $has_any = false;
     foreach ($fields as $key => $type) {
-        if (trim((string) $profile[$key]) === '') {
+        // A bool always shows. '0' is an answer - and "this site is NOT in
+        // fleet reporting" is exactly the thing somebody needs to see.
+        if ($type !== 'bool' && trim((string) $profile[$key]) === '') {
             continue;
         }
         $has_any = true;
@@ -126,6 +321,12 @@ function lumn_ut_dev_notes_render_profile_card() {
             } else {
                 echo '<span class="lumn-ut-dn-field-value">' . esc_html($profile[$key]) . '</span>';
             }
+        } elseif ($type === 'bool') {
+            echo '<span class="lumn-ut-dn-field-value">' . esc_html($profile[$key] === '1' ? __('Yes', 'lumn-utilities') : __('No', 'lumn-utilities')) . '</span>';
+        } elseif ($type === 'select' || $type === 'access') {
+            $options = lumn_ut_dev_notes_profile_select_options($key, $profile[$key]);
+            $label = isset($options[$profile[$key]]) ? $options[$profile[$key]] : $profile[$key];
+            echo '<span class="lumn-ut-dn-field-value">' . esc_html($label) . '</span>';
         } elseif ($type === 'email') {
             echo '<a href="' . esc_url('mailto:' . $profile[$key]) . '">' . esc_html($profile[$key]) . '</a>';
         } elseif ($type === 'textarea') {
@@ -154,6 +355,26 @@ function lumn_ut_dev_notes_render_profile_card() {
                 break;
             case 'date':
                 echo '<input type="date" id="lumn-ut-dn-' . esc_attr($key) . '" name="' . esc_attr($key) . '" value="' . esc_attr($value) . '" />';
+                break;
+            case 'bool':
+                echo '<label><input type="checkbox" id="lumn-ut-dn-' . esc_attr($key) . '" name="' . esc_attr($key) . '" value="1" ' . checked($value, '1', false) . ' /> ';
+                echo esc_html__('Yes', 'lumn-utilities') . '</label>';
+                if ($key === 'include_in_fleet') {
+                    echo '<p class="description">' . esc_html__('Turn this off when we no longer maintain this site. It is one of two signals the pipeline uses - the other is whether the domain still points at our hosting - so a departed client is caught even if this is left untouched.', 'lumn-utilities') . '</p>';
+                }
+                break;
+            case 'select':
+            case 'access':
+                $options = lumn_ut_dev_notes_profile_select_options($key, $value);
+                echo '<select id="lumn-ut-dn-' . esc_attr($key) . '" name="' . esc_attr($key) . '">';
+                echo '<option value="">' . esc_html__('- Not set -', 'lumn-utilities') . '</option>';
+                foreach ($options as $option_value => $option_label) {
+                    echo '<option value="' . esc_attr($option_value) . '" ' . selected($value, $option_value, false) . '>' . esc_html($option_label) . '</option>';
+                }
+                echo '</select>';
+                if ($type === 'access') {
+                    echo '<p class="description">' . esc_html__('Leave unset until somebody has actually checked - "not set" and "no" are different answers.', 'lumn-utilities') . '</p>';
+                }
                 break;
             case 'email':
                 echo '<input type="email" id="lumn-ut-dn-' . esc_attr($key) . '" name="' . esc_attr($key) . '" value="' . esc_attr($value) . '" class="regular-text" />';

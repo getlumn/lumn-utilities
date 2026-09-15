@@ -3,7 +3,7 @@
 Plugin Name: LUMN Utilities
 Plugin URI: https://getlumn.com
 Description: A set of custom shortcodes and tools for LUMN sites.
-Version: 4.8.0
+Version: 4.9.0
 Author: LUMN
 Author URI: https://getlumn.com
 License: GPL2
@@ -94,9 +94,26 @@ require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/dependency-defaults.php');
 // super admins. Loaded after register/rest.php since it adds routes under
 // the same lumn/v1 namespace; see register/dev-notes.php.
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/dev-notes.php');
+
+// Tech input - the three fields a technician records for the fleet
+// pipeline (notes, "worth a conversation" flag, suppression date). Loaded
+// after register/dev-notes.php, whose capability/role constants and
+// redirect helper it reuses; see register/tech-input.php.
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/tech-input.php');
+
+// Fleet reporter - builds a snapshot of this site and posts it, signed,
+// to a central collector. OUTBOUND ONLY: it adds no REST route and no
+// other inbound surface, and nothing is ever sent back to this site.
+// Ships DISABLED; every setting comes from wp-config.php constants and
+// there is no admin toggle, so this does nothing at all until somebody
+// edits wp-config.php on this specific site. Loaded after the two files
+// above, whose data it reads; see docs/FLEET-REPORTER.md.
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/fleet-reporter.php');
+
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'admin/dev-notes-page.php');
 register_activation_hook(__FILE__, 'Lumn\Utilities\lumn_ut_dev_notes_activate');
 register_deactivation_hook(__FILE__, 'Lumn\Utilities\lumn_ut_dev_notes_deactivate');
+register_deactivation_hook(__FILE__, 'Lumn\Utilities\lumn_ut_fleet_deactivate');
 
 // Enqueue admin scripts and styles.
 // Versioned by filemtime() rather than left blank: with no $ver, WP falls

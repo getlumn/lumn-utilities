@@ -41,7 +41,7 @@ const LUMN_UT_DEV_NOTES_DB_VERSION_OPTION = 'lumn_ut_db_version';
 
 // Schema version for the data this file owns (profile shape, dev-note post
 // meta shape). Bump alongside a migration in lumn_ut_dev_notes_run_migrations().
-const LUMN_UT_DEV_NOTES_DB_VERSION = 3;
+const LUMN_UT_DEV_NOTES_DB_VERSION = 4;
 
 const LUMN_UT_DEV_NOTES_CRON_HOOK = 'lumn_ut_dev_notes_detect_cron';
 
@@ -112,6 +112,10 @@ function lumn_ut_dev_notes_run_migrations() {
 
     if ($current < 3) {
         lumn_ut_dev_notes_migrate_to_v3();
+    }
+
+    if ($current < 4) {
+        lumn_ut_dev_notes_migrate_to_v4();
     }
 
     update_option(LUMN_UT_DEV_NOTES_DB_VERSION_OPTION, LUMN_UT_DEV_NOTES_DB_VERSION);
@@ -186,6 +190,44 @@ function lumn_ut_dev_notes_migrate_to_v3() {
     );
 
     update_option(LUMN_UT_DEV_NOTES_DETECTED_OPTION, $detected, false);
+}
+
+/**
+ * v4 profile shape: the Site Profile gained the fields the fleet pipeline
+ * needs - split owner and primary-contact names, registrar/DNS access
+ * flags with their last-checked dates, and the include_in_fleet toggle.
+ *
+ * Only one field actually needs carrying over. The old 'primary_contact'
+ * was a single free-text string; it is split on the FIRST space, so
+ * "Mary Anne Smith" becomes first "Mary", last "Anne Smith". That is the
+ * right way round to be wrong: a surname is far more likely to contain a
+ * space than a given name, and the whole string stays visible either way.
+ *
+ * Everything else is additive. New keys are filled by
+ * lumn_ut_dev_notes_profile_defaults() through wp_parse_args(), which is
+ * what gives an existing site include_in_fleet = '1' without this
+ * migration having to touch it - important, because a site that has never
+ * saved a profile has no stored option for this to run against.
+ */
+function lumn_ut_dev_notes_migrate_to_v4() {
+    $profile = get_option(LUMN_UT_DEV_NOTES_PROFILE_OPTION, array());
+    if (!is_array($profile) || empty($profile)) {
+        return;
+    }
+
+    if (!array_key_exists('primary_contact', $profile)) {
+        return;
+    }
+
+    $legacy = trim((string) $profile['primary_contact']);
+    if ($legacy !== '' && empty($profile['primary_contact_first_name']) && empty($profile['primary_contact_last_name'])) {
+        $parts = preg_split('/\s+/', $legacy, 2);
+        $profile['primary_contact_first_name'] = isset($parts[0]) ? $parts[0] : '';
+        $profile['primary_contact_last_name'] = isset($parts[1]) ? $parts[1] : '';
+    }
+
+    unset($profile['primary_contact']);
+    update_option(LUMN_UT_DEV_NOTES_PROFILE_OPTION, $profile, false);
 }
 
 // ---------------------------------------------------------------------
@@ -271,29 +313,129 @@ function lumn_ut_dev_notes_get_or_create_singleton_post($note_type, $default_tit
 // the "mismatch display" requirement mean anything: without something to
 // compare the detected registrar/nameservers against, there is nothing to
 // flag as mismatched. Added here as manual fields for exactly that purpose.
+//
+// Ordered as the form reads top to bottom: who the client is, who we talk
+// to, who controls the domain, then dates and flags.
 function lumn_ut_dev_notes_profile_fields() {
     return array(
         'client_name' => 'text',
-        'client_tier' => 'text',
-        'marketer_partner' => 'text',
+        'client_tier' => 'select',
+        'marketer_partner' => 'select',
+
+        // The practice owner, split so the pipeline and any mail merge get
+        // a usable first name rather than having to guess where to cut.
+        'owner_first_name' => 'text',
+        'owner_last_name' => 'text',
+        'owner_email' => 'email',
+
+        // Day-to-day contact, who is often not the owner. Split for the
+        // same reason - see the v4 migration for how the old single
+        // 'primary_contact' string is carried over.
+        'primary_contact_first_name' => 'text',
+        'primary_contact_last_name' => 'text',
+        'primary_contact_email' => 'email',
+
         'registrar_account_owner' => 'text',
         'expected_registrar' => 'text',
+        'registrar_access' => 'access',
+        'registrar_access_checked' => 'date',
+
         'expected_dns_provider' => 'text',
-        'primary_contact' => 'text',
-        'primary_contact_email' => 'email',
+        'dns_access' => 'access',
+        'dns_access_checked' => 'date',
+
         'launch_date' => 'date',
         'hubspot_record_id' => 'hubspot_id',
+        'include_in_fleet' => 'bool',
         'contract_notes' => 'textarea',
     );
 }
 
+// Per-field defaults for a profile that has never been saved. Everything
+// is '' except include_in_fleet, which defaults ON: a site running this
+// plugin is in the fleet until somebody says otherwise, and defaulting it
+// off would silently drop every existing site out of the pipeline the day
+// this ships.
+function lumn_ut_dev_notes_profile_defaults() {
+    $defaults = array_fill_keys(array_keys(lumn_ut_dev_notes_profile_fields()), '');
+    $defaults['include_in_fleet'] = '1';
+    return $defaults;
+}
+
+/**
+ * Options for the two dropdown fields.
+ *
+ * NOTE: these lists are placeholders. The canonical tier and partner names
+ * live in `Scripts & Automations.md`, which wasn't available when this was
+ * built - confirm them before this reaches a client site. They are
+ * filterable so a correction is a one-liner in a site's own code rather
+ * than a plugin release, and lumn_ut_dev_notes_profile_select_options()
+ * below always keeps whatever is already stored as a valid choice, so
+ * changing this list can never silently discard existing data.
+ */
+function lumn_ut_dev_notes_profile_field_options($key) {
+    $options = array(
+        'client_tier' => array(
+            'platinum' => __('Platinum', 'lumn-utilities'),
+            'gold' => __('Gold', 'lumn-utilities'),
+            'silver' => __('Silver', 'lumn-utilities'),
+            'bronze' => __('Bronze', 'lumn-utilities'),
+        ),
+        'marketer_partner' => array(
+            'none' => __('None - LUMN direct', 'lumn-utilities'),
+            'dentalcmo' => __('DentalCMO', 'lumn-utilities'),
+            'other' => __('Other', 'lumn-utilities'),
+        ),
+        // Tri-state on purpose. An unchecked checkbox cannot tell "we do
+        // not have access" apart from "nobody has looked yet", and the
+        // whole point of the paired *_checked date is to know which.
+        'access' => array(
+            'yes' => __('Yes - confirmed', 'lumn-utilities'),
+            'no' => __('No', 'lumn-utilities'),
+        ),
+    );
+
+    $for_key = isset($options[$key]) ? $options[$key] : array();
+
+    /**
+     * Filter the selectable options for one profile dropdown.
+     *
+     * @param array  $for_key key => label, in display order.
+     * @param string $key     the profile field key ('access' for the
+     *                        shared registrar/DNS access vocabulary).
+     */
+    return apply_filters('lumn_ut_profile_field_options', $for_key, $key);
+}
+
+// The options a given field may be set to, including whatever is already
+// stored even if it is no longer on the list. Without this, tightening a
+// dropdown would wipe every site whose saved value predates the change -
+// the old free-text client_tier values being the immediate example.
+function lumn_ut_dev_notes_profile_select_options($key, $current_value = '') {
+    $fields = lumn_ut_dev_notes_profile_fields();
+    $type = isset($fields[$key]) ? $fields[$key] : '';
+    $options = lumn_ut_dev_notes_profile_field_options($type === 'access' ? 'access' : $key);
+
+    $current_value = trim((string) $current_value);
+    if ($current_value !== '' && !isset($options[$current_value])) {
+        /* translators: %s: a value saved before it was removed from the dropdown. */
+        $options[$current_value] = sprintf(__('%s (legacy value)', 'lumn-utilities'), $current_value);
+    }
+
+    return $options;
+}
+
 function lumn_ut_dev_notes_get_profile() {
     $stored = get_option(LUMN_UT_DEV_NOTES_PROFILE_OPTION, array());
-    $defaults = array_fill_keys(array_keys(lumn_ut_dev_notes_profile_fields()), '');
-    return wp_parse_args(is_array($stored) ? $stored : array(), $defaults);
+    return wp_parse_args(is_array($stored) ? $stored : array(), lumn_ut_dev_notes_profile_defaults());
 }
 
 function lumn_ut_dev_notes_sanitize_profile_input($input) {
+    // Read once, outside the loop: a dropdown must accept the value it
+    // already holds even when that value is no longer on the list, or
+    // saving the form would quietly discard it.
+    $existing = lumn_ut_dev_notes_get_profile();
+
     $out = array();
     foreach (lumn_ut_dev_notes_profile_fields() as $key => $type) {
         $raw = isset($input[$key]) ? $input[$key] : '';
@@ -302,6 +444,25 @@ function lumn_ut_dev_notes_sanitize_profile_input($input) {
         }
 
         switch ($type) {
+            case 'bool':
+                // An unchecked checkbox posts nothing at all, so absence
+                // here means "off" - which is only correct because this
+                // runs on a full form submit. Anything doing a partial
+                // update must merge onto lumn_ut_dev_notes_get_profile()
+                // first, the way the importer already does.
+                $out[$key] = ($raw === '1' || $raw === 'on' || $raw === 'true') ? '1' : '0';
+                break;
+            case 'select':
+            case 'access':
+                $allowed = lumn_ut_dev_notes_profile_select_options(
+                    $key,
+                    isset($existing[$key]) ? $existing[$key] : ''
+                );
+                $raw = sanitize_text_field($raw);
+                // '' is always valid: it is "not set yet", which for the
+                // access fields is a meaningful third state.
+                $out[$key] = ($raw === '' || isset($allowed[$raw])) ? $raw : '';
+                break;
             case 'email':
                 $out[$key] = sanitize_email($raw);
                 break;

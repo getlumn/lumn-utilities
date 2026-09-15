@@ -812,3 +812,27 @@ form.lumn-ut-dn-hidden-form.lumn-ut-dn-visible {
 .lumn-ut-dn-add-btn {
 	margin-top: 20px !important;
 }
+
+/* Fleet reporting card - the send log. Tabular-ish but only a handful of
+   rows, so a plain list rather than a table. */
+.lumn-ut-dn-fleet-log {
+	margin: 4px 0 12px;
+	padding: 0;
+	list-style: none;
+	font-size: 12px;
+}
+.lumn-ut-dn-fleet-log li {
+	padding: 4px 0;
+	border-bottom: 1px solid #f0f0f1;
+	margin: 0;
+}
+.lumn-ut-dn-fleet-log li:last-child {
+	border-bottom: 0;
+}
+
+/* The tech-input note keeps the author/date line quiet next to the note
+   itself, which is the part anyone actually reads. */
+.lumn-ut-dn-tech-input em {
+	color: #646970;
+	font-size: 12px;
+}
