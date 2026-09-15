@@ -379,9 +379,14 @@ function lumn_ut_dev_notes_profile_defaults() {
  * that field whenever the selection is not 'other', so a renamed partner
  * cannot leave a stale name behind it.
  *
- * NOTE: client_tier is a placeholder. The canonical names live in
- * `Scripts & Automations.md`, which still isn't available - confirm them
- * before this reaches a client site.
+ * client_tier names are confirmed: Gold, Silver, Bronze. Nothing counts
+ * or indexes this list, so its length is free to change.
+ *
+ * NOTE: the build plan puts the truth for client tier in HubSpot, which
+ * makes this field a local mirror of a HubSpot property. If that property
+ * is a picklist, these keys should match its internal values, or the
+ * pipeline ends up reconciling two vocabularies for one idea. Worth
+ * checking before S4 reads HubSpot.
  *
  * Both lists are filterable, so a correction is a one-liner in a site's
  * own code rather than a plugin release, and
@@ -392,7 +397,6 @@ function lumn_ut_dev_notes_profile_defaults() {
 function lumn_ut_dev_notes_profile_field_options($key) {
     $options = array(
         'client_tier' => array(
-            'platinum' => __('Platinum', 'lumn-utilities'),
             'gold' => __('Gold', 'lumn-utilities'),
             'silver' => __('Silver', 'lumn-utilities'),
             'bronze' => __('Bronze', 'lumn-utilities'),
