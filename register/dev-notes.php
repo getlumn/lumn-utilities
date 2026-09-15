@@ -382,11 +382,16 @@ function lumn_ut_dev_notes_profile_defaults() {
  * client_tier names are confirmed: Gold, Silver, Bronze. Nothing counts
  * or indexes this list, so its length is free to change.
  *
- * NOTE: the build plan puts the truth for client tier in HubSpot, which
- * makes this field a local mirror of a HubSpot property. If that property
- * is a picklist, these keys should match its internal values, or the
- * pipeline ends up reconciling two vocabularies for one idea. Worth
- * checking before S4 reads HubSpot.
+ * The build plan puts the truth for client tier in HubSpot, but the
+ * company object has no such property yet - Liz intends to add one. That
+ * ordering is lucky: whoever creates it can give the picklist the
+ * internal values 'gold', 'silver' and 'bronze' to match these keys, and
+ * the two vocabularies never diverge in the first place. If it ends up
+ * with different internal values, this list is what has to move, because
+ * HubSpot is the source of truth - not the other way round.
+ *
+ * Until that property exists, nothing reads client tier from HubSpot and
+ * this field stands alone. S4 is where it starts to matter.
  *
  * Both lists are filterable, so a correction is a one-liner in a site's
  * own code rather than a plugin release, and
