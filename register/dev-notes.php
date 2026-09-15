@@ -41,7 +41,7 @@ const LUMN_UT_DEV_NOTES_DB_VERSION_OPTION = 'lumn_ut_db_version';
 
 // Schema version for the data this file owns (profile shape, dev-note post
 // meta shape). Bump alongside a migration in lumn_ut_dev_notes_run_migrations().
-const LUMN_UT_DEV_NOTES_DB_VERSION = 4;
+const LUMN_UT_DEV_NOTES_DB_VERSION = 5;
 
 const LUMN_UT_DEV_NOTES_CRON_HOOK = 'lumn_ut_dev_notes_detect_cron';
 
@@ -116,6 +116,10 @@ function lumn_ut_dev_notes_run_migrations() {
 
     if ($current < 4) {
         lumn_ut_dev_notes_migrate_to_v4();
+    }
+
+    if ($current < 5) {
+        lumn_ut_dev_notes_migrate_to_v5();
     }
 
     update_option(LUMN_UT_DEV_NOTES_DB_VERSION_OPTION, LUMN_UT_DEV_NOTES_DB_VERSION);
@@ -230,6 +234,39 @@ function lumn_ut_dev_notes_migrate_to_v4() {
     update_option(LUMN_UT_DEV_NOTES_PROFILE_OPTION, $profile, false);
 }
 
+/**
+ * v5: drops 'client_tier' from the Site Profile.
+ *
+ * The build plan's Sources of Truth table assigns client tier to HubSpot
+ * and the client profile (registrar, owner, DNS access, marketer partner)
+ * to this plugin. A dropdown here was a second, hand-maintained copy of a
+ * field HubSpot owns: the two would drift the first time somebody updated
+ * one and not the other, and the Sheet would then show whichever copy the
+ * pipeline happened to read. The pipeline reads the HubSpot company
+ * record by the hubspot_record_id already in every snapshot, so it never
+ * needed this one.
+ *
+ * The deletion is deliberate rather than incidental. Dropping the key
+ * from lumn_ut_dev_notes_profile_fields() alone would have been enough to
+ * lose the value - lumn_ut_dev_notes_save_profile() replaces the whole
+ * option with an array built only from the registry keys - but it would
+ * have happened silently, at whatever moment somebody next saved a
+ * profile, and at a different moment on every site. Doing it here makes
+ * it one recorded event that happens once, on update.
+ *
+ * Nothing read this value: no code in the plugin or the pipeline ever
+ * branched on it, so there is nothing to carry over.
+ */
+function lumn_ut_dev_notes_migrate_to_v5() {
+    $profile = get_option(LUMN_UT_DEV_NOTES_PROFILE_OPTION, array());
+    if (!is_array($profile) || !array_key_exists('client_tier', $profile)) {
+        return;
+    }
+
+    unset($profile['client_tier']);
+    update_option(LUMN_UT_DEV_NOTES_PROFILE_OPTION, $profile, false);
+}
+
 // ---------------------------------------------------------------------
 // Activation / deactivation (registered from index.php, same pattern as
 // lumn_ut_rest_ensure_capability())
@@ -322,7 +359,6 @@ function lumn_ut_dev_notes_get_or_create_singleton_post($note_type, $default_tit
 function lumn_ut_dev_notes_profile_fields() {
     return array(
         'client_name' => 'text',
-        'client_tier' => 'select',
         'marketer_partner' => 'select',
         // Only meaningful when marketer_partner is 'other'; the sanitiser
         // clears it otherwise so a changed selection cannot leave a stale
@@ -371,27 +407,14 @@ function lumn_ut_dev_notes_profile_defaults() {
 }
 
 /**
- * Options for the two dropdown fields.
+ * Options for the marketer_partner dropdown, plus the shared yes/no
+ * vocabulary the registrar and DNS access fields both draw on.
  *
  * marketer_partner names are confirmed. Selecting 'other' is why
  * marketer_partner_other exists: an option reading "Other (Fill in)" has
  * to have somewhere to fill in, or it is a dead end. The sanitiser clears
  * that field whenever the selection is not 'other', so a renamed partner
  * cannot leave a stale name behind it.
- *
- * client_tier names are confirmed: Gold, Silver, Bronze. Nothing counts
- * or indexes this list, so its length is free to change.
- *
- * The build plan puts the truth for client tier in HubSpot, but the
- * company object has no such property yet - Liz intends to add one. That
- * ordering is lucky: whoever creates it can give the picklist the
- * internal values 'gold', 'silver' and 'bronze' to match these keys, and
- * the two vocabularies never diverge in the first place. If it ends up
- * with different internal values, this list is what has to move, because
- * HubSpot is the source of truth - not the other way round.
- *
- * Until that property exists, nothing reads client tier from HubSpot and
- * this field stands alone. S4 is where it starts to matter.
  *
  * Both lists are filterable, so a correction is a one-liner in a site's
  * own code rather than a plugin release, and
@@ -401,11 +424,6 @@ function lumn_ut_dev_notes_profile_defaults() {
  */
 function lumn_ut_dev_notes_profile_field_options($key) {
     $options = array(
-        'client_tier' => array(
-            'gold' => __('Gold', 'lumn-utilities'),
-            'silver' => __('Silver', 'lumn-utilities'),
-            'bronze' => __('Bronze', 'lumn-utilities'),
-        ),
         'marketer_partner' => array(
             'prospecta' => __('Prospecta', 'lumn-utilities'),
             'social_dental_now' => __('Social Dental Now', 'lumn-utilities'),
@@ -435,7 +453,8 @@ function lumn_ut_dev_notes_profile_field_options($key) {
 // The options a given field may be set to, including whatever is already
 // stored even if it is no longer on the list. Without this, tightening a
 // dropdown would wipe every site whose saved value predates the change -
-// the old free-text client_tier values being the immediate example.
+// a partner named before marketer_partner became a fixed list being the
+// case to keep in mind.
 function lumn_ut_dev_notes_profile_select_options($key, $current_value = '') {
     $fields = lumn_ut_dev_notes_profile_fields();
     $type = isset($fields[$key]) ? $fields[$key] : '';

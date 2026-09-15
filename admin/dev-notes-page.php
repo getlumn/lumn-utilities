@@ -267,7 +267,6 @@ function lumn_ut_fleet_render_card() {
 function lumn_ut_dev_notes_profile_field_labels() {
     return array(
         'client_name' => __('Client Name', 'lumn-utilities'),
-        'client_tier' => __('Client Tier', 'lumn-utilities'),
         'marketer_partner' => __('Marketer Partner', 'lumn-utilities'),
         'marketer_partner_other' => __('Partner Name', 'lumn-utilities'),
         'owner_first_name' => __('Owner First Name', 'lumn-utilities'),
