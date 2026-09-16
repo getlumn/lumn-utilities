@@ -48,11 +48,34 @@ define( 'LUMN_FLEET_SITE_ID',          'practice-name-01' );
 | `LUMN_FLEET_REPORTER_ENABLED` | yes | Must be boolean `true`. A quoted `'true'` or a `1` is **not** — the check is `=== true`, so anything else leaves the reporter silently off. |
 | `LUMN_FLEET_REPORTER_URL` | yes | **Must be `https`**, and must point at the receiver's **root path** — see below. A plaintext URL is refused, not warned about: the payload carries owner names, email addresses and the tech's own notes. |
 | `LUMN_FLEET_REPORTER_KEY` | yes | Unique per site, and must match the value stored for this site id in the receiver's `SITE_KEYS` namespace. Both sides or neither. |
-| `LUMN_FLEET_SITE_ID` | no | Falls back to the site's hostname — which then becomes the key the receiver looks the site up by, and which changes silently if the domain ever does. Worth setting explicitly. |
+| `LUMN_FLEET_SITE_ID` | no, but set it | `<site-name>-<environment>` — see below. Falls back to the site's hostname, which then becomes the key the receiver looks the site up by, and which changes silently if the domain ever does. |
 
 All of these are checked before a single byte leaves the site, and the Developers
 page shows which one is missing. It also renders a ready-to-paste block with a
 freshly generated key, which is easier than assembling this by hand.
+
+### Site ids: `<site-name>-<environment>`
+
+`getlumn-prod`, `lumntest-stg`. Recognised environments are `prod`, `stg`, `dev` and `local`.
+
+**Every environment needs its own id.** Two sites sharing one would have their snapshots
+interleaved in the collector — and nothing would report an error, because the receiver
+authenticates per site id and would happily accept both against whichever key is registered. The
+Sheet would then show a tier computed from a mixture of two sites. The Developers page raises a
+note if the configured id does not end in a recognised environment; it is only a note, and sending
+continues either way.
+
+Setting `WP_ENVIRONMENT_TYPE` in `wp-config.php` lets the Developers page fill the environment in
+for you:
+
+```php
+define( 'WP_ENVIRONMENT_TYPE', 'staging' );   // or production, development, local
+```
+
+Worth doing regardless — WordPress and other plugins use it too. Without it the page suggests
+`<site-name>-REPLACE-ME` rather than guessing. That is deliberate: `wp_get_environment_type()`
+reports `production` when nothing is set, so guessing would hand an unconfigured staging site the
+same id as its live counterpart, which is precisely the collision above.
 
 ### The URL must be the receiver's root
 

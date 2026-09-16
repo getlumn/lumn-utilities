@@ -223,6 +223,7 @@ function lumn_ut_fleet_render_card() {
             echo '<p>' . lumn_ut_render_copy_button($snippet) . '</p>';
             echo '<p class="description">' . esc_html__('Paste above the "That\'s all, stop editing!" line. The same key must also be registered against this site id in the collector - it is one half of a pair, and neither half works alone.', 'lumn-utilities') . '</p>';
             echo '<p class="description">' . esc_html__('Nothing here is saved. The key is generated fresh each time this page loads, so copy the one you paste.', 'lumn-utilities') . '</p>';
+            echo '<p class="description">' . esc_html__('Site ids are <site-name>-<environment>, e.g. getlumn-prod. Every environment needs its own: two sites sharing an id would have their snapshots interleaved with no error anywhere. Setting WP_ENVIRONMENT_TYPE in wp-config.php lets this block fill the environment in for you.', 'lumn-utilities') . '</p>';
         }
 
         echo '</div>';

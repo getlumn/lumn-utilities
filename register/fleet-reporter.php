@@ -108,23 +108,136 @@ function lumn_ut_fleet_is_ready() {
 // ---------------------------------------------------------------------
 
 /**
- * A site id derived from this site's host, conforming to the pattern the
- * receiver enforces: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
+ * The LUMN collector, used to prefill the suggestion block.
+ *
+ * Not a secret and not a security boundary: the endpoint is write-only,
+ * accepts nothing without a valid per-site HMAC, and returns no data to
+ * anyone. Prefilling it just removes a step that is otherwise typed by
+ * hand once per site, with a 405 as the reward for getting it wrong.
+ *
+ * The reporter still reads the real value from wp-config.php - this only
+ * seeds what the Developers page offers to paste. Filterable for anyone
+ * pointing a site at a different collector.
+ */
+function lumn_ut_fleet_default_collector_url() {
+    return apply_filters('lumn_ut_fleet_default_collector_url', 'https://fleet.getlumn.com/');
+}
+
+// Placeholder used when the environment cannot be determined. Shaped
+// like a real id so it still passes the receiver's pattern, but obviously
+// unfinished so it cannot be pasted without noticing.
+const LUMN_UT_FLEET_ENV_PLACEHOLDER = 'REPLACE-ME';
+
+/**
+ * Short environment tokens, keyed by WordPress environment type.
+ *
+ * Filterable so the vocabulary can change without a plugin release -
+ * lumn_ut_fleet_site_id_conforms() reads the same list, so adding a token
+ * here also stops it being flagged as unrecognised.
+ */
+function lumn_ut_fleet_environment_tokens() {
+    return apply_filters('lumn_ut_fleet_environment_tokens', array(
+        'production' => 'prod',
+        'staging' => 'stg',
+        'development' => 'dev',
+        'local' => 'local',
+    ));
+}
+
+/**
+ * The environment half of a site id, or '' if it is not knowable.
+ *
+ * ONLY trusts an explicitly configured WP_ENVIRONMENT_TYPE. This looks
+ * like excessive caution and is not: wp_get_environment_type() returns
+ * 'production' when nothing is set, so trusting it would hand every
+ * unconfigured staging site the SAME id as its production counterpart.
+ * Two sites reporting under one id interleave rows in the collector, both
+ * authenticate against whichever key is registered, and "latest snapshot
+ * for this site" silently alternates between two different sites. There
+ * is no error anywhere in that chain - which is exactly why the guard has
+ * to be here, at the only point that knows it is guessing.
+ */
+function lumn_ut_fleet_environment_token() {
+    $explicit = defined('WP_ENVIRONMENT_TYPE') || getenv('WP_ENVIRONMENT_TYPE') !== false;
+    if (!$explicit || !function_exists('wp_get_environment_type')) {
+        return '';
+    }
+
+    $tokens = lumn_ut_fleet_environment_tokens();
+    $type = wp_get_environment_type();
+
+    return isset($tokens[$type]) ? $tokens[$type] : '';
+}
+
+/**
+ * The site-name half, from the host.
+ *
+ * "staging-lumntest.kinsta.cloud" and "www.lumntest.com" should both give
+ * "lumntest": the environment is carried by the suffix, so repeating it
+ * in the name would read as lumntest-stg-stg.
+ */
+function lumn_ut_fleet_site_name_from_host() {
+    $host = wp_parse_url(home_url(), PHP_URL_HOST);
+    $host = is_string($host) ? strtolower($host) : '';
+
+    $host = preg_replace('/^www\./', '', $host);
+    // Host-based environment prefixes, as used by Kinsta and others.
+    $host = preg_replace('/^(staging|stg|dev|test)-/', '', $host);
+
+    // The first label only - "lumntest.com" and "lumntest.kinsta.cloud"
+    // are the same site.
+    $name = explode('.', $host)[0];
+
+    $name = preg_replace('/[^A-Za-z0-9-]/', '-', $name);
+    $name = trim($name, '-');
+
+    return $name !== '' ? $name : 'lumn-site';
+}
+
+/**
+ * A suggested site id following the fleet convention,
+ * <site-name>-<environment>, and conforming to the pattern the receiver
+ * enforces: ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$
  *
  * Built to that pattern rather than hoping a hostname happens to match,
  * so a suggestion can never be rejected on arrival.
  */
 function lumn_ut_fleet_suggested_site_id() {
-    $host = wp_parse_url(home_url(), PHP_URL_HOST);
-    $host = is_string($host) ? $host : '';
+    $token = lumn_ut_fleet_environment_token();
+    if ($token === '') {
+        $token = LUMN_UT_FLEET_ENV_PLACEHOLDER;
+    }
 
-    $id = preg_replace('/[^A-Za-z0-9._-]/', '-', $host);
-    // The first character must be alphanumeric; everything else was
-    // already replaced above, so trimming these is enough.
-    $id = ltrim($id, '._-');
-    $id = substr($id, 0, 64);
+    $name = lumn_ut_fleet_site_name_from_host();
 
-    return $id !== '' ? $id : 'lumn-site';
+    // Trim the NAME, never the token: a truncated environment suffix
+    // would be a plausible-looking wrong answer, where a truncated name
+    // is merely an ugly right one.
+    $budget = 64 - strlen($token) - 1;
+    if (strlen($name) > $budget) {
+        $name = rtrim(substr($name, 0, $budget), '-');
+    }
+
+    return $name . '-' . $token;
+}
+
+/**
+ * Whether a site id ends in a recognised environment token.
+ *
+ * Used only to raise a note on the Developers page. Deliberately not part
+ * of the readiness gate: a naming opinion must not be able to take a site
+ * out of the fleet.
+ */
+function lumn_ut_fleet_site_id_conforms($site_id) {
+    $site_id = (string) $site_id;
+    foreach (lumn_ut_fleet_environment_tokens() as $token) {
+        $suffix = '-' . $token;
+        if (strlen($site_id) > strlen($suffix)
+            && substr($site_id, -strlen($suffix)) === $suffix) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -154,8 +267,8 @@ function lumn_ut_fleet_wp_config_snippet() {
     }
 
     if (!defined('LUMN_FLEET_REPORTER_URL')) {
-        $lines[] = "// The receiver's ROOT path - any path segment returns 405.";
-        $lines[] = "define( 'LUMN_FLEET_REPORTER_URL',     'https://REPLACE-WITH-YOUR-RECEIVER.workers.dev/' );";
+        $lines[] = "// The collector's ROOT path - any path segment returns 405.";
+        $lines[] = "define( 'LUMN_FLEET_REPORTER_URL',     '" . lumn_ut_fleet_default_collector_url() . "' );";
     }
 
     if (!defined('LUMN_FLEET_REPORTER_KEY')) {
@@ -198,6 +311,19 @@ function lumn_ut_fleet_wp_config_warnings() {
         if (is_string($path) && $path !== '' && $path !== '/') {
             $warnings[] = __('LUMN_FLEET_REPORTER_URL has a path. The receiver serves its root only, so this will come back 405 - drop everything after the host.', 'lumn-utilities');
         }
+    }
+
+    // A note, never a readiness failure. A site id that does not follow
+    // the convention still works perfectly well; what it risks is a
+    // collision with another environment of the same site, which is worth
+    // catching here rather than discovering as interleaved rows weeks
+    // later.
+    if (defined('LUMN_FLEET_SITE_ID') && !lumn_ut_fleet_site_id_conforms(LUMN_FLEET_SITE_ID)) {
+        $warnings[] = sprintf(
+            /* translators: %s: the list of recognised environment tokens, e.g. "prod, stg, dev, local". */
+            __('LUMN_FLEET_SITE_ID does not end in a recognised environment (%s). Site ids are <site-name>-<environment>, and each environment needs its own - two sites sharing an id would have their snapshots interleaved with no error anywhere.', 'lumn-utilities'),
+            implode(', ', lumn_ut_fleet_environment_tokens())
+        );
     }
 
     return $warnings;
