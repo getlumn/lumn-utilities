@@ -382,6 +382,51 @@ function lumn_ut_fleet_collect_themes() {
 }
 
 /**
+ * Kinsta's own identity for this install, read off the filesystem.
+ *
+ * Kinsta hosts every environment at /www/{site_name}_{environment_id}/public/.
+ * Verified on both a live site and a staging one:
+ *
+ *   /www/coulonwatts_417/public/   (live)
+ *   /www/lumntestq_144/public/     (staging)
+ *
+ * This matters because LUMN_FLEET_SITE_ID is typed by hand and drifts. On
+ * the very first site configured for the fleet the constant said
+ * "lumntest-stg" while Kinsta called the site "lumntestq" - so any rule
+ * that assumes the two follow a shared convention is already wrong. A
+ * value the site reads from its own path cannot drift.
+ *
+ * The site name joins to Kinsta's API `name`. The trailing number is a
+ * per-environment id, which is what separates a site's live install from
+ * its staging one; it is NOT the API's UUID and must not be passed off as
+ * one.
+ *
+ * This is a CONVENTION, not a documented interface. Kinsta could change
+ * it, and a non-Kinsta host never matched it in the first place. Both
+ * cases return empty strings, and the pipeline treats empty as "no
+ * answer" rather than guessing - the domain match stays the fallback.
+ */
+function lumn_ut_fleet_kinsta_identity() {
+    $empty = array('site_name' => '', 'environment_id' => '');
+
+    if (!defined('ABSPATH')) {
+        return $empty;
+    }
+
+    // [^/]+ is greedy inside the one path segment, so a site name that
+    // itself contains an underscore keeps it: my_practice_417 reads as
+    // ("my_practice", "417"), not ("my", "practice_417").
+    if (!preg_match('#/www/([^/]+)_(\d+)/#', ABSPATH, $matches)) {
+        return $empty;
+    }
+
+    return array(
+        'site_name' => $matches[1],
+        'environment_id' => $matches[2],
+    );
+}
+
+/**
  * Earliest media library upload, as the build-date fallback.
  *
  * Cached for a day. It is a sorted-index query rather than a scan, but it
@@ -434,6 +479,7 @@ function lumn_ut_fleet_build_payload() {
         'captured_at' => gmdate('c'),
         'include_in_fleet' => ($profile['include_in_fleet'] === '1'),
         'hubspot_record_id' => $profile['hubspot_record_id'],
+        'kinsta' => lumn_ut_fleet_kinsta_identity(),
         'reporter' => array(
             'plugin_version' => lumn_ut_fleet_plugin_version(),
             'signature_version' => LUMN_UT_FLEET_SIG_VERSION,

@@ -143,8 +143,23 @@ Site URL and id, WordPress and PHP versions, the active theme and its parent
 with versions, the **full** plugin inventory with versions and active state
 (inactive plugins included — an abandoned page builder sitting deactivated still
 says something about how the site was built), the earliest media library upload
-date as a build-date fallback, every Site Profile field, and the three tech
-input fields.
+date, Kinsta's own identity for the install, every Site Profile field, and the
+three tech input fields.
+
+**The earliest upload date is collected and deliberately not used.** It is the
+obvious-looking build-date fallback and it is a trap: LUMN builds routinely start
+from cloned environments, so the media library arrives carrying the *source*
+site's dates. That error is not occasional and not random — it always makes a
+site look older than it is, which manufactures Priority sites that are not
+priorities. `launch_date` from the Site Profile is the only build date, and a
+site with none simply does not fire `build_age`.
+
+**Kinsta identity** is `{site_name, environment_id}`, parsed from `ABSPATH`:
+Kinsta hosts every environment at `/www/{site_name}_{environment_id}/public/`.
+It is collected because `LUMN_FLEET_SITE_ID` is typed by hand and drifts — on the
+first site configured for the fleet the constant said `lumntest-stg` while Kinsta
+called the site `lumntestq`. Both values are empty on a non-Kinsta host, and
+empty means "no answer", never "not on Kinsta".
 
 It carries no computed tier, track, or trigger, and never will: those exist only
 in the Sheet.
