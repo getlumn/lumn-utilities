@@ -34,7 +34,9 @@ namespace Lumn\Utilities;
 const LUMN_UT_FLEET_CRON_HOOK = 'lumn_ut_fleet_report_cron';
 const LUMN_UT_FLEET_AS_GROUP = 'lumn-fleet';
 const LUMN_UT_FLEET_LOG_OPTION = 'lumn_ut_fleet_reporter_log';
-const LUMN_UT_FLEET_LOG_LIMIT = 10;
+// Five is what the card is for: has it sent, and did the last few work.
+// A longer tail is history nobody reads on a page nobody scrolls.
+const LUMN_UT_FLEET_LOG_LIMIT = 5;
 
 // Signature scheme version, sent as part of the signed material so the
 // receiver can change algorithms later without ambiguity.
@@ -706,7 +708,14 @@ function lumn_ut_fleet_record_result($trigger, $ok, $message) {
 
 function lumn_ut_fleet_get_log() {
     $log = get_option(LUMN_UT_FLEET_LOG_OPTION, array());
-    return is_array($log) ? $log : array();
+    if (!is_array($log)) {
+        return array();
+    }
+    // Trimmed on read as well as on write. The stored option can still
+    // hold ten from before the limit changed, and a site that is not
+    // sending would keep showing them until it did - which is exactly the
+    // site where a stale log is most misleading.
+    return array_slice($log, 0, LUMN_UT_FLEET_LOG_LIMIT);
 }
 
 // ---------------------------------------------------------------------

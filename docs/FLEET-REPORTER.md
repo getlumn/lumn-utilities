@@ -181,7 +181,7 @@ in the Sheet.
 
 ## Logging
 
-The last 10 send outcomes are kept in the `lumn_ut_fleet_reporter_log` option
+The last 5 send outcomes are kept in the `lumn_ut_fleet_reporter_log` option
 and shown on the Developers page.
 
 **PII is in scope.** The payload carries owner names, email addresses and

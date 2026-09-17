@@ -784,6 +784,14 @@ form.lumn-ut-dn-hidden-form.lumn-ut-dn-visible {
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
+	/* Bounded so a site with years of entries does not push the rest of
+	   the page out of reach. Padding on the right keeps the scrollbar off
+	   the entry borders; the bottom padding stops the last card sitting
+	   flush against the cut. */
+	max-height: 480px;
+	overflow-y: auto;
+	padding: 0 12px 4px 0;
+	overscroll-behavior: contain;
 }
 .lumn-ut-dn-log-list li {
 	padding: 12px 14px;
