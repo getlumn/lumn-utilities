@@ -59,11 +59,52 @@ function lumn_ut_fleet_signing_key() {
 // Falls back to the site's host so a missing constant still produces a
 // stable, recognisable id rather than an empty one.
 function lumn_ut_fleet_site_id() {
+    // Kinsta's own name for the environment, first and by preference.
+    //
+    // This used to be a hand-typed constant, and hand-typed identifiers
+    // drift: on the first site ever configured the constant read
+    // "lumntest-stg" while Kinsta called the site "lumntestq". The site id
+    // is the signing identity and the primary key of every snapshot, so a
+    // typo is not cosmetic - it is a site filed under a name nothing else
+    // uses.
+    //
+    // The derived form is unique per environment by construction, which
+    // also retires the guessing that lumn_ut_fleet_environment_token()
+    // exists to contain: no WP_ENVIRONMENT_TYPE, no inference from the
+    // host, no way for a staging site to end up sharing an id with its
+    // production counterpart.
+    $derived = lumn_ut_fleet_kinsta_site_id();
+    if ($derived !== '') {
+        return $derived;
+    }
+
+    // Non-Kinsta hosts, and deliberate exceptions.
     if (defined('LUMN_FLEET_SITE_ID') && LUMN_FLEET_SITE_ID !== '') {
         return (string) LUMN_FLEET_SITE_ID;
     }
-    $host = wp_parse_url(home_url(), PHP_URL_HOST);
-    return is_string($host) ? $host : '';
+
+    // Deliberately NOT the hostname. It was the old fallback and it is a
+    // bad identity: it changes when a domain changes, which silently
+    // re-files a site's whole history under a new name. Returning ''
+    // fails the readiness gate instead, which says so on the admin page.
+    return '';
+}
+
+/**
+ * The site id as Kinsta names this environment, or ''.
+ *
+ * <site-name>-<environment-id>, e.g. lumntestq-144. The number is what
+ * separates a site's live install from its staging one; without it the
+ * two environments of one site would collide, which is the single worst
+ * failure this system has - two sites interleaving rows under one id,
+ * with no error anywhere in the chain.
+ */
+function lumn_ut_fleet_kinsta_site_id() {
+    $kinsta = lumn_ut_fleet_kinsta_identity();
+    if ($kinsta['site_name'] === '' || $kinsta['environment_id'] === '') {
+        return '';
+    }
+    return $kinsta['site_name'] . '-' . $kinsta['environment_id'];
 }
 
 /**
@@ -203,6 +244,12 @@ function lumn_ut_fleet_site_name_from_host() {
  * so a suggestion can never be rejected on arrival.
  */
 function lumn_ut_fleet_suggested_site_id() {
+    // On Kinsta there is nothing to suggest - the site already knows.
+    $derived = lumn_ut_fleet_kinsta_site_id();
+    if ($derived !== '') {
+        return $derived;
+    }
+
     $token = lumn_ut_fleet_environment_token();
     if ($token === '') {
         $token = LUMN_UT_FLEET_ENV_PLACEHOLDER;
@@ -275,7 +322,10 @@ function lumn_ut_fleet_wp_config_snippet() {
         $lines[] = "define( 'LUMN_FLEET_REPORTER_KEY',     '" . wp_generate_password(64, false) . "' );";
     }
 
-    if (!defined('LUMN_FLEET_SITE_ID')) {
+    // Omitted entirely on Kinsta: the site derives its own id, and a
+    // constant pasted alongside it would be dead config that reads as
+    // authoritative. Three constants to get right is already two too many.
+    if (!defined('LUMN_FLEET_SITE_ID') && lumn_ut_fleet_kinsta_site_id() === '') {
         $lines[] = "define( 'LUMN_FLEET_SITE_ID',          '" . lumn_ut_fleet_suggested_site_id() . "' );";
     }
 
@@ -318,11 +368,31 @@ function lumn_ut_fleet_wp_config_warnings() {
     // collision with another environment of the same site, which is worth
     // catching here rather than discovering as interleaved rows weeks
     // later.
-    if (defined('LUMN_FLEET_SITE_ID') && !lumn_ut_fleet_site_id_conforms(LUMN_FLEET_SITE_ID)) {
+    if (lumn_ut_fleet_kinsta_site_id() === ''
+        && defined('LUMN_FLEET_SITE_ID')
+        && !lumn_ut_fleet_site_id_conforms(LUMN_FLEET_SITE_ID)) {
         $warnings[] = sprintf(
             /* translators: %s: the list of recognised environment tokens, e.g. "prod, stg, dev, local". */
             __('LUMN_FLEET_SITE_ID does not end in a recognised environment (%s). Site ids are <site-name>-<environment>, and each environment needs its own - two sites sharing an id would have their snapshots interleaved with no error anywhere.', 'lumn-utilities'),
             implode(', ', lumn_ut_fleet_environment_tokens())
+        );
+    }
+
+    // The constant is set, Kinsta derives something else, and the derived
+    // value wins. Worth shouting about, because the site id is the key the
+    // collector looks a signing key up by: the first send under the new id
+    // is a 401 unknown_site until somebody registers it. Better to read
+    // that here, before an update, than to find it in the send log after.
+    $derived = lumn_ut_fleet_kinsta_site_id();
+    if ($derived !== ''
+        && defined('LUMN_FLEET_SITE_ID')
+        && LUMN_FLEET_SITE_ID !== ''
+        && (string) LUMN_FLEET_SITE_ID !== $derived) {
+        $warnings[] = sprintf(
+            /* translators: 1: the ignored constant's value, 2: the derived site id. */
+            __('LUMN_FLEET_SITE_ID is set to "%1$s" but this site reports as "%2$s", taken from Kinsta. The derived name wins and the constant is ignored. Register "%2$s" with the collector before the next send, or it will be rejected as an unknown site. Then remove the constant.', 'lumn-utilities'),
+            (string) LUMN_FLEET_SITE_ID,
+            $derived
         );
     }
 

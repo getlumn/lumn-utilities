@@ -40,42 +40,57 @@ Add to `wp-config.php`, above the `/* That's all, stop editing! */` line:
 define( 'LUMN_FLEET_REPORTER_ENABLED', true );
 define( 'LUMN_FLEET_REPORTER_URL',     'https://lumn-fleet-receiver-test.example.workers.dev/' );
 define( 'LUMN_FLEET_REPORTER_KEY',     '...64 random characters, unique per site...' );
-define( 'LUMN_FLEET_SITE_ID',          'practice-name-01' );
 ```
+
+On Kinsta that is the whole block — the site works out its own id. `LUMN_FLEET_SITE_ID` is only
+needed somewhere else, and the Developers page leaves it out of the paste block when it is not.
 
 | Constant | Required | Notes |
 | :- | :- | :- |
 | `LUMN_FLEET_REPORTER_ENABLED` | yes | Must be boolean `true`. A quoted `'true'` or a `1` is **not** — the check is `=== true`, so anything else leaves the reporter silently off. |
 | `LUMN_FLEET_REPORTER_URL` | yes | **Must be `https`**, and must point at the receiver's **root path** — see below. A plaintext URL is refused, not warned about: the payload carries owner names, email addresses and the tech's own notes. |
 | `LUMN_FLEET_REPORTER_KEY` | yes | Unique per site, and must match the value stored for this site id in the receiver's `SITE_KEYS` namespace. Both sides or neither. |
-| `LUMN_FLEET_SITE_ID` | no, but set it | `<site-name>-<environment>` — see below. Falls back to the site's hostname, which then becomes the key the receiver looks the site up by, and which changes silently if the domain ever does. |
+| `LUMN_FLEET_SITE_ID` | **only off Kinsta** | Ignored on Kinsta, where the id is derived — see below. Elsewhere use `<site-name>-<environment>`. With neither a derivation nor this constant the reporter refuses to send rather than inventing an identity. |
 
 All of these are checked before a single byte leaves the site, and the Developers
 page shows which one is missing. It also renders a ready-to-paste block with a
 freshly generated key, which is easier than assembling this by hand.
 
-### Site ids: `<site-name>-<environment>`
+### Site ids are derived, not typed
 
-`getlumn-prod`, `lumntest-stg`. Recognised environments are `prod`, `stg`, `dev` and `local`.
+On Kinsta the site reads its own id off its filesystem path. Kinsta hosts every environment at
+`/www/{site-name}_{environment-id}/public/`, so the id is `{site-name}-{environment-id}` —
+`lumntestq-144`, `coulonwatts-417`. Nothing to configure and nothing to mistype.
+
+**This was a hand-typed constant and it drifted immediately.** On the first site ever configured
+for the fleet, `LUMN_FLEET_SITE_ID` read `lumntest-stg` while Kinsta called the site `lumntestq`.
+The site id is the signing identity and the primary key of every snapshot, so a typo is not
+cosmetic — it files a site under a name nothing else in the system uses.
 
 **Every environment needs its own id.** Two sites sharing one would have their snapshots
 interleaved in the collector — and nothing would report an error, because the receiver
-authenticates per site id and would happily accept both against whichever key is registered. The
-Sheet would then show a tier computed from a mixture of two sites. The Developers page raises a
-note if the configured id does not end in a recognised environment; it is only a note, and sending
-continues either way.
+authenticates per site id and would accept both against whichever key is registered. The Sheet
+would then show a tier computed from a mixture of two sites. The derived form cannot collide: the
+trailing number is per-environment, so a site's live and staging installs differ by construction.
 
-Setting `WP_ENVIRONMENT_TYPE` in `wp-config.php` lets the Developers page fill the environment in
-for you:
+That also retires the `WP_ENVIRONMENT_TYPE` guessing this section used to describe. It is still
+worth setting — WordPress and other plugins use it — but the reporter no longer needs it on
+Kinsta.
 
-```php
-define( 'WP_ENVIRONMENT_TYPE', 'staging' );   // or production, development, local
-```
+**If the constant is set and Kinsta derives something different, the derived name wins** and the
+Developers page says so. Register the derived id with the collector *before* the next send, or it
+comes back `401 unknown_site`; then delete the constant.
 
-Worth doing regardless — WordPress and other plugins use it too. Without it the page suggests
-`<site-name>-REPLACE-ME` rather than guessing. That is deliberate: `wp_get_environment_type()`
-reports `production` when nothing is set, so guessing would hand an unconfigured staging site the
-same id as its live counterpart, which is precisely the collision above.
+#### Off Kinsta
+
+Set `LUMN_FLEET_SITE_ID` by hand as `<site-name>-<environment>`, with the environment one of
+`prod`, `stg`, `dev`, `local`. The Developers page notes an id that does not end in one of those.
+It is only a note; sending continues either way.
+
+There is deliberately **no hostname fallback**. It used to be one, and it was a bad identity: it
+changes when a domain changes, silently re-filing a site's entire history under a new name. With
+nothing derivable and nothing configured the readiness gate fails and the page says which constant
+is missing.
 
 ### The URL must be the receiver's root
 
