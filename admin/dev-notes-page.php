@@ -216,14 +216,28 @@ function lumn_ut_fleet_render_card() {
             echo '<div class="notice notice-warning inline"><p>' . esc_html($warning) . '</p></div>';
         }
 
-        $snippet = lumn_ut_fleet_wp_config_snippet();
+        // ONE call: both blocks must carry the same key, and calling the
+        // generator twice would hand out two different ones.
+        $snippets = lumn_ut_fleet_onboarding_snippets();
+        $snippet = $snippets['wp_config'];
         if ($snippet !== '') {
             echo '<p class="lumn-ut-dn-field-row"><span class="lumn-ut-dn-field-label">' . esc_html__('Add to wp-config.php', 'lumn-utilities') . '</span></p>';
             echo '<pre class="lumn-ut-dn-fleet-snippet">' . esc_html($snippet) . '</pre>';
             echo '<p>' . lumn_ut_render_copy_button($snippet) . '</p>';
-            echo '<p class="description">' . esc_html__('Paste above the "That\'s all, stop editing!" line. The same key must also be registered against this site id in the collector - it is one half of a pair, and neither half works alone.', 'lumn-utilities') . '</p>';
+            echo '<p class="description">' . esc_html__('Paste above the "That\'s all, stop editing!" line. The same key must also be registered in the collector - it is one half of a pair, and neither half works alone. The block below is that other half.', 'lumn-utilities') . '</p>';
             echo '<p class="description">' . esc_html__('Nothing here is saved. The key is generated fresh each time this page loads, so copy the one you paste.', 'lumn-utilities') . '</p>';
             echo '<p class="description">' . esc_html__('Site ids are <site-name>-<environment>, e.g. getlumn-prod. Every environment needs its own: two sites sharing an id would have their snapshots interleaved with no error anywhere. Setting WP_ENVIRONMENT_TYPE in wp-config.php lets this block fill the environment in for you.', 'lumn-utilities') . '</p>';
+        }
+
+        // The other half of the pair. Rendered only when the block above
+        // contains a key - once LUMN_FLEET_REPORTER_KEY is defined the
+        // plugin cannot read it back, so there is nothing true to offer.
+        if ($snippets['registration'] !== '') {
+            echo '<p class="lumn-ut-dn-field-row"><span class="lumn-ut-dn-field-label">' . esc_html__('Then register it in the collector', 'lumn-utilities') . '</span></p>';
+            echo '<pre class="lumn-ut-dn-fleet-snippet">' . esc_html($snippets['registration']) . '</pre>';
+            echo '<p>' . lumn_ut_render_copy_button($snippets['registration']) . '</p>';
+            echo '<p class="description">' . esc_html__('Paste this whole line into the fleet dashboard. It carries the same key as the block above and the site id this site will actually send under, so neither has to be retyped - which is what stops the two halves drifting apart.', 'lumn-utilities') . '</p>';
+            echo '<p class="description">' . esc_html__('Copy both blocks before reloading this page. A reload generates a new key, and the halves would no longer match.', 'lumn-utilities') . '</p>';
         }
 
         echo '</div>';

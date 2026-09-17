@@ -53,8 +53,28 @@ needed somewhere else, and the Developers page leaves it out of the paste block 
 | `LUMN_FLEET_SITE_ID` | **only off Kinsta** | Ignored on Kinsta, where the id is derived — see below. Elsewhere use `<site-name>-<environment>`. With neither a derivation nor this constant the reporter refuses to send rather than inventing an identity. |
 
 All of these are checked before a single byte leaves the site, and the Developers
-page shows which one is missing. It also renders a ready-to-paste block with a
-freshly generated key, which is easier than assembling this by hand.
+page shows which one is missing.
+
+### Onboarding is two pastes
+
+The Developers page renders **two** blocks, built from one freshly generated key: the `wp-config.php`
+block above, and a single registration line for the fleet dashboard.
+
+```
+lumn-fleet v1 <site-id> <key> <home-host>
+```
+
+Paste the first into `wp-config.php` and the second into the dashboard. Neither half works alone, and
+they must carry the same key — which is why they are generated together rather than assembled by
+hand. The key is stored nowhere, so **copy both before reloading the page**: a reload produces a new
+key and the halves stop matching.
+
+The site id travels in the line rather than being typed at the dashboard, and that is the point. On
+Kinsta it is derived from the filesystem path and the site is the only thing that knows it; a typed
+id that differs from the derived one registers a key against an identity nothing is sending under,
+and every send then returns `401` with nothing to point at. Both blocks appear only while
+`LUMN_FLEET_REPORTER_KEY` is undefined — once it is set the plugin cannot read it back, so it has
+nothing true to offer.
 
 ### Site ids are derived, not typed
 

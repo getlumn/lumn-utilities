@@ -290,13 +290,19 @@ function lumn_ut_fleet_site_id_conforms($site_id) {
 }
 
 /**
- * The wp-config.php block for whatever is still missing on this site.
+ * The wp-config.php block, and the matching registration line.
  *
- * Only ever emits `define()` lines for constants that are NOT DEFINED AT
- * ALL, so the block is always safe to paste: redefining a constant would
- * raise a PHP warning on every request. A constant that is defined but
- * wrong is reported by lumn_ut_fleet_wp_config_warnings() instead, since
- * that needs an edit rather than an addition.
+ * Returned together, from ONE generated key, and that is the entire point
+ * of the pair. The key pasted into wp-config.php and the key registered
+ * against this site id in the collector must be the same 64 characters;
+ * generating it in two places is precisely how they come to differ, and a
+ * mismatch is invisible until every send returns 401.
+ *
+ * The wp-config block only ever emits `define()` lines for constants that
+ * are NOT DEFINED AT ALL, so it is always safe to paste: redefining a
+ * constant would raise a PHP warning on every request. A constant that is
+ * defined but wrong is reported by lumn_ut_fleet_wp_config_warnings()
+ * instead, since that needs an edit rather than an addition.
  *
  * The key is generated fresh on every call and STORED NOWHERE - not an
  * option, not a transient. It only becomes real once it is pasted into
@@ -304,12 +310,17 @@ function lumn_ut_fleet_site_id_conforms($site_id) {
  * an unused one is inert. Reloading the page simply produces another.
  *
  * wp_generate_password(..., false) is alphanumeric: a key containing a
- * quote would break the PHP string literal it gets pasted into.
+ * quote would break the PHP string literal it gets pasted into, and the
+ * registration line is whitespace-separated, so a key with a space in it
+ * could not be parsed back out.
  *
- * Returns '' when nothing is missing.
+ * Returns array('wp_config' => string, 'registration' => string). Either
+ * may be '' - 'wp_config' when nothing is missing, 'registration' when
+ * the key is already defined and so there is no key left to register.
  */
-function lumn_ut_fleet_wp_config_snippet() {
+function lumn_ut_fleet_onboarding_snippets() {
     $lines = array();
+    $key = '';
 
     if (!defined('LUMN_FLEET_REPORTER_ENABLED')) {
         $lines[] = "define( 'LUMN_FLEET_REPORTER_ENABLED', true );";
@@ -321,17 +332,66 @@ function lumn_ut_fleet_wp_config_snippet() {
     }
 
     if (!defined('LUMN_FLEET_REPORTER_KEY')) {
-        $lines[] = "define( 'LUMN_FLEET_REPORTER_KEY',     '" . wp_generate_password(64, false) . "' );";
+        $key = wp_generate_password(64, false);
+        $lines[] = "define( 'LUMN_FLEET_REPORTER_KEY',     '" . $key . "' );";
+    }
+
+    // The id this site will ACTUALLY send under, which is the one that has
+    // to be registered. On Kinsta that is derived and no constant is
+    // involved; elsewhere the block below defines it, so the suggestion is
+    // the future value and both must carry the same one. Computed once for
+    // exactly that reason.
+    $site_id = lumn_ut_fleet_site_id();
+    if ($site_id === '') {
+        $site_id = lumn_ut_fleet_suggested_site_id();
     }
 
     // Omitted entirely on Kinsta: the site derives its own id, and a
     // constant pasted alongside it would be dead config that reads as
     // authoritative. Three constants to get right is already two too many.
     if (!defined('LUMN_FLEET_SITE_ID') && lumn_ut_fleet_kinsta_site_id() === '') {
-        $lines[] = "define( 'LUMN_FLEET_SITE_ID',          '" . lumn_ut_fleet_suggested_site_id() . "' );";
+        $lines[] = "define( 'LUMN_FLEET_SITE_ID',          '" . $site_id . "' );";
     }
 
-    return implode("\n", $lines);
+    return array(
+        'wp_config'    => implode("\n", $lines),
+        'registration' => lumn_ut_fleet_registration_line($site_id, $key),
+    );
+}
+
+/**
+ * One line carrying everything the collector needs to register this site.
+ *
+ * Pasted into the fleet dashboard, which parses it. The prefix and version
+ * are there so a wrong paste is REJECTED rather than stored: without them
+ * any stray clipboard contents would be indistinguishable from a real
+ * registration, and the resulting bad row would surface later as a 401
+ * with nothing to point at.
+ *
+ * The site id travels in the line rather than being typed at the other end
+ * because the site is the only thing that knows it - on Kinsta it is
+ * derived from the filesystem path, and a hand-typed id that differs from
+ * the derived one is the exact failure this is meant to end.
+ *
+ * The host is last and optional; it only prefills a label. Returns '' when
+ * there is no key to register, which is whenever one is already defined.
+ */
+function lumn_ut_fleet_registration_line($site_id, $key) {
+    $site_id = (string) $site_id;
+    $key = (string) $key;
+
+    if ($site_id === '' || $key === '') {
+        return '';
+    }
+
+    $parts = array('lumn-fleet', 'v1', $site_id, $key);
+
+    $host = wp_parse_url(home_url('/'), PHP_URL_HOST);
+    if (is_string($host) && $host !== '') {
+        $parts[] = $host;
+    }
+
+    return implode(' ', $parts);
 }
 
 /**
