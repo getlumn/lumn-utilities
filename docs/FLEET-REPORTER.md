@@ -158,8 +158,8 @@ Site URL and id, WordPress and PHP versions, the active theme and its parent
 with versions, the **full** plugin inventory with versions and active state
 (inactive plugins included — an abandoned page builder sitting deactivated still
 says something about how the site was built), the earliest media library upload
-date, Kinsta's own identity for the install, every Site Profile field, and the
-three tech input fields.
+date, Kinsta's own identity for the install, marketing signals from the site's
+own homepage, every Site Profile field, and the three tech input fields.
 
 **The earliest upload date is collected and deliberately not used.** It is the
 obvious-looking build-date fallback and it is a trap: LUMN builds routinely start
@@ -168,6 +168,22 @@ site's dates. That error is not occasional and not random — it always makes a
 site look older than it is, which manufactures Priority sites that are not
 priorities. `launch_date` from the Site Profile is the only build date, and a
 site with none simply does not fire `build_age`.
+
+**Marketing signals** are `{last_content_publish, schema_types_present, ga4_present}`. The first is
+a database query. The other two need the *rendered* homepage, so the reporter makes **one loopback
+HTTP request to `home_url('/')` once a day** — the only outbound request this plugin makes to
+anything other than the collector. Short timeout, and only the two derived signals are cached, never
+the markup.
+
+All three are **tri-state, and the distinction is load-bearing**. `null` means nobody could measure
+— a blocked loopback, a timeout, an older reporter. An empty array or `false` means the page
+rendered and genuinely had nothing. The pipeline fires triggers on the second and skips on the
+first, so reporting a failed fetch as "no schema" would manufacture findings on healthy sites.
+
+`ga4_present` is three-valued for a related reason. A visible `G-XXXXXXX` id is proof; nothing at
+all is proof of absence; a Tag Manager container is neither, because GA4 is usually loaded from
+inside one and the container's contents are not in the markup. A container reports `null`, because
+`analytics_missing` treats `false` as **Priority** — the strongest verdict in Track B.
 
 **Kinsta identity** is `{site_name, environment_id}`, parsed from `ABSPATH`:
 Kinsta hosts every environment at `/www/{site_name}_{environment_id}/public/`.

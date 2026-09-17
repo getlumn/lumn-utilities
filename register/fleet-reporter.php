@@ -499,6 +499,166 @@ function lumn_ut_fleet_kinsta_identity() {
 }
 
 /**
+ * The most recent published post, for the stale-content trigger.
+ *
+ * Posts only, not pages. "Has this practice published anything lately" is
+ * a question about news and articles; pages are structure and get edited
+ * for reasons that say nothing about marketing activity. Filterable for
+ * sites that publish through a custom type.
+ */
+function lumn_ut_fleet_last_content_publish() {
+    $cached = get_transient('lumn_ut_fleet_last_publish');
+    if ($cached !== false) {
+        return $cached === 'none' ? '' : $cached;
+    }
+
+    $types = apply_filters('lumn_ut_fleet_content_post_types', array('post'));
+
+    $posts = get_posts(array(
+        'post_type' => $types,
+        'post_status' => 'publish',
+        'posts_per_page' => 1,
+        'orderby' => 'date',
+        'order' => 'DESC',
+        'fields' => 'ids',
+        'no_found_rows' => true,
+        'suppress_filters' => false,
+    ));
+
+    $date = '';
+    if (!empty($posts)) {
+        $post = get_post($posts[0]);
+        if ($post && !empty($post->post_date_gmt) && $post->post_date_gmt !== '0000-00-00 00:00:00') {
+            $date = gmdate('Y-m-d', strtotime($post->post_date_gmt));
+        }
+    }
+
+    set_transient('lumn_ut_fleet_last_publish', $date === '' ? 'none' : $date, DAY_IN_SECONDS);
+    return $date;
+}
+
+/**
+ * Marketing signals that need the RENDERED homepage.
+ *
+ * This is the only outbound request this plugin makes to anything but the
+ * collector, and it is a loopback: the site fetching itself. That is a
+ * real dependency, not a free read - a host can block loopback, a cache
+ * can serve a variant, it can simply be slow. So it happens once a day,
+ * with a short timeout, and both signals come out of the single fetch.
+ *
+ * NULL IS NOT FALSE HERE, and the distinction is the whole point. Absent
+ * means nobody could look; empty means we looked and found nothing. The
+ * pipeline fires triggers on the second and skips on the first, so a
+ * failed fetch reported as "no schema" would manufacture findings on
+ * sites that are perfectly fine. A failure returns nulls.
+ */
+function lumn_ut_fleet_marketing_signals() {
+    $unknown = array('schema_types_present' => null, 'ga4_present' => null);
+
+    $cached = get_transient('lumn_ut_fleet_marketing');
+    if (is_array($cached)) {
+        return $cached;
+    }
+
+    $response = wp_remote_get(home_url('/'), array(
+        'timeout' => 10,
+        'redirection' => 3,
+        'user-agent' => 'LUMN-Utilities-Fleet/' . LUMN_UT_FLEET_SIG_VERSION,
+    ));
+
+    $ok = !is_wp_error($response) && (int) wp_remote_retrieve_response_code($response) === 200;
+    $html = $ok ? wp_remote_retrieve_body($response) : '';
+
+    if (!is_string($html) || $html === '') {
+        // Retried sooner than a success would be. A blocked loopback is
+        // often transient, and a day of nulls is a day of "not measured".
+        set_transient('lumn_ut_fleet_marketing', $unknown, 6 * HOUR_IN_SECONDS);
+        return $unknown;
+    }
+
+    $signals = array(
+        'schema_types_present' => lumn_ut_fleet_schema_types($html),
+        'ga4_present' => lumn_ut_fleet_detect_ga4($html),
+    );
+
+    // Only the derived signals are cached, never the markup - a homepage
+    // is easily hundreds of kilobytes and has no business in an option.
+    set_transient('lumn_ut_fleet_marketing', $signals, DAY_IN_SECONDS);
+    return $signals;
+}
+
+/**
+ * Every @type in the page's JSON-LD, lower-cased and de-duplicated.
+ *
+ * An empty array is a real answer: the page rendered and carried no
+ * structured data. Only lumn_ut_fleet_marketing_signals() returns null,
+ * and only when the page could not be read at all.
+ */
+function lumn_ut_fleet_schema_types($html) {
+    $types = array();
+
+    $pattern = '#<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>#is';
+    if (!preg_match_all($pattern, $html, $matches)) {
+        return $types;
+    }
+
+    foreach ($matches[1] as $block) {
+        $data = json_decode(trim($block), true);
+        if (is_array($data)) {
+            lumn_ut_fleet_walk_schema($data, $types);
+        }
+    }
+
+    return array_values(array_unique($types));
+}
+
+/**
+ * Recursive because @graph exists: most SEO plugins emit one script whose
+ * types are nested several levels down, not a flat object per type.
+ */
+function lumn_ut_fleet_walk_schema($node, &$types) {
+    if (!is_array($node)) {
+        return;
+    }
+
+    if (isset($node['@type'])) {
+        foreach ((array) $node['@type'] as $type) {
+            if (is_string($type) && $type !== '') {
+                $types[] = strtolower($type);
+            }
+        }
+    }
+
+    foreach ($node as $value) {
+        if (is_array($value)) {
+            lumn_ut_fleet_walk_schema($value, $types);
+        }
+    }
+}
+
+/**
+ * Whether GA4 is on the page. TRUE, FALSE, or NULL - deliberately three.
+ *
+ * A visible G-XXXXXXX measurement id is proof. Nothing at all is proof of
+ * absence. But a Tag Manager container is neither: GA4 is very often
+ * loaded from inside one, and the container's contents are not in the
+ * markup. Reporting that site as "no GA4" would be a guess, and
+ * analytics_missing treats ga4_present === false as PRIORITY - the
+ * strongest verdict in Track B. A container returns null, so the trigger
+ * says "not measured" and nobody gets called about analytics they have.
+ */
+function lumn_ut_fleet_detect_ga4($html) {
+    if (preg_match('/\bG-[A-Z0-9]{6,}\b/', $html)) {
+        return true;
+    }
+    if (strpos($html, 'googletagmanager.com/gtm.js') !== false
+        || strpos($html, 'googletagmanager.com/ns.html') !== false) {
+        return null;
+    }
+    return false;
+}
+
+/**
  * Earliest media library upload, as the build-date fallback.
  *
  * Cached for a day. It is a sorted-index query rather than a scan, but it
@@ -562,6 +722,10 @@ function lumn_ut_fleet_build_payload() {
             'themes' => lumn_ut_fleet_collect_themes(),
             'plugins' => lumn_ut_fleet_collect_plugins(),
             'earliest_upload_date' => lumn_ut_fleet_earliest_upload_date(),
+        ),
+        'marketing' => array_merge(
+            array('last_content_publish' => lumn_ut_fleet_last_content_publish()),
+            lumn_ut_fleet_marketing_signals()
         ),
         'profile' => $profile,
         'tech' => $tech,
