@@ -179,7 +179,8 @@ with versions, the **full** plugin inventory with versions and active state
 (inactive plugins included — an abandoned page builder sitting deactivated still
 says something about how the site was built), the earliest media library upload
 date, Kinsta's own identity for the install, marketing signals from the site's
-own homepage, every Site Profile field, and the three tech input fields.
+own homepage, maintenance signals (updates applied and form entry counts), every Site Profile
+field, and the three tech input fields.
 
 **The earliest upload date is collected and deliberately not used.** It is the
 obvious-looking build-date fallback and it is a trap: LUMN builds routinely start
@@ -204,6 +205,42 @@ first, so reporting a failed fetch as "no schema" would manufacture findings on 
 all is proof of absence; a Tag Manager container is neither, because GA4 is usually loaded from
 inside one and the container's contents are not in the markup. A container reports `null`, because
 `analytics_missing` treats `false` as **Priority** — the strongest verdict in Track B.
+
+**Maintenance signals** are a `maintenance` block, added in 5.9.0 for the monthly client site
+report:
+
+```json
+"maintenance": {
+  "window_days": 30,
+  "updates_applied_30d": 14,
+  "updates_by_type_30d": { "core": 1, "plugin": 12, "theme": 1 },
+  "updates_log_since": "2026-11-04",
+  "form_entries_30d": 23,
+  "form_sources": ["formidable"]
+}
+```
+
+- **Updates applied** come from a local log the plugin keeps itself. WordPress keeps no update
+  history, so `register/maintenance-signals.php` records each core, plugin and theme update as it
+  completes (`upgrader_process_complete`, which fires for wp-admin, background auto-updates and
+  WP-CLI alike). Translation updates are not counted. The log records a timestamp, a type and a
+  slug - no user, no content - and keeps 90 days, capped at 500 entries.
+- **The count is `null` until the log is 30 days old.** `updates_log_since` is when recording
+  began; before it covers the whole window, a number would be "updates since we started looking",
+  which reads as a monthly figure and is not one. Recording starts whether or not the reporter is
+  switched on, so a site that is onboarded later already has history.
+- **Form entries are counted, never read.** Formidable (`frm_items`), Gravity Forms
+  (`gf_entry`) and Ninja Forms (`nf_sub` posts) are counted with `COUNT(*)`, excluding drafts,
+  spam and trash. No entry content, field value or metadata is queried, because practice forms can
+  carry patient health information that must not leave the site. `null` means no supported form
+  plugin is active, or a query failed - a site without a form plugin has not received "zero
+  entries".
+- **Contact Form 7 is tallied, because it stores nothing.** CF7 emails each submission and keeps
+  no record, so since 5.9.1 the plugin counts successful sends itself (`wpcf7_mail_sent`: spam,
+  validation failures and failed sends excluded) as one number per UTC day - no form, field or
+  sender is read or stored. Like the update log, the tally reports `null` until it covers the full
+  30 days, and while it does, the site's whole `form_entries_30d` is `null`: a partial month would
+  read as a whole one. `form_sources` still lists `contactform7` during that wait.
 
 **Kinsta identity** is `{site_name, environment_id}`, parsed from `ABSPATH`:
 Kinsta hosts every environment at `/www/{site_name}_{environment_id}/public/`.

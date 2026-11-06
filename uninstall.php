@@ -26,3 +26,11 @@ if ($role && $role->has_cap('lumn_manage_dev_notes')) {
 // idempotent grant in register/dev-notes.php from scratch, rather than
 // believing the capability is already up to date.
 delete_option('lumn_ut_caps_version');
+
+// The maintenance update log is LUMN's own bookkeeping, not client data,
+// so it goes with the plugin.
+delete_option('lumn_ut_maintenance_updates');
+delete_option('lumn_ut_maintenance_updates_since');
+delete_option('lumn_ut_maintenance_cf7_daily');
+delete_option('lumn_ut_maintenance_cf7_since');
+delete_transient('lumn_ut_maint_form_entries');

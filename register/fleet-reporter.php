@@ -787,6 +787,10 @@ function lumn_ut_fleet_build_payload() {
             array('last_content_publish' => lumn_ut_fleet_last_content_publish()),
             lumn_ut_fleet_marketing_signals()
         ),
+        // Updates applied and form entries received in the last 30 days.
+        // Tri-state like `marketing`: null means "cannot say", never zero.
+        // Form entries are counted, never read - see maintenance-signals.php.
+        'maintenance' => lumn_ut_maint_signals(),
         'profile' => $profile,
         'tech' => $tech,
     );

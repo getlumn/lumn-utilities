@@ -3,7 +3,7 @@
 Plugin Name: LUMN Utilities
 Plugin URI: https://getlumn.com
 Description: A set of custom shortcodes and tools for LUMN sites.
-Version: 5.8.1
+Version: 5.9.1
 Author: LUMN
 Author URI: https://getlumn.com
 License: GPL2
@@ -100,6 +100,12 @@ require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/dev-notes.php');
 // after register/dev-notes.php, whose capability/role constants and
 // redirect helper it reuses; see register/tech-input.php.
 require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/tech-input.php');
+
+// Maintenance signals - records core/plugin/theme updates as they happen and
+// counts recent form entries (COUNTS ONLY, never entry content), for the
+// fleet reporter's `maintenance` block. Sends nothing itself; see
+// register/maintenance-signals.php.
+require_once(LUMN_UTILITIES_PLUGIN_PATH. 'register/maintenance-signals.php');
 
 // Fleet reporter - builds a snapshot of this site and posts it, signed,
 // to a central collector. OUTBOUND ONLY: it adds no REST route and no
