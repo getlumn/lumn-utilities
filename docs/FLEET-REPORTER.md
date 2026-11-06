@@ -229,11 +229,18 @@ report:
   began; before it covers the whole window, a number would be "updates since we started looking",
   which reads as a monthly figure and is not one. Recording starts whether or not the reporter is
   switched on, so a site that is onboarded later already has history.
-- **Form entries are counted, never read.** Formidable (`frm_items`) and Gravity Forms
-  (`gf_entry`) are counted with `COUNT(*)`, excluding drafts, spam and trash. No entry content,
-  field value or metadata is queried, because practice forms can carry patient health information
-  that must not leave the site. `null` means no supported form plugin is active, or a query failed
-  - a site without a form plugin has not received "zero entries".
+- **Form entries are counted, never read.** Formidable (`frm_items`), Gravity Forms
+  (`gf_entry`) and Ninja Forms (`nf_sub` posts) are counted with `COUNT(*)`, excluding drafts,
+  spam and trash. No entry content, field value or metadata is queried, because practice forms can
+  carry patient health information that must not leave the site. `null` means no supported form
+  plugin is active, or a query failed - a site without a form plugin has not received "zero
+  entries".
+- **Contact Form 7 is tallied, because it stores nothing.** CF7 emails each submission and keeps
+  no record, so since 5.9.1 the plugin counts successful sends itself (`wpcf7_mail_sent`: spam,
+  validation failures and failed sends excluded) as one number per UTC day - no form, field or
+  sender is read or stored. Like the update log, the tally reports `null` until it covers the full
+  30 days, and while it does, the site's whole `form_entries_30d` is `null`: a partial month would
+  read as a whole one. `form_sources` still lists `contactform7` during that wait.
 
 **Kinsta identity** is `{site_name, environment_id}`, parsed from `ABSPATH`:
 Kinsta hosts every environment at `/www/{site_name}_{environment_id}/public/`.

@@ -41,6 +41,13 @@ const LUMN_UT_MAINT_SINCE_OPTION = 'lumn_ut_maintenance_updates_since';
 const LUMN_UT_MAINT_RETENTION_DAYS = 90;
 const LUMN_UT_MAINT_MAX_ENTRIES = 500;
 
+// Contact Form 7 keeps no submissions of its own - it emails them and
+// forgets - so this plugin keeps a tally instead: one number per UTC day,
+// nothing else. Same "since" rule as the update log: the 30-day count is
+// null until the tally has existed for the whole window.
+const LUMN_UT_MAINT_CF7_OPTION = 'lumn_ut_maintenance_cf7_daily';
+const LUMN_UT_MAINT_CF7_SINCE_OPTION = 'lumn_ut_maintenance_cf7_since';
+
 // ---------------------------------------------------------------------
 // Update log
 // ---------------------------------------------------------------------
@@ -181,15 +188,85 @@ function lumn_ut_maint_update_counts() {
 }
 
 // ---------------------------------------------------------------------
+// Contact Form 7 tally - a number per day, nothing else
+// ---------------------------------------------------------------------
+
+function lumn_ut_maint_cf7_active() {
+    return defined('WPCF7_VERSION') || class_exists('WPCF7');
+}
+
+/**
+ * Count one successful Contact Form 7 submission.
+ *
+ * wpcf7_mail_sent fires only after CF7 has sent the message: spam,
+ * validation failures and failed sends are not counted. The contact form
+ * and the posted data are never read - the argument is accepted only
+ * because the hook passes it. Patient data cannot leave through this.
+ *
+ * @param object $contact_form The WPCF7_ContactForm (unused, never read).
+ */
+function lumn_ut_maint_record_cf7_submission($contact_form = null) {
+    lumn_ut_maint_mark_cf7_since();
+    $counts = lumn_ut_maint_get_cf7_counts();
+    $day = gmdate('Y-m-d');
+    $counts[$day] = (int) ($counts[$day] ?? 0) + 1;
+
+    $cutoff = gmdate('Y-m-d', time() - LUMN_UT_MAINT_RETENTION_DAYS * DAY_IN_SECONDS);
+    foreach (array_keys($counts) as $key) {
+        if ($key < $cutoff) {
+            unset($counts[$key]);
+        }
+    }
+    update_option(LUMN_UT_MAINT_CF7_OPTION, $counts, false);
+}
+add_action('wpcf7_mail_sent', 'Lumn\Utilities\lumn_ut_maint_record_cf7_submission', 10, 1);
+
+function lumn_ut_maint_mark_cf7_since() {
+    if (!get_option(LUMN_UT_MAINT_CF7_SINCE_OPTION)) {
+        update_option(LUMN_UT_MAINT_CF7_SINCE_OPTION, time(), false);
+    }
+}
+
+function lumn_ut_maint_get_cf7_counts() {
+    $counts = get_option(LUMN_UT_MAINT_CF7_OPTION, array());
+    return is_array($counts) ? $counts : array();
+}
+
+/**
+ * CF7 submissions in the window, or null while the tally is younger than
+ * the window. The clock starts at the first submission or the first
+ * report, whichever comes first - never earlier than this code could
+ * have been counting.
+ */
+function lumn_ut_maint_cf7_count() {
+    lumn_ut_maint_mark_cf7_since();
+    $since = (int) get_option(LUMN_UT_MAINT_CF7_SINCE_OPTION);
+    $window_start = time() - LUMN_UT_MAINT_WINDOW_DAYS * DAY_IN_SECONDS;
+    if (!$since || $since > $window_start) {
+        return null;
+    }
+    $first_day = gmdate('Y-m-d', $window_start);
+    $total = 0;
+    foreach (lumn_ut_maint_get_cf7_counts() as $day => $count) {
+        if ($day >= $first_day) {
+            $total += (int) $count;
+        }
+    }
+    return $total;
+}
+
+// ---------------------------------------------------------------------
 // Form entry counts - COUNTS ONLY
 // ---------------------------------------------------------------------
 
 /**
  * Form entries received in the window, across the form plugins we use.
  *
- * Formidable Forms and Gravity Forms are counted straight from their own
- * tables with COUNT(*): no entry content is read, so no patient data can
- * leave the site through this. Spam, trash and drafts are excluded.
+ * Formidable Forms, Gravity Forms and Ninja Forms are counted straight from
+ * where they store entries, with COUNT(*); Contact Form 7, which stores
+ * nothing, from this plugin's own daily tally. No entry content is read,
+ * so no patient data can leave the site through this. Spam, trash and
+ * drafts are excluded.
  *
  * Null when neither plugin is active - a site with no form plugin has not
  * "received zero entries", it has nothing to count - and null if a query
@@ -246,9 +323,38 @@ function lumn_ut_maint_form_entry_counts() {
         }
     }
 
+    // Ninja Forms: each submission is an `nf_sub` post. Trashed ones leave
+    // the 'publish' status, so they drop out of the count.
+    if (class_exists('Ninja_Forms') || function_exists('Ninja_Forms')) {
+        $count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'nf_sub' AND post_status = 'publish' AND post_date_gmt >= %s",
+            $window_start
+        ));
+        if ($count === null) {
+            $failed = true;
+        } else {
+            $total += (int) $count;
+            $sources[] = 'ninjaforms';
+        }
+    }
+
+    // Contact Form 7: this plugin's own tally (CF7 stores nothing). While
+    // the tally is younger than the window the count is unknown, and the
+    // total with it - a partial month would read as a whole one.
+    if (lumn_ut_maint_cf7_active()) {
+        $count = lumn_ut_maint_cf7_count();
+        if ($count === null) {
+            $failed = true;
+        } else {
+            $total += $count;
+        }
+        $sources[] = 'contactform7';
+    }
+
     $result = array(
-        // A partial count across two plugins would under-report and look
-        // complete, so one failure nulls the total.
+        // A partial count across several plugins would under-report and
+        // look complete, so one failure (or one young CF7 tally) nulls the
+        // total.
         'form_entries_30d' => (!$failed && !empty($sources)) ? $total : null,
         'form_sources' => $sources,
     );
