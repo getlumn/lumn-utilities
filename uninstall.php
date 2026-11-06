@@ -31,4 +31,6 @@ delete_option('lumn_ut_caps_version');
 // so it goes with the plugin.
 delete_option('lumn_ut_maintenance_updates');
 delete_option('lumn_ut_maintenance_updates_since');
+delete_option('lumn_ut_maintenance_cf7_daily');
+delete_option('lumn_ut_maintenance_cf7_since');
 delete_transient('lumn_ut_maint_form_entries');
